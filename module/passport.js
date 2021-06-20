@@ -27,25 +27,23 @@ let start = () => {
                 }
                 return done(null, user);
             });
-        }
-        )
+        })
     );
     const jwtOptions = {};
     jwtOptions.jwtFromRequest= ExtractJwt.fromAuthHeaderAsBearerToken();
     jwtOptions.secretOrKey=jwtsecret;
     passport.use(new JwtStrategy(jwtOptions, function (payload, done) {
         UserAzyk.findOne({login:payload.login}, (err, user) => {
-                if (err) {
-                    return done(err)
-                }
-                if (user) {
-                    return done(null, user)
-                } else {
-                    return done(null, false)
-                }
-            })
-        })
-    );
+            if (err) {
+                return done(err)
+            }
+            if (user) {
+                return done(null, user)
+            } else {
+                return done(null, false)
+            }}
+        ).lean()
+    }));
 }
 
 const verifydrole = async (req, res, func) => {
@@ -119,7 +117,9 @@ const verifydeuserGQL = async (req, res) => {
                     resolve(user)
                 }
                 else {
-                    let employment = await EmploymentAzyk.findOne({user: user._id}).select('_id organization').populate({ path: 'organization', select: 'onlyIntegrate onlyDistrict _id status addedClient cities' }).lean()
+                    let employment = await EmploymentAzyk.findOne({user: user._id})
+                        .select('_id organization')
+                        .populate({ path: 'organization', select: 'onlyIntegrate onlyDistrict _id status addedClient cities' }).lean()
                     if(employment.organization.status==='active') {
                         user.organization = employment.organization._id
                         user.employment = employment._id
@@ -278,7 +278,7 @@ const signinuserGQL = (req, res) => {
                     await res.clearCookie('jwt');
                     await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000 });
                     if(!['admin', 'client'].includes(user.role)) {
-                        let employment = await EmploymentAzyk.findOne({user: user._id})
+                        let employment = await EmploymentAzyk.findOne({user: user._id}).select('organization').lean()
                         user.organization = employment.organization
                     }
                     resolve({

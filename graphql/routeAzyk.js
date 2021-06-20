@@ -150,7 +150,7 @@ const resolvers = {
                                         if(data[i].adss[i1].targetItems[i2].sum){
                                             index[i2] = 0
                                             for(let i3=0; i3<data[i].orders.length; i3++) {
-                                                if(data[i].adss[i1].targetItems[i2].xids.toString().includes(data[i].orders[i3].item._id.toString())) {
+                                                if(data[i].adss[i1].targetItems[i2].xids&&data[i].adss[i1].targetItems[i2].xids.toString().includes(data[i].orders[i3].item._id.toString())) {
                                                     index[i2] += data[i].adss[i1].targetItems[i2].type==='Количество'?
                                                         data[i].orders[i3].count-data[i].orders[i3].returned
                                                         :
@@ -164,7 +164,7 @@ const resolvers = {
                                             index[i2] = []
                                             for(let i3=0; i3<data[i].orders.length; i3++) {
                                                 if(
-                                                    data[i].adss[i1].targetItems[i2].xids.toString().includes(data[i].orders[i3].item._id.toString())
+                                                    data[i].adss[i1].targetItems[i2].xids&&data[i].adss[i1].targetItems[i2].xids.toString().includes(data[i].orders[i3].item._id.toString())
                                                     &&
                                                     (
                                                         (data[i].orders[i3].count-data[i].orders[i3].returned)>=data[i].adss[i1].targetItems[i2].count&&data[i].adss[i1].targetItems[i2].type==='Количество'
@@ -554,7 +554,7 @@ const resolvers = {
                                         if(orders[i].adss[i1].targetItems[i2].sum){
                                             index[i2] = 0
                                             for(let i3=0; i3<orders[i].orders.length; i3++) {
-                                                if(orders[i].adss[i1].targetItems[i2].xids.toString().includes(orders[i].orders[i3].item._id.toString())) {
+                                                if(orders[i].adss[i1].targetItems[i2].xids&&orders[i].adss[i1].targetItems[i2].xids.toString().includes(orders[i].orders[i3].item._id.toString())) {
                                                     index[i2] += orders[i].adss[i1].targetItems[i2].type==='Количество'?
                                                         orders[i].orders[i3].count-orders[i].orders[i3].returned
                                                         :
@@ -567,7 +567,7 @@ const resolvers = {
                                             index[i2] = []
                                             for(let i3=0; i3<orders[i].orders.length; i3++) {
                                                 if(
-                                                    orders[i].adss[i1].targetItems[i2].xids.toString().includes(orders[i].orders[i3].item._id.toString())
+                                                    orders[i].adss[i1].targetItems[i2].xids&&orders[i].adss[i1].targetItems[i2].xids.toString().includes(orders[i].orders[i3].item._id.toString())
                                                     &&
                                                     (
                                                         (orders[i].orders[i3].count-orders[i].orders[i3].returned)>=orders[i].adss[i1].targetItems[i2].count&&orders[i].adss[i1].targetItems[i2].type==='Количество'

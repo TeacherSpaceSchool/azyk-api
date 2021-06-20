@@ -1,7 +1,6 @@
 let express = require('express');
 let router = express.Router();
 const {getSingleOutXMLClientAzyk, checkSingleOutXMLClientAzyk, getSingleOutXMLAzyk, checkSingleOutXMLAzyk, getSingleOutXMLReturnedAzyk, checkSingleOutXMLReturnedAzyk} = require('../module/singleOutXMLAzyk');
-let logger = require('logger').createLogger('integrate1Cshoro.log');
 const ModelsErrorAzyk = require('../models/errorAzyk');
 const ReceivedDataAzyk = require('../models/receivedDataAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
@@ -44,7 +43,6 @@ router.post('/:pass/put/client', async (req, res, next) => {
         }
         await res.status(200);
         await res.end('success')
-        logger.info(`put client start: ${startDate}; time: ${(new Date() - startDate) / 1000}; url: ${req.route.path}`);
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,

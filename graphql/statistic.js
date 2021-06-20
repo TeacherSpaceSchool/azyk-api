@@ -1354,20 +1354,22 @@ const resolvers = {
             //console.time('get BD')
             company = user.organization?user.organization:company
             let dateEnd
-            if(dateStart){
-                dateStart= new Date(dateStart)
-                dateStart.setHours(3, 0, 0, 0)
-                dateEnd = new Date(dateStart)
-
-                if(dateType==='year')
-                    dateEnd.setFullYear(dateEnd.getFullYear() + 1)
-                else if(dateType==='day')
-                    dateEnd.setDate(dateEnd.getDate() + 1)
-                else if(dateType==='week')
-                    dateEnd.setDate(dateEnd.getDate() + 7)
-                else
-                    dateEnd.setMonth(dateEnd.getMonth() + 1)
+            if(!dateStart)
+                dateStart = new Date()
+            else {
+                dateStart = new Date(dateStart)
+                if(dateStart=='Invalid Date')
+                    dateStart = new Date()
             }
+            dateStart.setHours(3, 0, 0, 0)
+            dateEnd = new Date(dateStart)
+
+            if(dateType==='day')
+                dateEnd.setDate(dateEnd.getDate() + 1)
+            else if(dateType==='week')
+                dateEnd.setDate(dateEnd.getDate() + 7)
+            else
+                dateEnd.setMonth(dateEnd.getMonth() + 1)
 
             let statistic = {}
             let excludedAgents = []

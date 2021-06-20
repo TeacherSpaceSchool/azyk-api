@@ -132,7 +132,14 @@ const resolvers = {
             let users = await UserAzyk.find({
                 role: _id==='super'?'суперагент':'агент', status: 'active'
             }).distinct('_id').lean()
+            let agents
+            if (user.role==='менеджер') {
+                agents = await DistrictAzyk
+                    .find({manager: user.employment})
+                    .distinct('agent').lean()
+            }
             return await EmploymentAzyk.find({
+                ...user.role==='менеджер'?{_id: {$in: agents}}:{},
                 user: {$in: users},
                 organization: user.organization?user.organization:_id==='super'?null:_id,
                 del: {$ne: 'deleted'}

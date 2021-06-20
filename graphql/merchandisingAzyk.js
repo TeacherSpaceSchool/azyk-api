@@ -43,7 +43,7 @@ const type = `
 `;
 
 const query = `
-    merchandisings(organization: ID!, client: ID, date: String, search: String!, sort: String!, filter: String!, skip: Int): [Merchandising]
+    merchandisings(organization: ID!, agent: ID, client: ID, date: String, search: String!, sort: String!, filter: String!, skip: Int): [Merchandising]
     merchandising(_id: ID!): Merchandising
     sortMerchandising: [Sort]
     filterMerchandising: [Filter]
@@ -56,7 +56,7 @@ const mutation = `
 `;
 
 const resolvers = {
-    merchandisings: async(parent, {organization, search, date, client, sort, filter, skip}, {user}) => {
+    merchandisings: async(parent, {organization, agent, search, date, client, sort, filter, skip}, {user}) => {
         if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент'].includes(user.role)){
             let clients
             let dateStart;
@@ -80,9 +80,10 @@ const resolvers = {
                         {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
                     ]
                 }).distinct('_id').lean()
-                }
+            }
             return await MerchandisingAzyk.find({
                 ...client?{client: client}:{},
+                ...agent?{employment: agent}:{},
                 organization: user.organization?user.organization:organization==='super'?null:organization,
                 ...filter==='обработка'?{check: false}:{},
                 $and: [
