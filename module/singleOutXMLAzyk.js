@@ -488,7 +488,7 @@ module.exports.reductionOutAdsXMLAzyk = async(pass) => {
                                         itemsData[guidItems[orders[i1].adss[i2].item].guid] = {
                                             guid: guidItems[orders[i1].adss[i2].item].guid,
                                             qt: 0,
-                                            price: (guidItems[orders[i1].adss[i2].item].item.stock ? guidItems[orders[i1].adss[i2].item].item.stock : guidItems[orders[i1].adss[i2].item].item.price),
+                                            price: guidItems[orders[i1].adss[i2].item].item.price,
                                             amount: 0,
                                             package: (guidItems[orders[i1].adss[i2].item].item.packaging ? guidItems[orders[i1].adss[i2].item].item.packaging : 1),
                                             priotiry: guidItems[orders[i1].adss[i2].item].item.priotiry

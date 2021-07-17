@@ -5,7 +5,6 @@ const ItemAzykSchema = mongoose.Schema({
         type: String,
         default: ''
     },
-    stock: Number,
     name: String,
     image: String,
     price: Number,

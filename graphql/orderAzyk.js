@@ -1,4 +1,5 @@
 const OrderAzyk = require('../models/orderAzyk');
+const SubBrandAzyk = require('../models/subBrandAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const DistributerAzyk = require('../models/distributerAzyk');
@@ -1120,6 +1121,8 @@ const resolversMutation = {
         if(user.client)
             client = user.client
         client = await ClientAzyk.findOne({_id: client}).select('address id city').lean()
+        if(!(await OrganizationAzyk.findOne({_id: organization}).select('_id').lean()))
+            organization = (await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()).organization
         let baskets = await BasketAzyk.find(
             user.client?
                 {client: user.client}:
@@ -1128,7 +1131,7 @@ const resolversMutation = {
             .select('item count consignment _id')
             .populate({
                 path: 'item',
-                select: 'stock price _id weight size costPrice ',
+                select: 'price _id weight size costPrice ',
                 match: {organization: organization}
             })
             .lean();
@@ -1198,15 +1201,15 @@ const resolversMutation = {
                 let orders = [];
                 for(let ii=0; ii<baskets.length;ii++){
                     let price = !discount?
-                        baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price
+                        baskets[ii].item.price
                         :
-                        checkFloat((baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price)-(baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price)/100*discount)
+                        checkFloat(baskets[ii].item.price-baskets[ii].item.price/100*discount)
                     let objectOrder = new OrderAzyk({
                         item: baskets[ii].item._id,
                         client: client._id,
                         count: baskets[ii].count,
                         consignment: baskets[ii].consignment,
-                        consignmentPrice: checkFloat(baskets[ii].consignment*(baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price)),
+                        consignmentPrice: checkFloat(baskets[ii].consignment*price),
                         allTonnage: checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0)),
                         allSize: checkFloat(baskets[ii].count*(baskets[ii].item.size?baskets[ii].item.size:0)),
                         allPrice: checkFloat(price*baskets[ii].count),
@@ -1271,7 +1274,7 @@ const resolversMutation = {
                         price = checkFloat(objectOrder.allPrice/objectOrder.count)
                         objectOrder.count+=baskets[ii].count
                         objectOrder.consignment+=baskets[ii].consignment
-                        objectOrder.consignmentPrice+=checkFloat(baskets[ii].consignment*(baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price))
+                        objectOrder.consignmentPrice+=checkFloat(baskets[ii].consignment*price)
                         objectOrder.allTonnage+=checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0))
                         objectOrder.allSize+=checkFloat(baskets[ii].count*(baskets[ii].item.size?baskets[ii].item.size:0))
                         objectOrder.allPrice+=checkFloat(price*baskets[ii].count)
@@ -1279,15 +1282,15 @@ const resolversMutation = {
                     }
                     else {
                         price = !discount?
-                            baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price
+                            baskets[ii].item.price
                             :
-                            checkFloat((baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price)-(baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price)/100*discount)
+                            checkFloat(baskets[ii].item.price-baskets[ii].item.price/100*discount)
                         objectOrder = new OrderAzyk({
                             item: baskets[ii].item._id,
                             client: client._id,
                             count: baskets[ii].count,
                             consignment: baskets[ii].consignment,
-                            consignmentPrice: checkFloat(baskets[ii].consignment*(baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price)),
+                            consignmentPrice: checkFloat(baskets[ii].consignment*price),
                             allTonnage: checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0)),
                             allSize: checkFloat(baskets[ii].count*(baskets[ii].item.size?baskets[ii].item.size:0)),
                             allPrice: checkFloat(price*baskets[ii].count),
@@ -1301,7 +1304,7 @@ const resolversMutation = {
                     objectInvoice.allPrice+=price*baskets[ii].count
                     objectInvoice.allTonnage+=checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0))
                     objectInvoice.allSize+=checkFloat(baskets[ii].count*(baskets[ii].item.size?baskets[ii].item.size:0))
-                    objectInvoice.consignmentPrice+=checkFloat(baskets[ii].consignment*(baskets[ii].item.stock?baskets[ii].item.stock:baskets[ii].item.price))
+                    objectInvoice.consignmentPrice+=checkFloat(baskets[ii].consignment*price)
                 }
                 await OrderAzyk.updateMany({_id: {$in: objectInvoice.orders}}, {status: 'обработка', returned: 0})
                 objectInvoice.returnedPrice = 0

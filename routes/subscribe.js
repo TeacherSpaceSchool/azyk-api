@@ -47,7 +47,7 @@ router.post('/register', async (req, res) => {
         } catch (err) {
             let _object = new ModelsErrorAzyk({
                 err: err.message,
-                path: err.path
+                path: 'register subscribe'
             });
             ModelsErrorAzyk.create(_object)
             console.error(err)
@@ -72,7 +72,7 @@ router.post('/unregister', async (req, res) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'unregister subscribe'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -93,7 +93,7 @@ router.post('/delete', async (req, res) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'delete subscribe'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)

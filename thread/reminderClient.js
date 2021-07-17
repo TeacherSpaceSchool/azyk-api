@@ -11,7 +11,7 @@ if(!isMainThread) {
         } catch (err) {
             let _object = new ModelsErrorAzyk({
                 err: err.message,
-                path: err.path
+                path: 'reminderClient thread'
             });
             ModelsErrorAzyk.create(_object)
             console.error(err)

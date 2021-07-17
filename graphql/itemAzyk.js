@@ -13,7 +13,6 @@ const type = `
     _id: ID
     unit: String
     createdAt: Date
-    stock: Float
     name: String
     categorys: [String]
     info: String
@@ -51,8 +50,8 @@ const query = `
 `;
 
 const mutation = `
-    addItem( subBrand: ID, categorys: [String]!, city: String!, costPrice: Float, unit: String, priotiry: Int, apiece: Boolean, packaging: Int!, stock: Float!, weight: Float!, size: Float!, name: String!, info: String!, image: Upload, price: Float!, subCategory: ID!, organization: ID!, hit: Boolean!, latest: Boolean!): Data
-    setItem(_id: ID!, subBrand: ID, unit: String, city: String, costPrice: Float, categorys: [String], priotiry: Int, apiece: Boolean, packaging: Int, stock: Float, weight: Float, size: Float, name: String, info: String, image: Upload, price: Float, subCategory: ID, organization: ID, hit: Boolean, latest: Boolean): Data
+    addItem( subBrand: ID, categorys: [String]!, city: String!, costPrice: Float, unit: String, priotiry: Int, apiece: Boolean, packaging: Int!, weight: Float!, size: Float!, name: String!, info: String!, image: Upload, price: Float!, subCategory: ID!, organization: ID!, hit: Boolean!, latest: Boolean!): Data
+    setItem(_id: ID!, subBrand: ID, unit: String, city: String, costPrice: Float, categorys: [String], priotiry: Int, apiece: Boolean, packaging: Int, weight: Float, size: Float, name: String, info: String, image: Upload, price: Float, subCategory: ID, organization: ID, hit: Boolean, latest: Boolean): Data
     setItemsCostPrice(itemsCostPrice: [InputItemCostPrice]!): Data
     deleteItem(_id: [ID]!): Data
     restoreItem(_id: [ID]!): Data
@@ -97,7 +96,7 @@ const resolvers = {
                 ...user.city ? {city: user.city} : {},
                 ...user.role==='client'?{status: 'active', categorys: user.category}:{}
             })
-                .set('hit latest apiece image info name stock price status del _id organization')
+                .set('hit latest apiece image info name price status del _id organization')
                 .populate({
                     path: 'organization',
                     select: '_id'
@@ -230,12 +229,11 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addItem: async(parent, {subBrand, categorys, city, unit, apiece, costPrice, priotiry, stock, name, image, info, price, subCategory, organization, hit, latest, packaging, weight, size}, {user}) => {
+    addItem: async(parent, {subBrand, categorys, city, unit, apiece, costPrice, priotiry, name, image, info, price, subCategory, organization, hit, latest, packaging, weight, size}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
             let { stream, filename } = await image;
             filename = await saveImage(stream, filename)
             let _object = new ItemAzyk({
-                stock: stock,
                 name: name,
                 image: urlMain+filename,
                 info: info,
@@ -261,7 +259,7 @@ const resolversMutation = {
         }
         return {data: 'OK'};
     },
-    setItem: async(parent, {subBrand, city, unit, categorys, apiece, costPrice, _id, priotiry, weight, size, stock, name, image, info, price, subCategory, organization, packaging, hit, latest}, {user}) => {
+    setItem: async(parent, {subBrand, city, unit, categorys, apiece, costPrice, _id, priotiry, weight, size, name, image, info, price, subCategory, organization, packaging, hit, latest}, {user}) => {
          if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
             let object = await ItemAzyk.findOne({
                 _id: _id,
@@ -279,7 +277,6 @@ const resolversMutation = {
             if(size!=undefined)object.size = size
              object.subBrand = subBrand
             if(info)object.info = info
-            if(stock!=undefined)object.stock = stock
             if(costPrice!=undefined)object.costPrice = costPrice
             if(price)object.price = price
             if(hit!=undefined)object.hit = hit

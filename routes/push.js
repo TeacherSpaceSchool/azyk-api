@@ -18,7 +18,7 @@ router.get('/admin', async (req, res) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'push admin'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -34,7 +34,7 @@ router.get('/all', (req, res) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'push all'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -55,7 +55,7 @@ router.post('/clicknotification', async (req, res) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'clicknotification'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)

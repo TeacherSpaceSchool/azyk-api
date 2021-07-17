@@ -46,7 +46,7 @@ router.post('/:pass/put/client', async (req, res, next) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'integrate put client'
         });
         await ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -110,7 +110,7 @@ router.post('/:pass/put/employment', async (req, res, next) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'integrate put employment'
         });
         await ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -127,7 +127,7 @@ router.get('/:pass/out/client', async (req, res, next) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'integrate out client'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -144,7 +144,7 @@ router.get('/:pass/out/returned', async (req, res, next) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'integrate out returned'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -161,7 +161,7 @@ router.get('/:pass/out/sales', async (req, res, next) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'integrate out sales'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -181,7 +181,7 @@ router.post('/:pass/put/returned/confirm', async (req, res, next) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'integrate returned confirm'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -201,7 +201,7 @@ router.post('/:pass/put/sales/confirm', async (req, res, next) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'integrate sales confirm'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)
@@ -221,7 +221,7 @@ router.post('/:pass/put/client/confirm', async (req, res, next) => {
     } catch (err) {
         let _object = new ModelsErrorAzyk({
             err: err.message,
-            path: err.path
+            path: 'integrate client confirm'
         });
         ModelsErrorAzyk.create(_object)
         console.error(err)

@@ -29,6 +29,7 @@ const type = `
     catalog: String
     reiting: Int
     status: String
+    type: String
     image: String
     warehouse: String
     minimumOrder: Int
@@ -108,6 +109,9 @@ const resolvers = {
                     })
                     .sort('-priotiry')
                     .lean()
+                for(let i = 0; i<subBrands.length;i++){
+                    subBrands[i].type = 'subBrand'
+                }
                 organizationsRes = [...subBrands, ...organizations]
                 organizationsRes = organizationsRes.sort(function (a, b) {
                     return b.priotiry - a.priotiry

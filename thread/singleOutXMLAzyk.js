@@ -98,7 +98,7 @@ if(!isMainThread) {
         } catch (err) {
             let _object = new ModelsErrorAzyk({
                 err: err.message,
-                path: err.path
+                path: 'singleOutXMLAzyk thread'
             });
             ModelsErrorAzyk.create(_object)
             console.error(err)

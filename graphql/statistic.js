@@ -3355,6 +3355,9 @@ const resolvers = {
             let now = new Date()
             now.setDate(now.getDate() + 1)
             now.setHours(3, 0, 0, 0)
+            let dateStart = new Date()
+            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setMonth(dateStart.getMonth() - 6)
             let differenceDates;
             for(let x=0; x<clients.length;x++) {
                 if(clients[x].address[0][1]&&clients[x].address[0][1].length>0&&!(clients[x].name.toLowerCase()).includes('агент')&&!(clients[x].name.toLowerCase()).includes('agent')) {
@@ -3379,6 +3382,7 @@ const resolvers = {
                     [
                         {
                             $match:{
+                                createdAt: {$gte: dateStart},
                                 client: {$in: goodClients.map(client=>client._id)},
                                 status: {$ne: 'отмена'},
                                 item: item
@@ -3400,6 +3404,7 @@ const resolvers = {
                     [
                         {
                             $match:{
+                                createdAt: {$gte: dateStart},
                                 ...organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
                                 client: {$in: goodClients.map(client=>client._id)},
                                 del: {$ne: 'deleted'},
@@ -3893,7 +3898,7 @@ const resolvers = {
                     worksheet.getCell(`A${row}`).alignment = { wrapText: true };
                     worksheet.getCell(`A${row}`).value = data[i].orders[i1].item.name;
                     worksheet.getCell(`B${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                    worksheet.getCell(`B${row}`).value = `${data[i].orders[i1].item.stock?data[i].orders[i1].item.stock:data[i].orders[i1].item.price} сом`;
+                    worksheet.getCell(`B${row}`).value = `${data[i].orders[i1].item.price} сом`;
                     worksheet.getCell(`C${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
                     worksheet.getCell(`C${row}`).value = `${data[i].orders[i1].count} шт`;
                     worksheet.getCell(`D${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
@@ -4396,7 +4401,6 @@ const resolversMutation = {
                 })
                 if(!integrate1CAzyk) {
                     item = new ItemAzyk({
-                        stock: 0,
                         name: rows[i][1],
                         image: process.env.URL.trim()+'/static/add.png',
                         info: '',
