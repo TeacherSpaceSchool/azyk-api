@@ -74,6 +74,7 @@ const query = `
     statisticSubBrand(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticHours(organization: ID!, dateStart: Date, dateType: String, city: String, type: String!): Statistic
     statisticAzykStoreOrder(company: ID, filter: String, dateStart: Date, dateType: String, city: String): Statistic
+    statisticUnsyncOrder(company: ID, dateStart: Date, dateType: String, city: String): Statistic
     statisticAzykStoreAgents(company: ID, dateStart: Date, dateType: String, filter: String, city: String): Statistic
     statisticAzykStoreAgent(agent: ID!, dateStart: Date, dateType: String): Statistic
     statisticClient(client: ID!, dateStart: Date, dateType: String, online: Boolean): Statistic
@@ -2364,6 +2365,56 @@ const resolvers = {
             return {
                 columns: ['район', 'выручка(сом)', 'выполнен(шт)', 'отказы(сом)', 'конс(сом)', 'прибыль(сом)', 'средний чек(сом)', 'клиенты', 'процент'],
                 row: data
+            };
+        }
+    },
+    statisticUnsyncOrder: async(parent, { company, dateStart, dateType, city }, {user}) => {
+        if(['admin'].includes(user.role)){
+            let dateEnd
+            let res = [], data = []
+            if(dateStart){
+                dateStart= new Date(dateStart)
+                dateStart.setHours(3, 0, 0, 0)
+                dateEnd = new Date(dateStart)
+                if(dateType==='year')
+                    dateEnd.setFullYear(dateEnd.getFullYear() + 1)
+                else if(dateType==='day')
+                    dateEnd.setDate(dateEnd.getDate() + 1)
+                else if(dateType==='week')
+                    dateEnd.setDate(dateEnd.getDate() + 7)
+                else
+                    dateEnd.setMonth(dateEnd.getMonth() + 1)
+            }
+            data = await InvoiceAzyk.find(
+                {
+                    $and: [
+                        dateStart ? {createdAt: {$gte: dateStart}} : {},
+                        dateEnd ? {createdAt: {$lt: dateEnd}} : {}
+                    ],
+                    sync: {$nin: [1, 2]},
+                    cancelClient: null,
+                    cancelForwarder: null,
+                    del: {$ne: 'deleted'},
+                    taken: true,
+                    ...company?{organization: company}:{},
+                    ...city?{city: city}:{},
+                }
+            )
+                .select('_id number createdAt editor')
+                .lean()
+            for(let i=0; i<data.length; i++){
+                res.push({
+                    _id: data[i]['_id'],
+                    data: [
+                        data[i]['number'],
+                        pdDDMMYYHHMM(data[i]['createdAt']),
+                        data[i]['editor'],
+                    ]
+                })
+            }
+            return {
+                columns: ['номер', 'создан', 'изменен'],
+                row: res
             };
         }
     },

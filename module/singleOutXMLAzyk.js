@@ -169,7 +169,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
                         }
                         else {
                             let _object = new ModelsErrorAzyk({
-                                err: 'Отсутствует guidItem',
+                                err: `${invoice.number} Отсутствует guidItem`,
                                 path: 'setSingleOutXMLAzyk'
                             });
                             await ModelsErrorAzyk.create(_object)
@@ -181,7 +181,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
                 }
                 else {
                     let _object = new ModelsErrorAzyk({
-                        err: `Отсутствует guidAgent-${!guidAgent} guidEcspeditor-${!guidEcspeditor}`,
+                        err: `${invoice.number} Отсутствует guidAgent-${!guidAgent} guidEcspeditor-${!guidEcspeditor}`,
                         path: 'setSingleOutXMLAzyk'
                     });
                     await ModelsErrorAzyk.create(_object)
@@ -189,7 +189,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
             }
             else {
                 let _object = new ModelsErrorAzyk({
-                    err: 'Отсутствует district',
+                    err: `${invoice.number} Отсутствует district`,
                     path: 'setSingleOutXMLAzyk'
                 });
                 await ModelsErrorAzyk.create(_object)
@@ -197,7 +197,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
         }
         else {
             let _object = new ModelsErrorAzyk({
-                err: 'Отсутствует guidClient',
+                err: `${invoice.number} Отсутствует guidClient`,
                 path: 'setSingleOutXMLAzyk'
             });
             await ModelsErrorAzyk.create(_object)

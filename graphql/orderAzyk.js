@@ -1084,7 +1084,7 @@ const setOrder = async ({orders, invoice, user}) => {
         }
         else {
             let _object = new ModelsErrorAzyk({
-                err: 'Отсутствует organization.pass',
+                err: `${resInvoice.number} Отсутствует organization.pass`,
                 path: 'setOrder'
             });
             await ModelsErrorAzyk.create(_object)
@@ -1283,7 +1283,7 @@ const resolversMutation = {
                 }
                 else {
                     let _object = new ModelsErrorAzyk({
-                        err: 'Отсутствует organization.pass',
+                        err: `${invoices[i].number} Отсутствует organization.pass`,
                         path: 'acceptOrders'
                     });
                     await ModelsErrorAzyk.create(_object)
