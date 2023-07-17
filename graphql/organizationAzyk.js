@@ -193,12 +193,16 @@ const resolvers = {
     },
     organization: async(parent, {_id}) => {
         if(mongoose.Types.ObjectId.isValid(_id)) {
-            let subBrand = await SubBrandAzyk.findOne({_id: _id}).select('organization name').lean()
+            let subBrand = await SubBrandAzyk.findOne({_id: _id}).select('organization name minimumOrder').lean()
             let organization = await OrganizationAzyk.findOne({
                 _id: subBrand?subBrand.organization:_id
             })
                 .lean()
-            if(subBrand) organization.name = `${subBrand.name} (${organization.name})`
+            if(subBrand) {
+                organization.name = `${subBrand.name} (${organization.name})`
+                if(subBrand.minimumOrder)
+                    organization.minimumOrder = subBrand.minimumOrder
+            }
             return organization
         }
     },

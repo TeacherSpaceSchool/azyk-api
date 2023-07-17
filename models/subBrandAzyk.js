@@ -4,6 +4,7 @@ const SubBrandAzykSchema = mongoose.Schema({
     miniInfo: String,
     status: String,
     name: String,
+    minimumOrder: Number,
     priotiry: {
         type: Number,
         default: 0

@@ -11,6 +11,7 @@ const type = `
      name: String
      cities: [String]
      priotiry: Int
+     minimumOrder: Int
      organization: Organization
      status: String
  }
@@ -21,8 +22,8 @@ const query = `
 `;
 
 const mutation = `
-    addSubBrand(image: Upload!, miniInfo: String!, priotiry: Int, organization: ID!, cities: [String]!, name: String!): SubBrand
-    setSubBrand(_id: ID!, image: Upload, miniInfo: String, priotiry: Int, cities: [String], name: String): Data
+    addSubBrand(image: Upload!, minimumOrder: Int, miniInfo: String!, priotiry: Int, organization: ID!, cities: [String]!, name: String!): SubBrand
+    setSubBrand(_id: ID!, minimumOrder: Int, image: Upload, miniInfo: String, priotiry: Int, cities: [String], name: String): Data
     onoffSubBrand(_id: [ID]!): Data
     deleteSubBrand(_id: [ID]!): Data
 `;
@@ -48,13 +49,14 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addSubBrand: async(parent, {image, miniInfo, priotiry, organization, cities, name}, {user}) => {
+    addSubBrand: async(parent, {minimumOrder, image, miniInfo, priotiry, organization, cities, name}, {user}) => {
         if('admin'===user.role){
             let { stream, filename } = await image;
             filename = await saveImage(stream, filename)
             let _object = new SubBrandAzyk({
                 image: urlMain+filename,
                 priotiry: priotiry,
+                minimumOrder,
                 miniInfo,
                 organization,
                 cities,
@@ -66,7 +68,7 @@ const resolversMutation = {
         }
         return {data: 'OK'};
     },
-    setSubBrand: async(parent, {_id, image, miniInfo, priotiry, cities, name}, {user}) => {
+    setSubBrand: async(parent, {_id, image, minimumOrder, miniInfo, priotiry, cities, name}, {user}) => {
         if('admin'===user.role){
             let object = await SubBrandAzyk.findOne({
                 _id: _id
@@ -77,6 +79,7 @@ const resolversMutation = {
                 filename = await saveImage(stream, filename)
                 object.image = urlMain + filename
             }
+            if(minimumOrder!=undefined)object.minimumOrder = minimumOrder
             if(miniInfo)object.miniInfo = miniInfo
             if(name)object.name = name
             object.cities = cities

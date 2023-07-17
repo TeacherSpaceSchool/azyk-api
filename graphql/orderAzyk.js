@@ -22,6 +22,7 @@ const maxDates = 90
 const { checkAdss } = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
 const uuidv1 = require('uuid/v1.js');
+const ModelsErrorAzyk = require('../models/errorAzyk');
 
 const type = `
   type Order {
@@ -1071,14 +1072,22 @@ const setOrder = async ({orders, invoice, user}) => {
 
     let date = new Date()
     date.setDate(date.getDate() - 7)
-    if((resInvoice.guid||resInvoice.dateDelivery>date)&&resInvoice.organization.pass&&resInvoice.organization.pass.length){
-        if(resInvoice.orders[0].status==='принят') {
-            const { setSingleOutXMLAzyk } = require('../module/singleOutXMLAzyk');
-            resInvoice.sync = await setSingleOutXMLAzyk(resInvoice)
+    if((resInvoice.guid||resInvoice.dateDelivery>date)) {
+        if(resInvoice.organization.pass&&resInvoice.organization.pass.length) {
+            if (resInvoice.orders[0].status === 'принят') {
+                const {setSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
+                resInvoice.sync = await setSingleOutXMLAzyk(resInvoice)
+            } else if (resInvoice.orders[0].status === 'отмена') {
+                const {cancelSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
+                resInvoice.sync = await cancelSingleOutXMLAzyk(resInvoice)
+            }
         }
-        else if(resInvoice.orders[0].status==='отмена') {
-            const { cancelSingleOutXMLAzyk } = require('../module/singleOutXMLAzyk');
-            resInvoice.sync = await cancelSingleOutXMLAzyk(resInvoice)
+        else {
+            let _object = new ModelsErrorAzyk({
+                err: 'Отсутствует organization.pass',
+                path: 'setOrder'
+            });
+            await ModelsErrorAzyk.create(_object)
         }
     }
 
@@ -1236,7 +1245,7 @@ const resolversMutation = {
             let date = new Date()
             date.setMinutes(date.getMinutes()-10)
             let organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id').lean()
-            let orders = await InvoiceAzyk.find({
+            let invoices = await InvoiceAzyk.find({
                 del: {$ne: 'deleted'},
                 taken: {$ne: true},
                 cancelClient: null,
@@ -1265,17 +1274,24 @@ const resolversMutation = {
                 .populate({path: 'provider'})
                 .populate({path: 'sale'})
                 .populate({path: 'forwarder'})
-            for(let i = 0; i<orders.length;i++) {
-                orders[i].taken = true
-                await OrderAzyk.updateMany({_id: {$in: orders[i].orders.map(element=>element._id)}}, {status: 'принят'})
-                orders[i].adss = await checkAdss(orders[i]._id)
-                if(orders[i].organization.pass&&orders[i].organization.pass.length){
-                    orders[i].sync = await setSingleOutXMLAzyk(orders[i])
+            for(let i = 0; i<invoices.length;i++) {
+                invoices[i].taken = true
+                await OrderAzyk.updateMany({_id: {$in: invoices[i].orders.map(element=>element._id)}}, {status: 'принят'})
+                invoices[i].adss = await checkAdss(invoices[i]._id)
+                if(invoices[i].organization.pass&&invoices[i].organization.pass.length){
+                    invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
                 }
-                orders[i].editor = 'админ'
+                else {
+                    let _object = new ModelsErrorAzyk({
+                        err: 'Отсутствует organization.pass',
+                        path: 'acceptOrders'
+                    });
+                    await ModelsErrorAzyk.create(_object)
+                }
+                invoices[i].editor = 'админ'
                 let objectHistoryOrder = new HistoryOrderAzyk({
-                    invoice: orders[i]._id,
-                    orders: orders[i].orders.map(order=>{
+                    invoice: invoices[i]._id,
+                    orders: invoices[i].orders.map(order=>{
                         return {
                             item: order.name,
                             count: order.count,
@@ -1286,16 +1302,16 @@ const resolversMutation = {
                     editor: 'админ',
                 });
                 await HistoryOrderAzyk.create(objectHistoryOrder);
-                await orders[i].save()
-                orders[i].adss = await AdsAzyk.find({_id: {$in: orders[i].adss}})
+                await invoices[i].save()
+                invoices[i].adss = await AdsAzyk.find({_id: {$in: invoices[i].adss}})
                 pubsub.publish(RELOAD_ORDER, { reloadOrder: {
                     who: null,
-                    client: orders[i].client._id,
-                    agent: orders[i].agent?orders[i].agent._id:undefined,
+                    client: invoices[i].client._id,
+                    agent: invoices[i].agent?invoices[i].agent._id:undefined,
                     superagent: undefined,
-                    organization: orders[i].organization._id,
+                    organization: invoices[i].organization._id,
                     distributer: undefined,
-                    invoice: orders[i],
+                    invoice: invoices[i],
                     manager: undefined,
                     type: 'SET'
                 } });

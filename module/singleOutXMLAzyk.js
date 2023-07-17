@@ -13,6 +13,7 @@ const uuidv1 = require('uuid/v1.js');
 const builder = require('xmlbuilder');
 const paymentMethod = {'Наличные': 0, 'Перечисление': 1, 'Консигнация': 5}
 const { checkFloat } = require('../module/const');
+const ModelsErrorAzyk = require('../models/errorAzyk');
 
 module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
     let outXMLReturnedAzyk = await SingleOutXMLReturnedAzyk
@@ -166,12 +167,40 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
                                 priotiry: invoice.orders[i].item.priotiry
                             })
                         }
+                        else {
+                            let _object = new ModelsErrorAzyk({
+                                err: 'Отсутствует guidItem',
+                                path: 'setSingleOutXMLAzyk'
+                            });
+                            await ModelsErrorAzyk.create(_object)
+                        }
                     }
                     await SingleOutXMLAzyk.create(newOutXMLAzyk);
                     await InvoiceAzyk.updateMany({_id: invoice._id}, {sync: 1})
                     return 1
                 }
+                else {
+                    let _object = new ModelsErrorAzyk({
+                        err: `Отсутствует guidAgent-${!guidAgent} guidEcspeditor-${!guidEcspeditor}`,
+                        path: 'setSingleOutXMLAzyk'
+                    });
+                    await ModelsErrorAzyk.create(_object)
+                }
             }
+            else {
+                let _object = new ModelsErrorAzyk({
+                    err: 'Отсутствует district',
+                    path: 'setSingleOutXMLAzyk'
+                });
+                await ModelsErrorAzyk.create(_object)
+            }
+        }
+        else {
+            let _object = new ModelsErrorAzyk({
+                err: 'Отсутствует guidClient',
+                path: 'setSingleOutXMLAzyk'
+            });
+            await ModelsErrorAzyk.create(_object)
         }
     }
     return 0
