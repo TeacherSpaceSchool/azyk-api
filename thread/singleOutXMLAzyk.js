@@ -12,6 +12,7 @@ const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 const SingleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
 const OutXMLShoroAzyk = require('../models/integrate/shoro/outXMLShoroAzyk');
 const OutXMLReturnedShoroAzyk = require('../models/integrate/shoro/outXMLReturnedShoroAzyk');
+const HistoryOrderAzyk = require('../models/historyOrderAzyk');
 const { pubsub } = require('../graphql/index');
 const RELOAD_ORDER = 'RELOAD_ORDER';
 
@@ -19,19 +20,15 @@ connectDB.connect()
 if(!isMainThread) {
     cron.schedule('1 3 * * *', async() => {
         try {
+            let date = new Date()
             //автоприем заказов
-            let dateStart = new Date()
-            dateStart.setHours(3, 0, 0, 0)
-            dateStart.setDate(dateStart.getDate() - 1)
-            let dateEnd = new Date(dateStart)
-            dateEnd.setDate(dateEnd.getDate() + 1)
             let organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id').lean()
-            let orders = await InvoiceAzyk.find({
+            let invoices = await InvoiceAzyk.find({
                 del: {$ne: 'deleted'},
                 taken: {$ne: true},
                 cancelClient: null,
                 cancelForwarder: null,
-                $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
+                createdAt: {$lte: date},
                 organization: {$in: organizations}
             })
             //.select('client organization orders dateDelivery paymentMethod number _id inv')
@@ -55,23 +52,44 @@ if(!isMainThread) {
                 .populate({path: 'provider'})
                 .populate({path: 'sale'})
                 .populate({path: 'forwarder'})
-            for(let i = 0; i<orders.length;i++) {
-                orders[i].taken = true
-                await OrderAzyk.updateMany({_id: {$in: orders[i].orders.map(element=>element._id)}}, {status: 'принят'})
-                orders[i].adss = await checkAdss(orders[i])
-                if(orders[i].organization.pass&&orders[i].organization.pass.length){
-                    orders[i].sync = await setSingleOutXMLAzyk(orders[i])
+            for(let i = 0; i<invoices.length;i++) {
+                invoices[i].taken = true
+                await OrderAzyk.updateMany({_id: {$in: invoices[i].orders.map(element=>element._id)}}, {status: 'принят'})
+                invoices[i].adss = await checkAdss(invoices[i])
+                if(invoices[i].organization.pass&&invoices[i].organization.pass.length){
+                    invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
                 }
-                await orders[i].save()
-                orders[i].adss = await AdsAzyk.find({_id: {$in: orders[i].adss}})
+                else {
+                    let _object = new ModelsErrorAzyk({
+                        err: `${invoices[i].number} Отсутствует organization.pass`,
+                        path: 'автоприем'
+                    });
+                    await ModelsErrorAzyk.create(_object)
+                }
+                invoices[i].editor = 'автоприем'
+                let objectHistoryOrder = new HistoryOrderAzyk({
+                    invoice: invoices[i]._id,
+                    orders: invoices[i].orders.map(order=>{
+                        return {
+                            item: order.name,
+                            count: order.count,
+                            consignment: order.consignment,
+                            returned: order.returned
+                        }
+                    }),
+                    editor: 'автоприем',
+                });
+                await HistoryOrderAzyk.create(objectHistoryOrder);
+                await invoices[i].save()
+                invoices[i].adss = await AdsAzyk.find({_id: {$in: invoices[i].adss}})
                 pubsub.publish(RELOAD_ORDER, { reloadOrder: {
                     who: null,
-                    client: orders[i].client._id,
-                    agent: orders[i].agent?orders[i].agent._id:undefined,
+                    client: invoices[i].client._id,
+                    agent: invoices[i].agent?invoices[i].agent._id:undefined,
                     superagent: undefined,
-                    organization: orders[i].organization._id,
+                    organization: invoices[i].organization._id,
                     distributer: undefined,
-                    invoice: orders[i],
+                    invoice: invoices[i],
                     manager: undefined,
                     type: 'SET'
                 } });
@@ -87,7 +105,6 @@ if(!isMainThread) {
                 await reductionOutAdsXMLAzyk(organizations[i])
             }
             //очистка выгрузок
-            let date = new Date()
             if(date.getDay()===1) {
                 date.setDate(date.getDate() - 7)
                 await SingleOutXMLAzyk.deleteMany({date: {$lte: date}})

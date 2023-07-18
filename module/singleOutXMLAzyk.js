@@ -92,116 +92,133 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
     }
 }
 
-module.exports.setSingleOutXMLAzyk = async(invoice) => {
-    let count
-    let price
-    let outXMLAzyk = await SingleOutXMLAzyk
-        .findOne({invoice: invoice._id})
-    if(outXMLAzyk){
-        outXMLAzyk.status = 'update'
-        outXMLAzyk.data = []
-        for (let i = 0; i < invoice.orders.length; i++) {
-            let guidItem = await Integrate1CAzyk
-                .findOne({$and: [{item: invoice.orders[i].item._id}, {item: {$ne: null}}]}).select('guid').lean()
-            if(guidItem) {
-                count = invoice.orders[i].count-invoice.orders[i].returned
-                price = checkFloat(invoice.orders[i].allPrice/invoice.orders[i].count)
-                outXMLAzyk.data.push({
-                    guid: guidItem.guid,
-                    package: Math.round(count / (invoice.orders[i].item.packaging ? invoice.orders[i].item.packaging : 1)),
-                    qt: count,
-                    price: price,
-                    amount: checkFloat(count * price),
-                    priotiry: invoice.orders[i].item.priotiry
-                })
+module.exports.setSingleOutXMLAzyk = async(invoice, update) => {
+    try {
+        let count
+        let price
+        let outXMLAzyk = await SingleOutXMLAzyk
+            .findOne({invoice: invoice._id})
+        if (outXMLAzyk) {
+            outXMLAzyk.status = 'update'
+            outXMLAzyk.data = []
+            for (let i = 0; i < invoice.orders.length; i++) {
+                let guidItem = await Integrate1CAzyk
+                    .findOne({$and: [{item: invoice.orders[i].item._id}, {item: {$ne: null}}]}).select('guid').lean()
+                if (guidItem) {
+                    count = invoice.orders[i].count - invoice.orders[i].returned
+                    price = checkFloat(invoice.orders[i].allPrice / invoice.orders[i].count)
+                    outXMLAzyk.data.push({
+                        guid: guidItem.guid,
+                        package: Math.round(count / (invoice.orders[i].item.packaging ? invoice.orders[i].item.packaging : 1)),
+                        qt: count,
+                        price: price,
+                        amount: checkFloat(count * price),
+                        priotiry: invoice.orders[i].item.priotiry
+                    })
 
-            }
-        }
-        outXMLAzyk.markModified('data');
-        await outXMLAzyk.save()
-        await InvoiceAzyk.updateMany({_id: invoice._id}, {sync: 1})
-        return 1
-    }
-    else {
-        let guidClient = await Integrate1CAzyk
-            .findOne({$and: [{client: invoice.client._id}, {client: {$ne: null}}], organization: invoice.organization._id}).select('guid').lean()
-        if(guidClient){
-            let district = await DistrictAzyk
-                .findOne({client: invoice.client._id, organization: invoice.organization._id}).select('agent ecspeditor').lean()
-            if(district) {
-                let guidAgent = await Integrate1CAzyk
-                    .findOne({$and: [{agent: district.agent}, {agent: {$ne: null}}], organization: invoice.organization._id}).select('guid').lean()
-                let guidEcspeditor = await Integrate1CAzyk
-                    .findOne({$and: [{ecspeditor: district.ecspeditor}, {ecspeditor: {$ne: null}}], organization: invoice.organization._id}).select('guid').lean()
-                if(guidAgent&&guidEcspeditor){
-                    guidAgent = guidAgent.guid
-                    guidEcspeditor = guidEcspeditor.guid
-                    let date = new Date(invoice.dateDelivery)
-                    let newOutXMLAzyk = new SingleOutXMLAzyk({
-                        payment: paymentMethod[invoice.paymentMethod],
-                        data: [],
-                        guid: invoice.guid?invoice.guid:await uuidv1(),
-                        date: date,
-                        number: invoice.number,
-                        client: guidClient.guid,
-                        agent: guidAgent,
-                        forwarder: guidEcspeditor,
-                        invoice: invoice._id,
-                        status: 'create',
-                        inv: invoice.inv,
-                        organization: invoice.organization._id,
-                        pass: invoice.organization.pass,
-                    });
-                    for (let i = 0; i < invoice.orders.length; i++) {
-                        let guidItem = await Integrate1CAzyk
-                            .findOne({$and: [{item: invoice.orders[i].item._id}, {item: {$ne: null}}]}).select('guid').lean()
-                        if (guidItem) {
-                            count = invoice.orders[i].count-invoice.orders[i].returned
-                            price = checkFloat(invoice.orders[i].allPrice/invoice.orders[i].count)
-                            newOutXMLAzyk.data.push({
-                                guid: guidItem.guid,
-                                package: Math.round(count / (invoice.orders[i].item.packaging ? invoice.orders[i].item.packaging : 1)),
-                                qt: count,
-                                price: price,
-                                amount: checkFloat(count * price),
-                                priotiry: invoice.orders[i].item.priotiry
-                            })
-                        }
-                        else {
-                            let _object = new ModelsErrorAzyk({
-                                err: `${invoice.number} Отсутствует guidItem`,
-                                path: 'setSingleOutXMLAzyk'
-                            });
-                            await ModelsErrorAzyk.create(_object)
-                        }
-                    }
-                    await SingleOutXMLAzyk.create(newOutXMLAzyk);
-                    await InvoiceAzyk.updateMany({_id: invoice._id}, {sync: 1})
-                    return 1
                 }
-                else {
+            }
+            outXMLAzyk.markModified('data');
+            await outXMLAzyk.save()
+            await InvoiceAzyk.updateMany({_id: invoice._id}, {sync: 1})
+            return 1
+        }
+        else {
+            let guidClient = await Integrate1CAzyk
+                .findOne({
+                    $and: [{client: invoice.client._id}, {client: {$ne: null}}],
+                    organization: invoice.organization._id
+                }).select('guid').lean()
+            if (guidClient) {
+                let district = await DistrictAzyk
+                    .findOne({
+                        client: invoice.client._id,
+                        organization: invoice.organization._id
+                    }).select('agent ecspeditor').lean()
+                if (district) {
+                    let guidAgent = await Integrate1CAzyk
+                        .findOne({
+                            $and: [{agent: district.agent}, {agent: {$ne: null}}],
+                            organization: invoice.organization._id
+                        }).select('guid').lean()
+                    let guidEcspeditor = await Integrate1CAzyk
+                        .findOne({
+                            $and: [{ecspeditor: district.ecspeditor}, {ecspeditor: {$ne: null}}],
+                            organization: invoice.organization._id
+                        }).select('guid').lean()
+                    if (guidAgent && guidEcspeditor) {
+                        guidAgent = guidAgent.guid
+                        guidEcspeditor = guidEcspeditor.guid
+                        let date = new Date(invoice.dateDelivery)
+                        let newOutXMLAzyk = new SingleOutXMLAzyk({
+                            payment: paymentMethod[invoice.paymentMethod],
+                            data: [],
+                            guid: invoice.guid ? invoice.guid : await uuidv1(),
+                            date: date,
+                            number: invoice.number,
+                            client: guidClient.guid,
+                            agent: guidAgent,
+                            forwarder: guidEcspeditor,
+                            invoice: invoice._id,
+                            status: 'create',
+                            inv: invoice.inv,
+                            organization: invoice.organization._id,
+                            pass: invoice.organization.pass,
+                        });
+                        for (let i = 0; i < invoice.orders.length; i++) {
+                            let guidItem = await Integrate1CAzyk
+                                .findOne({$and: [{item: invoice.orders[i].item._id}, {item: {$ne: null}}]}).select('guid').lean()
+                            if (guidItem) {
+                                count = invoice.orders[i].count - invoice.orders[i].returned
+                                price = checkFloat(invoice.orders[i].allPrice / invoice.orders[i].count)
+                                newOutXMLAzyk.data.push({
+                                    guid: guidItem.guid,
+                                    package: Math.round(count / (invoice.orders[i].item.packaging ? invoice.orders[i].item.packaging : 1)),
+                                    qt: count,
+                                    price: price,
+                                    amount: checkFloat(count * price),
+                                    priotiry: invoice.orders[i].item.priotiry
+                                })
+                            } else {
+                                let _object = new ModelsErrorAzyk({
+                                    err: `${invoice.number} Отсутствует guidItem`,
+                                    path: 'setSingleOutXMLAzyk'
+                                });
+                                await ModelsErrorAzyk.create(_object)
+                            }
+                        }
+                        await SingleOutXMLAzyk.create(newOutXMLAzyk);
+                        if (update) await InvoiceAzyk.updateOne({_id: invoice._id}, {sync: 1})
+                        return 1
+                    } else {
+                        let _object = new ModelsErrorAzyk({
+                            err: `${invoice.number} Отсутствует guidAgent-${!guidAgent} guidEcspeditor-${!guidEcspeditor}`,
+                            path: 'setSingleOutXMLAzyk'
+                        });
+                        await ModelsErrorAzyk.create(_object)
+                    }
+                } else {
                     let _object = new ModelsErrorAzyk({
-                        err: `${invoice.number} Отсутствует guidAgent-${!guidAgent} guidEcspeditor-${!guidEcspeditor}`,
+                        err: `${invoice.number} Отсутствует district`,
                         path: 'setSingleOutXMLAzyk'
                     });
                     await ModelsErrorAzyk.create(_object)
                 }
-            }
-            else {
+            } else {
                 let _object = new ModelsErrorAzyk({
-                    err: `${invoice.number} Отсутствует district`,
+                    err: `${invoice.number} Отсутствует guidClient`,
                     path: 'setSingleOutXMLAzyk'
                 });
                 await ModelsErrorAzyk.create(_object)
             }
         }
-        else {
-            let _object = new ModelsErrorAzyk({
-                err: `${invoice.number} Отсутствует guidClient`,
-                path: 'setSingleOutXMLAzyk'
-            });
-            await ModelsErrorAzyk.create(_object)
-        }
+    }
+    catch (err) {
+        let _object = new ModelsErrorAzyk({
+            err: err.message,
+            path: 'setSingleOutXMLAzyk'
+        });
+        ModelsErrorAzyk.create(_object)
     }
     return 0
 }

@@ -20,6 +20,7 @@ const { startClientRedis } = require('../module/redis');
 const { reductionToUser, createAdmin } = require('../module/user');
 const { Worker, isMainThread } = require('worker_threads');
 const OrganizationAzyk = require('../models/organizationAzyk');
+const DistrictAzyk = require('../models/districtAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const OrderAzyk = require('../models/orderAzyk');
 const { setSingleOutXMLAzyk } = require('../module/singleOutXMLAzyk');
