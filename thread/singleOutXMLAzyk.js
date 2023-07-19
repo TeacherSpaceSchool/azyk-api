@@ -20,15 +20,15 @@ connectDB.connect()
 if(!isMainThread) {
     cron.schedule('1 3 * * *', async() => {
         try {
-            let date = new Date()
             //автоприем заказов
+            let dateDelivery = new Date()
+            dateDelivery.setDate(dateDelivery.getDate() - 7)
             let organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id').lean()
             let invoices = await InvoiceAzyk.find({
                 del: {$ne: 'deleted'},
                 taken: {$ne: true},
                 cancelClient: null,
                 cancelForwarder: null,
-                createdAt: {$lte: date},
                 organization: {$in: organizations}
             })
             //.select('client organization orders dateDelivery paymentMethod number _id inv')
@@ -56,12 +56,19 @@ if(!isMainThread) {
                 invoices[i].taken = true
                 await OrderAzyk.updateMany({_id: {$in: invoices[i].orders.map(element=>element._id)}}, {status: 'принят'})
                 invoices[i].adss = await checkAdss(invoices[i])
-                if(invoices[i].organization.pass&&invoices[i].organization.pass.length){
-                    invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
-                }
-                else {
+                if((invoices[i].guid||invoices[i].dateDelivery>date)) {
+                    if (invoices[i].organization.pass && invoices[i].organization.pass.length) {
+                        invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
+                    } else {
+                        let _object = new ModelsErrorAzyk({
+                            err: `${invoices[i].number} Отсутствует organization.pass ${invoices[i].organization.pass}`,
+                            path: 'автоприем'
+                        });
+                        await ModelsErrorAzyk.create(_object)
+                    }
+                } else {
                     let _object = new ModelsErrorAzyk({
-                        err: `${invoices[i].number} Отсутствует organization.pass`,
+                        err: `${invoices[i].number} Отсутствует guid`,
                         path: 'автоприем'
                     });
                     await ModelsErrorAzyk.create(_object)
@@ -105,6 +112,7 @@ if(!isMainThread) {
                 await reductionOutAdsXMLAzyk(organizations[i])
             }
             //очистка выгрузок
+            let date = new Date()
             if(date.getDay()===1) {
                 date.setDate(date.getDate() - 7)
                 await SingleOutXMLAzyk.deleteMany({date: {$lte: date}})

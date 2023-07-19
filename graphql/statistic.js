@@ -97,6 +97,7 @@ const query = `
 `;
 
 const mutation = `
+    repairUnsyncOrder(ids: [ID]!): Data
     uploadingClients(document: Upload!, organization: ID!, city: String!): Data
     uploadingItems(document: Upload!, organization: ID!, city: String!): Data
     uploadingDistricts(document: Upload!, organization: ID!): Data
@@ -2583,7 +2584,7 @@ const resolvers = {
             let data = await ClientAzyk.find({device: {$ne: null}})
                 .select('device')
                 .lean()
-            let device
+            let device = ''
             for(let i=0; i<data.length; i++) {
                 if(filter==='device')
                     device = data[i].device.split(' | ')[0]
@@ -2625,8 +2626,6 @@ const resolvers = {
                         device = 'OnePlus'
                     else if(device.includes('lenovo'))
                         device = 'Lenovo'
-                    else
-                        device = device
                 }
                 if(device&&device.length) {
                     if (!statistic[device]) statistic[device] = {count: 0, name: device}
@@ -4607,6 +4606,22 @@ const resolvers = {
 };
 
 const resolversMutation = {
+    repairUnsyncOrder: async(parent, { ids }, {user}) => {
+        if (user.role === 'admin') {
+            const orders = await InvoiceAzyk.find({
+                _id: {$in: ids}
+            })
+                .distinct('orders')
+                .lean()
+            await OrderAzyk.updateMany({_id: {$in: orders}}, {status: 'обработка'})
+            await InvoiceAzyk.updateMany({_id: {$in: ids}}, {
+                taken: false,
+                cancelClient: null,
+                cancelForwarder: null,
+            })
+            return ({data: 'OK'})
+        }
+    },
     uploadingItems: async(parent, { document, organization, city }, {user}) => {
         if (user.role === 'admin') {
             let item, integrate1CAzyk

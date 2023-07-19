@@ -1084,11 +1084,18 @@ const setOrder = async ({orders, invoice, user}) => {
         }
         else {
             let _object = new ModelsErrorAzyk({
-                err: `${resInvoice.number} Отсутствует organization.pass`,
+                err: `${resInvoice.number} Отсутствует organization.pass ${resInvoice.organization.pass}`,
                 path: 'setOrder'
             });
             await ModelsErrorAzyk.create(_object)
         }
+    }
+    else {
+        let _object = new ModelsErrorAzyk({
+            err: `${resInvoice.number} Отсутствует guid`,
+            path: 'setOrder'
+        });
+        await ModelsErrorAzyk.create(_object)
     }
 
     let superDistrict = await DistrictAzyk.findOne({
@@ -1242,6 +1249,8 @@ const setInvoice = async ({adss, taken, invoice, confirmationClient, confirmatio
 const resolversMutation = {
     acceptOrders: async(parent, ctx, {user}) => {
         if(user.role==='admin'){
+            let dateDelivery = new Date()
+            dateDelivery.setDate(dateDelivery.getDate() - 7)
             let date = new Date()
             date.setMinutes(date.getMinutes()-10)
             let organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id').lean()
@@ -1278,12 +1287,19 @@ const resolversMutation = {
                 invoices[i].taken = true
                 await OrderAzyk.updateMany({_id: {$in: invoices[i].orders.map(element=>element._id)}}, {status: 'принят'})
                 invoices[i].adss = await checkAdss(invoices[i]._id)
-                if(invoices[i].organization.pass&&invoices[i].organization.pass.length){
-                    invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
-                }
-                else {
+                if((invoices[i].guid||invoices[i].dateDelivery>date)) {
+                    if (invoices[i].organization.pass && invoices[i].organization.pass.length) {
+                        invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
+                    } else {
+                        let _object = new ModelsErrorAzyk({
+                            err: `${invoices[i].number} Отсутствует organization.pass ${invoices[i].organization.pass}`,
+                            path: 'acceptOrders'
+                        });
+                        await ModelsErrorAzyk.create(_object)
+                    }
+                } else {
                     let _object = new ModelsErrorAzyk({
-                        err: `${invoices[i].number} Отсутствует organization.pass`,
+                        err: `${invoices[i].number} Отсутствует guid`,
                         path: 'acceptOrders'
                     });
                     await ModelsErrorAzyk.create(_object)
