@@ -200,8 +200,7 @@ const resolvers = {
                 .lean()
             if(subBrand) {
                 organization.name = `${subBrand.name} (${organization.name})`
-                if(subBrand.minimumOrder)
-                    organization.minimumOrder = subBrand.minimumOrder
+                if(subBrand.minimumOrder) organization.minimumOrder = subBrand.minimumOrder
             }
             return organization
         }

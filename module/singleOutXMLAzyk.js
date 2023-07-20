@@ -179,7 +179,9 @@ module.exports.setSingleOutXMLAzyk = async(invoice, update) => {
                                     amount: checkFloat(count * price),
                                     priotiry: invoice.orders[i].item.priotiry
                                 })
-                            } else {
+                            }
+                            ///заглушка
+                            else {
                                 let _object = new ModelsErrorAzyk({
                                     err: `${invoice.number} Отсутствует guidItem`,
                                     path: 'setSingleOutXMLAzyk'
@@ -190,21 +192,27 @@ module.exports.setSingleOutXMLAzyk = async(invoice, update) => {
                         await SingleOutXMLAzyk.create(newOutXMLAzyk);
                         if (update) await InvoiceAzyk.updateOne({_id: invoice._id}, {sync: 1})
                         return 1
-                    } else {
+                    }
+                    ///заглушка
+                    else {
                         let _object = new ModelsErrorAzyk({
                             err: `${invoice.number} Отсутствует guidAgent-${!guidAgent} guidEcspeditor-${!guidEcspeditor}`,
                             path: 'setSingleOutXMLAzyk'
                         });
                         await ModelsErrorAzyk.create(_object)
                     }
-                } else {
+                }
+                ///заглушка
+                else {
                     let _object = new ModelsErrorAzyk({
                         err: `${invoice.number} Отсутствует district`,
                         path: 'setSingleOutXMLAzyk'
                     });
                     await ModelsErrorAzyk.create(_object)
                 }
-            } else {
+            }
+            ///заглушка
+            else {
                 let _object = new ModelsErrorAzyk({
                     err: `${invoice.number} Отсутствует guidClient`,
                     path: 'setSingleOutXMLAzyk'

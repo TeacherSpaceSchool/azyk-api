@@ -20,16 +20,44 @@ connectDB.connect()
 if(!isMainThread) {
     cron.schedule('1 3 * * *', async() => {
         try {
-            //автоприем заказов
-            let dateDelivery = new Date()
-            dateDelivery.setDate(dateDelivery.getDate() - 7)
+            //организации с автоприемом
+            let dateStart = new Date()
+            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setDate(dateStart.getDate() - 1)
+            let dateEnd = new Date(dateStart)
+            dateEnd.setDate(dateEnd.getDate() + 1)
             let organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id').lean()
+            //несинхронизованные заказы
+            const unsynces = await InvoiceAzyk.find({
+                $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
+                sync: {$nin: [1, 2]},
+                cancelClient: null,
+                cancelForwarder: null,
+                del: {$ne: 'deleted'},
+                taken: true,
+                organization: {$in: organizations},
+            })
+                .select('_id orders')
+                .lean()
+            let unsyncorders = [], unsyncinvoices = []
+            for(let i = 0; i<unsynces.length;i++) {
+                unsyncorders = [...unsyncorders, ...unsynces[i].orders]
+                unsyncinvoices = [...unsyncinvoices, unsynces[i]._id]
+            }
+            await OrderAzyk.updateMany({_id: {$in: unsyncorders}}, {status: 'обработка'})
+            await InvoiceAzyk.updateMany({_id: {$in: unsyncinvoices}}, {
+                taken: false,
+                cancelClient: null,
+                cancelForwarder: null,
+            })
+            //автоприем заказов
             let invoices = await InvoiceAzyk.find({
                 del: {$ne: 'deleted'},
                 taken: {$ne: true},
                 cancelClient: null,
                 cancelForwarder: null,
-                organization: {$in: organizations}
+                $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
+                organization: {$in: organizations},
             })
             //.select('client organization orders dateDelivery paymentMethod number _id inv')
                 .populate({
@@ -56,19 +84,13 @@ if(!isMainThread) {
                 invoices[i].taken = true
                 await OrderAzyk.updateMany({_id: {$in: invoices[i].orders.map(element=>element._id)}}, {status: 'принят'})
                 invoices[i].adss = await checkAdss(invoices[i])
-                if((invoices[i].guid||invoices[i].dateDelivery>date)) {
-                    if (invoices[i].organization.pass && invoices[i].organization.pass.length) {
-                        invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
-                    } else {
-                        let _object = new ModelsErrorAzyk({
-                            err: `${invoices[i].number} Отсутствует organization.pass ${invoices[i].organization.pass}`,
-                            path: 'автоприем'
-                        });
-                        await ModelsErrorAzyk.create(_object)
-                    }
-                } else {
+                if (invoices[i].organization.pass && invoices[i].organization.pass.length) {
+                    invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
+                }
+                ///заглушка
+                else {
                     let _object = new ModelsErrorAzyk({
-                        err: `${invoices[i].number} Отсутствует guid`,
+                        err: `${invoices[i].number} Отсутствует organization.pass ${invoices[i].organization.pass}`,
                         path: 'автоприем'
                     });
                     await ModelsErrorAzyk.create(_object)
