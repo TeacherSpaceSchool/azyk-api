@@ -1070,14 +1070,15 @@ const setOrder = async ({orders, invoice, user}) => {
     });
     await HistoryOrderAzyk.create(objectHistoryOrder);
 
-    let date = new Date()
-    date.setDate(date.getDate() - 7)
-    if((resInvoice.guid||resInvoice.dateDelivery>date)) {
+    let dateDelivery = new Date()
+    dateDelivery.setDate(dateDelivery.getDate() - 7)
+    if((resInvoice.guid||resInvoice.dateDelivery>dateDelivery)) {
         if(resInvoice.organization.pass&&resInvoice.organization.pass.length) {
             if (resInvoice.orders[0].status === 'принят') {
                 const {setSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
                 resInvoice.sync = await setSingleOutXMLAzyk(resInvoice, true)
-            } else if (resInvoice.orders[0].status === 'отмена') {
+            }
+            else if (resInvoice.orders[0].status === 'отмена') {
                 const {cancelSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
                 resInvoice.sync = await cancelSingleOutXMLAzyk(resInvoice)
             }

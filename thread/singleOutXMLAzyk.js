@@ -20,14 +20,13 @@ connectDB.connect()
 if(!isMainThread) {
     cron.schedule('1 3 * * *', async() => {
         try {
-            //организации с автоприемом
-            let dateStart = new Date()
-            dateStart.setHours(3, 0, 0, 0)
+            //автоприемом только за сегодня
+            const dateEnd = new Date()
+            dateEnd.setHours(3, 0, 0, 0)
+            const dateStart = new Date(dateEnd)
             dateStart.setDate(dateStart.getDate() - 1)
-            let dateEnd = new Date(dateStart)
-            dateEnd.setDate(dateEnd.getDate() + 1)
-            let organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id').lean()
             //несинхронизованные заказы
+            let organizations = await OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id').lean()
             const unsynces = await InvoiceAzyk.find({
                 $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
                 sync: {$nin: [1, 2]},
@@ -51,6 +50,7 @@ if(!isMainThread) {
                 cancelForwarder: null,
             })
             //автоприем заказов
+            organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id').lean()
             let invoices = await InvoiceAzyk.find({
                 del: {$ne: 'deleted'},
                 taken: {$ne: true},
