@@ -30,6 +30,7 @@ const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 const AutoAzyk = require('../models/autoAzyk');
 const SubCategoryAzyk = require('../models/subCategoryAzyk');
 const mongoose = require('mongoose');
+const os = require('os');
 
 const type = `
     type Statistic {
@@ -94,6 +95,7 @@ const query = `
     statisticStorageSize: Statistic
     statisticClientCity: Statistic
     checkIntegrateClient(organization: ID, type: String, document: Upload): Statistic
+    statisticRAM: [String]
 `;
 
 const mutation = `
@@ -224,6 +226,20 @@ const resolvers = {
                 };
 
             }
+        }
+    },
+    statisticRAM: async(parent, args, {user}) => {
+        if(user.role==='admin'){
+            let totalmem = os.totalmem()
+            let freemem = os.freemem()
+            let usemem = totalmem - freemem
+            totalmem = totalmem/1024/1024/1024
+            totalmem = Math.round(totalmem * 10)/10
+            freemem = freemem/1024/1024/1024
+            freemem = Math.round(freemem * 10)/10
+            usemem = usemem/1024/1024/1024
+            usemem = Math.round(usemem * 10)/10
+            return [`${totalmem}GB`, `${usemem}GB`, `${freemem}GB`]
         }
     },
     checkAgentRoute: async(parent, { agentRoute }, {user}) => {

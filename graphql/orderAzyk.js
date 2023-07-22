@@ -1254,15 +1254,15 @@ const resolversMutation = {
         if(user.role==='admin'){
             let dateDelivery = new Date()
             dateDelivery.setDate(dateDelivery.getDate() - 7)
-            let date = new Date()
-            date.setMinutes(date.getMinutes()-10)
+            let dateEnd = new Date()
+            dateEnd.setMinutes(dateEnd.getMinutes()-10)
             let organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id').lean()
             let invoices = await InvoiceAzyk.find({
                 del: {$ne: 'deleted'},
                 taken: {$ne: true},
                 cancelClient: null,
                 cancelForwarder: null,
-                createdAt: {$lte: date},
+                createdAt: {$lte: dateEnd},
                 organization: {$in: organizations}
             })
             //.select('client organization orders dateDelivery paymentMethod number _id inv')
