@@ -159,7 +159,7 @@ const signinuser = (req, res) => {
                 const token = await jwt.sign(payload, jwtsecret); //здесь создается JWT
                 await res.status(200);
                 await res.clearCookie('jwt');
-                await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000}).end(token);
+                await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000, sameSite: 'strict'}).end(token);
             } else {
                 res.status(401);
                 res.end('Login failed',401)
@@ -210,7 +210,7 @@ const signupuser = async (req, res) => {
         const token = jwt.sign(payload, jwtsecret); //здесь создается JWT*/
         await res.status(200);
         await res.clearCookie('jwt');
-        await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000}).end(token)
+        await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000, sameSite: 'strict'}).end(token)
     } catch (err) {
         console.error(err)
         res.status(401);
@@ -249,7 +249,7 @@ const signupuserGQL = async ({password, login}, res) => {
         };
         const token = jwt.sign(payload, jwtsecret); //здесь создается JWT*/
         await res.clearCookie('jwt');
-        await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000 })
+        await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000, sameSite: 'strict'})
         return {
             role: user.role,
             status: user.status,
@@ -276,7 +276,7 @@ const signinuserGQL = (req, res) => {
                     };
                     const token = await jwt.sign(payload, jwtsecret); //здесь создается JWT
                     await res.clearCookie('jwt');
-                    await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000 });
+                    await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000, sameSite: 'strict'});
                     if(!['admin', 'client'].includes(user.role)) {
                         let employment = await EmploymentAzyk.findOne({user: user._id}).select('organization').lean()
                         user.organization = employment.organization
@@ -308,7 +308,7 @@ const createJwtGQL = async (res, user) => {
     };
     const token = await jwt.sign(payload, jwtsecret); //здесь создается JWT
     await res.clearCookie('jwt');
-    await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000 });
+    await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000, sameSite: 'strict'});
 }
 
 module.exports.getuser = getuser;
