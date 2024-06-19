@@ -27,6 +27,7 @@ const { setSingleOutXMLAzyk } = require('../module/singleOutXMLAzyk');
 const { checkAdss } = require('../graphql/adsAzyk');
 const { pubsub } = require('../graphql/index');
 const MerchandisingAzyk = require('../models/merchandisingAzyk');
+const {reductionOldestDB} = require('./db');
 
 let startDeleteBD = async () => {
     if(isMainThread) {
@@ -114,6 +115,9 @@ let start = async () => {
     //await reductionToAgentRoute();
     //await reductionOutAdsXMLShoroAzyk()
     //await reductionToAds()
+
+
+    ///await reductionOldestDB()
 }
 
 module.exports.start = start;
