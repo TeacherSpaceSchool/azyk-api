@@ -2,6 +2,7 @@ const { gql, ApolloServer,  } = require('apollo-server-express');
 const { RedisPubSub } = require('graphql-redis-subscriptions');
 const pubsub = new RedisPubSub();
 module.exports.pubsub = pubsub;
+const PlanClientAzyk = require('./planClientAzyk');
 const AdsAzyk = require('./adsAzyk');
 const FileAzyk = require('./fileAzyk');
 const DiscountClientAzyk = require('./discountClientAzyk');
@@ -71,6 +72,7 @@ const typeDefs = gql`
     ${AgentRouteAzyk.type}
     ${DistributerAzyk.type}
     ${Integrate1CAzyk.type}
+    ${PlanClientAzyk.type}
     ${AdsAzyk.type}
     ${FileAzyk.type}
     ${DiscountClientAzyk.type}
@@ -111,6 +113,7 @@ const typeDefs = gql`
         ${ErrorAzyk.mutation}
         ${AgentRouteAzyk.mutation}
         ${DistributerAzyk.mutation}
+        ${PlanClientAzyk.mutation}
         ${AdsAzyk.mutation}
         ${FileAzyk.mutation}
         ${DiscountClientAzyk.mutation}
@@ -159,6 +162,7 @@ const typeDefs = gql`
         ${EquipmentAzyk.query}
         ${OrganizationAzyk.query}
         ${AgentHistoryGeoAzyk.query}
+        ${PlanClientAzyk.query}
         ${AdsAzyk.query}
         ${FileAzyk.query}
         ${DiscountClientAzyk.query}
@@ -226,6 +230,7 @@ const resolvers = {
         ...BlogAzyk.resolvers,
         ...SpecialPriceClientAzyk.resolvers,
         ...OutXMLAdsAzyk.resolvers,
+        ...PlanClientAzyk.resolvers,
         ...AdsAzyk.resolvers,
         ...FileAzyk.resolvers,
         ...DiscountClientAzyk.resolvers,
@@ -270,6 +275,7 @@ const resolvers = {
         ...BlogAzyk.resolversMutation,
         ...SpecialPriceClientAzyk.resolversMutation,
         ...OutXMLAdsAzyk.resolversMutation,
+        ...PlanClientAzyk.resolversMutation,
         ...AdsAzyk.resolversMutation,
         ...FileAzyk.resolversMutation,
         ...DiscountClientAzyk.resolversMutation,

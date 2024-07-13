@@ -34,6 +34,10 @@ const OrganizationAzykSchema = mongoose.Schema({
         type: Boolean,
         default: false
     },
+    divideBySubBrand: {
+        type: Boolean,
+        default: false
+    },
     onlyDistrict: {
         type: Boolean,
         default: false
