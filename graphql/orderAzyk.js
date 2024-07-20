@@ -1173,6 +1173,7 @@ const setInvoice = async ({adss, taken, invoice, confirmationClient, confirmatio
             object.returnedPrice = 0
             object.sync = object.sync!==0?1:0
         }
+        await checkAdss(invoice, !taken)
     }
     if(object.taken&&confirmationClient!=undefined&&(admin||undefinedClient||client)){
         object.confirmationClient = confirmationClient
@@ -1290,7 +1291,7 @@ const resolversMutation = {
             for(let i = 0; i<invoices.length;i++) {
                 invoices[i].taken = true
                 await OrderAzyk.updateMany({_id: {$in: invoices[i].orders.map(element=>element._id)}}, {status: 'принят'})
-                invoices[i].adss = await checkAdss(invoices[i]._id)
+                await checkAdss(invoices[i]._id)
                 if(invoices[i].guid||invoices[i].dateDelivery>dateDelivery) {
                     if (invoices[i].organization.pass && invoices[i].organization.pass.length) {
                         invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])

@@ -40,7 +40,6 @@ const type = `
 `;
 
 const query = `
-    checkAdss(invoice: ID!): [ID]
     adss(search: String!, organization: ID!): [Ads]
     adssTrash(search: String!): [Ads]
     adsOrganizations: [Organization]
@@ -54,28 +53,158 @@ const mutation = `
     deleteAds(_id: [ID]!): Data
 `;
 
-const checkAdss = async(invoice) => {
+const checkAdss = async(invoice, canceled) => {
+    //Ищется заказ
     invoice = await InvoiceAzyk.findOne({_id: invoice})
-        .select('returnedPrice organization allPrice orders')
+        .select('_id createdAt returnedPrice organization allPrice orders')
         .populate({
             path: 'orders',
             select: 'count returned item allPrice'
         })
         .lean()
-    let resAdss = []
-    let idAds = {}
-    let adss = await AdsAzyk.find({
-        del: {$ne: 'deleted'},
-        organization: invoice.organization
+    //Рассчитывается дата
+    const dateStart = new Date(invoice.createdAt)
+    dateStart.setHours(3, 0, 0, 0)
+    const dateEnd = new Date(dateStart)
+    dateEnd.setDate(dateEnd.getDate() + 1)
+    //Удаляются все акции у заказов
+    await InvoiceAzyk.updateMany({
+        $and: [
+            {organization: invoice.organization},
+            {createdAt: {$gte: dateStart}},
+            {createdAt: {$lt: dateEnd}},
+        ]
+    }, {
+        adss: []
     })
+    //Ищутся все принятые заказы за этот день кроме заказа с сортировкой по дате
+    let invoices = await InvoiceAzyk.find({
+        $and: [
+            {organization: invoice.organization},
+            {createdAt: {$gte: dateStart}},
+            {createdAt: {$lt: dateEnd}},
+            {_id: {$ne: invoice._id}},
+            {taken: true}
+        ]
+    })
+        .select('_id createdAt returnedPrice organization allPrice orders')
+        .populate({
+            path: 'orders',
+            select: 'count returned item allPrice'
+        })
         .sort('-createdAt')
         .lean()
-    for(let i=0; i<adss.length; i++) {
-        if(adss[i].targetType==='Цена'&&adss[i].targetPrice&&adss[i].targetPrice>0){
-            if((invoice.allPrice-invoice.returnedPrice)>=adss[i].targetPrice) {
-                if(!(adss[i].xid&&adss[i].xid.length>0)||!idAds[adss[i].xid]||idAds[adss[i].xid].xidNumber<adss[i].xidNumber){
-                    if(adss[i].xid&&adss[i].xid.length>0) {
-                        if(idAds[adss[i].xid])
+    //Если не отменен
+    if(!canceled) {
+        //Заказ добавляется к заказам
+        invoices = [...invoices, invoice]
+        //Сортировка по дате
+        invoices = invoices.sort((a, b) => b.createdAt - a.createdAt)
+    }
+    //Если есть заказы
+    if(invoices.length) {
+        //Переменные
+        let resAdss = []
+        let idAds = {}
+        let adss = await AdsAzyk.find({
+            del: {$ne: 'deleted'},
+            organization: invoice.organization
+        })
+            .sort('-createdAt')
+            .lean()
+        //Создается большой заказ
+        invoice = {
+            returnedPrice: 0,
+            allPrice: 0,
+            orders: []
+        }
+        //Перебираются invoices
+        for (let i = 0; i < invoices.length; i++) {
+            //Суммируются общая сумма
+            invoice.returnedPrice += invoices[i].returnedPrice
+            invoice.allPrice += invoices[i].allPrice
+            //Перебираются orders в invoices
+            for (let i1 = 0; i1 < invoices[i].orders.length; i1++) {
+                let found = false
+                //Перебираются orders в большом заказе
+                for (let i2 = 0; i2 < invoice.orders.length; i2++) {
+                    //Если найден
+                    if (invoices[i].orders[i1].item.toString() === invoice.orders[i2].item.toString()) {
+                        //Плюсуются
+                        found = true
+                        invoice.orders[i2].count += invoices[i].orders[i1].count
+                        invoice.orders[i2].returned += invoices[i].orders[i1].returned
+                        invoice.orders[i2].allPrice += invoices[i].orders[i1].allPrice
+                    }
+                }
+                //Если не найден
+                if (!found) {
+                    //order добавляется к invoice
+                    invoice.orders = [...invoice.orders, invoices[i].orders[i1]]
+                }
+            }
+        }
+        //Подбираются акции
+        for (let i = 0; i < adss.length; i++) {
+            if (adss[i].targetType === 'Цена' && adss[i].targetPrice && adss[i].targetPrice > 0) {
+                if ((invoice.allPrice - invoice.returnedPrice) >= adss[i].targetPrice) {
+                    if (!(adss[i].xid && adss[i].xid.length > 0) || !idAds[adss[i].xid] || idAds[adss[i].xid].xidNumber < adss[i].xidNumber) {
+                        if (adss[i].xid && adss[i].xid.length > 0) {
+                            if (idAds[adss[i].xid])
+                                resAdss.splice(idAds[adss[i].xid].index, 1)
+                            idAds[adss[i].xid] = {xidNumber: adss[i].xidNumber, index: resAdss.length}
+                        }
+                        resAdss.push(adss[i]._id)
+                    }
+                }
+            }
+            else if (adss[i].targetType === 'Товар' && adss[i].targetItems && adss[i].targetItems.length > 0) {
+                let check = true
+                let checkItemsCount = []
+                for (let i1 = 0; i1 < adss[i].targetItems.length; i1++) {
+                    if (adss[i].targetItems[i1].sum) {
+                        checkItemsCount[i1] = 0
+                        for (let i2 = 0; i2 < invoice.orders.length; i2++) {
+                            if (adss[i].targetItems[i1].xids.toString().includes(invoice.orders[i2].item.toString())) {
+                                checkItemsCount[i1] += adss[i].targetItems[i1].type === 'Количество' ?
+                                    invoice.orders[i2].count - invoice.orders[i2].returned
+                                    :
+                                    (invoice.orders[i2].allPrice / invoice.orders[i2].count * (invoice.orders[i2].count - invoice.orders[i2].returned))
+                            }
+                        }
+                        checkItemsCount[i1] = checkItemsCount[i1] >= (adss[i].targetItems[i1].type === 'Количество' ? adss[i].targetItems[i1].count : adss[i].targetItems[i1].targetPrice);
+                    } else {
+                        checkItemsCount[i1] = false
+                        for (let i2 = 0; i2 < invoice.orders.length; i2++) {
+                            if (adss[i].targetItems[i1].type === 'Количество')
+                                checkItemsCount[i1] = (adss[i].targetItems[i1].xids.toString().includes(invoice.orders[i2].item.toString()) && (invoice.orders[i2].count - invoice.orders[i2].returned) >= adss[i].targetItems[i1].count)
+                            else {
+                                checkItemsCount[i1] = (
+                                    adss[i].targetItems[i1].xids.toString().includes(invoice.orders[i2].item.toString())
+                                    &&
+                                    (invoice.orders[i2].allPrice / invoice.orders[i2].count * (invoice.orders[i2].count - invoice.orders[i2].returned)) >= adss[i].targetItems[i1].targetPrice
+                                )
+                            }
+                        }
+                    }
+                }
+                if (checkItemsCount.length) {
+                    for (let i1 = 0; i1 < checkItemsCount.length; i1++) {
+                        if (!checkItemsCount[i1])
+                            check = false
+                    }
+                } else
+                    check = false
+                if (check &&
+                    (
+                        !(adss[i].xid && adss[i].xid.length > 0)
+                        ||
+                        !idAds[adss[i].xid]
+                        ||
+                        idAds[adss[i].xid].xidNumber < adss[i].xidNumber
+                    )) {
+                    if (adss[i].xid && adss[i].xid.length > 0) {
+                        if (idAds[adss[i].xid])
                             resAdss.splice(idAds[adss[i].xid].index, 1)
                         idAds[adss[i].xid] = {xidNumber: adss[i].xidNumber, index: resAdss.length}
                     }
@@ -83,67 +212,16 @@ const checkAdss = async(invoice) => {
                 }
             }
         }
-        else if(adss[i].targetType==='Товар'&&adss[i].targetItems&&adss[i].targetItems.length>0){
-            let check = true
-            let checkItemsCount = []
-            for(let i1=0; i1<adss[i].targetItems.length; i1++) {
-                if(adss[i].targetItems[i1].sum){
-                    checkItemsCount[i1] = 0
-                    for(let i2=0; i2<invoice.orders.length; i2++) {
-                        if(adss[i].targetItems[i1].xids.toString().includes(invoice.orders[i2].item.toString())) {
-                            checkItemsCount[i1] += adss[i].targetItems[i1].type==='Количество'?
-                                invoice.orders[i2].count-invoice.orders[i2].returned
-                                :
-                                (invoice.orders[i2].allPrice/invoice.orders[i2].count*(invoice.orders[i2].count-invoice.orders[i2].returned))
-                        }
-                    }
-                    checkItemsCount[i1] = checkItemsCount[i1] >= (adss[i].targetItems[i1].type==='Количество'?adss[i].targetItems[i1].count:adss[i].targetItems[i1].targetPrice);
-                 }
-                else {
-                    checkItemsCount[i1] = false
-                    for(let i2=0; i2<invoice.orders.length; i2++) {
-                        if(adss[i].targetItems[i1].type==='Количество')
-                            checkItemsCount[i1] = (adss[i].targetItems[i1].xids.toString().includes(invoice.orders[i2].item.toString())&&(invoice.orders[i2].count-invoice.orders[i2].returned)>=adss[i].targetItems[i1].count)
-                        else {
-                            checkItemsCount[i1] = (
-                                adss[i].targetItems[i1].xids.toString().includes(invoice.orders[i2].item.toString())
-                                &&
-                                (invoice.orders[i2].allPrice/invoice.orders[i2].count*(invoice.orders[i2].count-invoice.orders[i2].returned)) >= adss[i].targetItems[i1].targetPrice
-                            )
-                        }
-                    }
-                }
-            }
-            if(checkItemsCount.length) {
-                for (let i1 = 0; i1 < checkItemsCount.length; i1++) {
-                    if (!checkItemsCount[i1])
-                        check = false
-                }
-            }
-            else
-                check = false
-            if(check&&
-                (
-                    !(adss[i].xid&&adss[i].xid.length>0)
-                    ||
-                    !idAds[adss[i].xid]
-                    ||
-                    idAds[adss[i].xid].xidNumber<adss[i].xidNumber
-                )) {
-                if(adss[i].xid&&adss[i].xid.length>0) {
-                    if(idAds[adss[i].xid])
-                        resAdss.splice(idAds[adss[i].xid].index, 1)
-                    idAds[adss[i].xid] = {xidNumber: adss[i].xidNumber, index: resAdss.length}
-                }
-                resAdss.push(adss[i]._id)
-            }
-        }
+        //Акции записываются к последнему заказу
+        await InvoiceAzyk.updateOne({
+            _id: invoices[0]._id
+        }, {
+            adss: resAdss
+        })
     }
-    return resAdss
 }
 
 const resolvers = {
-    checkAdss: async(parent, {invoice}) => await checkAdss(invoice),
     adssTrash: async(parent, {search}, {user}) => {
         if(user.role==='admin') {
             return await AdsAzyk.find({

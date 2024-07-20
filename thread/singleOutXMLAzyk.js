@@ -83,7 +83,7 @@ if(!isMainThread) {
             for(let i = 0; i<invoices.length;i++) {
                 invoices[i].taken = true
                 await OrderAzyk.updateMany({_id: {$in: invoices[i].orders.map(element=>element._id)}}, {status: 'принят'})
-                invoices[i].adss = await checkAdss(invoices[i])
+                await checkAdss(invoices[i])
                 if (invoices[i].organization.pass && invoices[i].organization.pass.length) {
                     invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
                 }
@@ -110,7 +110,7 @@ if(!isMainThread) {
                 });
                 await HistoryOrderAzyk.create(objectHistoryOrder);
                 await invoices[i].save()
-                invoices[i].adss = await AdsAzyk.find({_id: {$in: invoices[i].adss}})
+                invoices[i].adss = await AdsAzyk.find({_id: {$in: invoices[i].adss}}).lean()
                 pubsub.publish(RELOAD_ORDER, { reloadOrder: {
                     who: null,
                     client: invoices[i].client._id,
