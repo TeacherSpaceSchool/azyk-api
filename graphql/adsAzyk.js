@@ -56,7 +56,7 @@ const mutation = `
 const checkAdss = async(invoice, canceled) => {
     //Ищется заказ
     invoice = await InvoiceAzyk.findOne({_id: invoice})
-        .select('_id createdAt returnedPrice organization allPrice orders')
+        .select('_id createdAt returnedPrice organization allPrice orders client')
         .populate({
             path: 'orders',
             select: 'count returned item allPrice'
@@ -73,6 +73,7 @@ const checkAdss = async(invoice, canceled) => {
             {organization: invoice.organization},
             {createdAt: {$gte: dateStart}},
             {createdAt: {$lt: dateEnd}},
+            {client: invoice.client}
         ]
     }, {
         adss: []
@@ -84,7 +85,8 @@ const checkAdss = async(invoice, canceled) => {
             {createdAt: {$gte: dateStart}},
             {createdAt: {$lt: dateEnd}},
             {_id: {$ne: invoice._id}},
-            {taken: true}
+            {taken: true},
+            {client: invoice.client}
         ]
     })
         .select('_id createdAt returnedPrice organization allPrice orders')
