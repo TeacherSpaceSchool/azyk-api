@@ -110,18 +110,19 @@ if(!isMainThread) {
                 });
                 await HistoryOrderAzyk.create(objectHistoryOrder);
                 await invoices[i].save()
-                invoices[i].adss = await AdsAzyk.find({_id: {$in: invoices[i].adss}}).lean()
-                pubsub.publish(RELOAD_ORDER, { reloadOrder: {
-                    who: null,
-                    client: invoices[i].client._id,
-                    agent: invoices[i].agent?invoices[i].agent._id:undefined,
-                    superagent: undefined,
-                    organization: invoices[i].organization._id,
-                    distributer: undefined,
-                    invoice: invoices[i],
-                    manager: undefined,
-                    type: 'SET'
-                } });
+                await pubsub.publish(RELOAD_ORDER, {
+                    reloadOrder: {
+                        who: null,
+                        client: invoices[i].client._id,
+                        agent: invoices[i].agent ? invoices[i].agent._id : undefined,
+                        superagent: undefined,
+                        organization: invoices[i].organization._id,
+                        distributer: undefined,
+                        invoice: invoices[i],
+                        manager: undefined,
+                        type: 'SET'
+                    }
+                });
             }
             //генерация акционых заказов
             organizations = await OrganizationAzyk.find({
