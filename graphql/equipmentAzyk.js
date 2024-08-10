@@ -1,43 +1,98 @@
-const RepairEquipmentAzyk = require('../models/repairEquipmentAzyk');
+const EquipmentAzyk = require('../models/equipmentAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
+const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
+const path = require('path');
+const fs = require('fs');
+const {urlMain} = require('../module/const');
+const app = require('../app');
 
 const type = `
-  type RepairEquipment {
+  type Equipment {
     _id: ID
     createdAt: Date
     number: String
-    status: String
-    equipment: String
+    model: String
     client: Client
-    repairMan: Employment
     agent: Employment
     organization: Organization
-    accept: Boolean
-    done: Boolean
-    cancel: Boolean
-    defect: [String]
-    repair: [String]
-    dateRepair: Date
   }
 `;
 
 const query = `
-    repairEquipments(organization: ID!, search: String!, filter: String!): [RepairEquipment]
-    repairEquipment(_id: ID!): RepairEquipment
-    filterRepairEquipment: [Filter]
+    equipments(organization: ID!, search: String!, agent: ID): [Equipment]
+    unloadEquipments(organization: ID!): Data
 `;
 
 const mutation = `
-    addRepairEquipment(organization: ID, client: ID!, equipment: String!, defect: [String]!): Data
-    setRepairEquipment(_id: ID!, accept: Boolean, done: Boolean, client: ID, equipment: String, cancel: Boolean, defect: [String], repair: [String]): Data
-    deleteRepairEquipment(_id: [ID]!): Data
+    addEquipment(number: String!, model: String!, client: ID, agent: ID, organization: ID): Equipment
+    setEquipment(_id: ID!, number: String, model: String, client: ID, agent: ID): Data
+    deleteEquipment(_id: [ID]!): Data
 `;
 
 const resolvers = {
-    repairEquipments: async(parent, {organization, search, filter}, {user}) => {
+    unloadEquipments: async(parent, {organization}, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+            let workbook = new ExcelJS.Workbook();
+            const worksheet = await workbook.addWorksheet('Оборудование');
+            let row = 1;
+            worksheet.getColumn(1).width = 25;
+            worksheet.getColumn(2).width = 15;
+            worksheet.getColumn(3).width = 15;
+            worksheet.getColumn(4).width = 15;
+            worksheet.getColumn(5).width = 15;
+            worksheet.getCell(`A${row}`).font = {bold: true};
+            worksheet.getCell(`A${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
+            worksheet.getCell(`A${row}`).value = 'Номер:';
+            worksheet.getCell(`B${row}`).font = {bold: true};
+            worksheet.getCell(`B${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
+            worksheet.getCell(`B${row}`).value = 'Модель:';
+            worksheet.getCell(`C${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
+            worksheet.getCell(`C${row}`).font = {bold: true};
+            worksheet.getCell(`C${row}`).value = 'Клиент:';
+            worksheet.getCell(`D${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
+            worksheet.getCell(`D${row}`).value = 'Агент:';
+            worksheet.getCell(`D${row}`).font = {bold: true};
+
+            const res = await EquipmentAzyk.find({
+                $and: [
+                    {organization: user.organization?user.organization:organization}
+                ]
+            })
+                .sort('-createdAt')
+                .populate({
+                    path: 'client',
+                    select: 'name _id address'
+                })
+                .populate({
+                    path: 'agent',
+                    select: '_id name'
+                })
+                .lean()
+            for(let i=0; i<res.length; i++) {
+                row += 1
+                worksheet.getCell(`A${row}`).value = res[i].number;
+                worksheet.getCell(`B${row}`).value = res[i].model;
+                if(res[i].client)
+                    worksheet.getCell(`C${row}`).value = `${res[i].client.name}${res[i].client.address&&res[i].client.address[0]?` (${res[i].client.address[0][2] ? `${res[i].client.address[0][2]}, ` : ''}${res[i].client.address[0][0]})`:''}`;
+                if(res[i].agent)
+                    worksheet.getCell(`D${row}`).value = res[i].agent.name;
+            }
+            let xlsxname = `${randomstring.generate(20)}.xlsx`;
+            let xlsxdir = path.join(app.dirname, 'public', 'xlsx');
+            if (!fs.existsSync(xlsxdir)){
+                await fs.mkdirSync(xlsxdir);
+            }
+            let xlsxpath = path.join(app.dirname, 'public', 'xlsx', xlsxname);
+            await workbook.xlsx.writeFile(xlsxpath);
+            return({data: urlMain + '/xlsx/' + xlsxname})
+        }
+    },
+    equipments: async(parent, {organization, search, agent}, {user}) => {
+        const date = new Date('2024-02-01T03:00:00.000Z')
+        await EquipmentAzyk.deleteMany({createdAt: {$lte: date}})
         if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
             let clients = []
             if(['агент', 'менеджер'].includes(user.role)){
@@ -49,24 +104,30 @@ const resolvers = {
             let _clients = [];
             let _agents = [];
             if(search.length>0) {
-                _clients = await ClientAzyk.find({del: {$ne: 'deleted'}, $or: [{name: {'$regex': search, '$options': 'i'}},{info: {'$regex': search, '$options': 'i'}}, {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}]})
-                    .distinct('_id').lean()
+                _clients = await ClientAzyk.find({
+                    del: {$ne: 'deleted'},
+                    $or: [
+                        {name: {'$regex': search, '$options': 'i'}},
+                        {info: {'$regex': search, '$options': 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                    ]
+                }).distinct('_id').lean()
                 _agents = await EmploymentAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': search, '$options': 'i'},
+                    ...organization!=='super'?{organization}:{}
                 }).distinct('_id').lean()
             }
-            let repairEquipments = await RepairEquipmentAzyk.find({
+            let equipments = await EquipmentAzyk.find({
                 organization: user.organization?user.organization:organization==='super'?null:organization,
-                status: {'$regex': filter, '$options': 'i'},
+                ...agent?{agent}:{},
                 $and: [
-                    {...['агент', 'менеджер'].includes(user.role)?{client: {$in: clients}}:{}},
+                    {...clients.length?{client: {$in: clients}}:{}},
                     {...(search.length>0?{
                         $or: [
                             {number: {'$regex': search, '$options': 'i'}},
-                            {equipment: {'$regex': search, '$options': 'i'}},
+                            {model: {'$regex': search, '$options': 'i'}},
                             {client: {$in: _clients}},
                             {agent: {$in: _agents}},
-                            {repairMan: {$in: _agents}},
                         ]
                     }
                     :{})}
@@ -81,123 +142,45 @@ const resolvers = {
                     select: '_id name'
                 })
                 .populate({
-                    path: 'repairMan',
-                    select: '_id name'
-                })
-                .populate({
                     path: 'organization',
                     select: '_id name'
                 })
                 .sort('-createdAt')
                 .lean()
-            return repairEquipments
+            return equipments
         }
-    },
-    repairEquipment: async(parent, {_id}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
-            return await RepairEquipmentAzyk.findOne({
-                _id: _id,
-                ...user.organization ? {organization: user.organization} : {}
-            })
-                .populate({
-                    path: 'client',
-                    select: 'name _id address'
-                })
-                .populate({
-                    path: 'agent',
-                    select: '_id name'
-                })
-                .populate({
-                    path: 'repairMan',
-                    select: '_id name'
-                })
-                .populate({
-                    path: 'organization',
-                    select: '_id name'
-                })
-                .lean()
-        }
-    },
-    filterRepairEquipment: async() => {
-        let filter = [
-            {
-                name: 'Все',
-                value: ''
-            },
-            {
-                name: 'Обработка',
-                value: 'обработка'
-            },
-            {
-                name: 'Отмена',
-                value: 'отмена'
-            },
-            {
-                name: 'Принят',
-                value: 'принят'
-            },
-            {
-                name: 'Выполнен',
-                value: 'выполнен'
-            }
-        ]
-        return filter
-    },
+    }
 };
 
 const resolversMutation = {
-    addRepairEquipment: async(parent, {equipment, client, defect, organization}, {user}) => {
+    addEquipment: async(parent, {number, model, client, agent, organization}, {user}) => {
         if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация'].includes(user.role)){
-            let number = randomstring.generate({length: 12, charset: 'numeric'});
-            while (await RepairEquipmentAzyk.findOne({number: number}).select('_id').lean())
-                number = randomstring.generate({length: 12, charset: 'numeric'});
-            let _object = new RepairEquipmentAzyk({
-                number: number,
-                status: 'обработка',
-                equipment: equipment,
+            let _object = new EquipmentAzyk({
+                number,
+                model,
                 client,
-                agent: user.employment?user.employment:null,
-                organization: user.organization?user.organization:organization,
-                accept: false,
-                done: false,
-                cancel: false,
-                defect: defect,
-                repair: [],
-                dateRepair: null,
-                repairMan: null
+                agent,
+                organization
             });
-            await RepairEquipmentAzyk.create(_object)
+            _object = await EquipmentAzyk.create(_object)
+            return _object
         }
-        return {data: 'OK'};
     },
-    setRepairEquipment: async(parent, {_id, accept, done, cancel, defect, repair, equipment, client}, {user}) => {
+    setEquipment: async(parent, {_id, number, model, client, agent}, {user}) => {
         if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация', 'ремонтник'].includes(user.role)) {
-            let object = await RepairEquipmentAzyk.findById(_id)
-            if(user.role==='ремонтник')object.repairMan = user.employment
-            if(defect&&!object.accept&&!object.cancel)object.defect = defect
-            if(repair&&(object.accept||accept)&&!object.done)object.repair = repair
-            if(equipment&&!object.accept&&!object.cancel)object.equipment = equipment
-            if(client&&!object.accept&&!object.cancel)object.client = client
-            if(accept!==undefined&&!object.cancel){
-                object.accept = accept
-                object.status = 'принят'
-            }
-            if(done!==undefined&&object.accept){
-                object.done = done
-                object.dateRepair = new Date()
-                object.status = 'выполнен'
-            }
-            if(cancel!==undefined&&!object.accept){
-                object.cancel = cancel
-                object.status = 'отмена'
-            }
+            let object = await EquipmentAzyk.findById(_id)
+            if(client) object.client = client
+            if(number) object.number = number
+            if(model) object.model = model
+            if(agent) object.agent = agent
+            if(agent) object.agent = agent
             await object.save();
         }
         return {data: 'OK'}
     },
-    deleteRepairEquipment: async(parent, { _id }, {user}) => {
+    deleteEquipment: async(parent, { _id }, {user}) => {
         if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация'].includes(user.role)){
-            await RepairEquipmentAzyk.deleteMany({_id: {$in: _id}, ...user.organization?{organization: user.organization}:{}})
+            await EquipmentAzyk.deleteMany({_id: {$in: _id}, ...user.organization?{organization: user.organization}:{}})
         }
         return {data: 'OK'}
     },

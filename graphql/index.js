@@ -27,7 +27,7 @@ const SubBrand = require('./subBrandAzyk');
 const FormAzyk = require('./formAzyk');
 const BasketAzyk = require('./basketAzyk');
 const OrderAzyk = require('./orderAzyk');
-const EquipmentAzyk = require('./equipmentAzyk');
+const RepairEquipmentAzyk = require('./repairEquipmentAzyk');
 const PassportAzyk = require('./passport');
 const RouteAzyk = require('./routeAzyk');
 const NotificationStatisticAzyk = require('./notificationStatisticAzyk');
@@ -45,6 +45,7 @@ const DeliveryDateAzyk = require('./deliveryDateAzyk');
 const { verifydeuserGQL } = require('../module/passport');
 const { GraphQLScalarType } = require('graphql');
 const ModelsErrorAzyk = require('../models/errorAzyk');
+const EquipmentAzyk = require('./equipmentAzyk');
 
 const typeDefs = gql`
     scalar Date
@@ -83,6 +84,7 @@ const typeDefs = gql`
     ${FaqAzyk.type}
     ${MerchandisingAzyk.type}
     ${AutoAzyk.type}
+    ${RepairEquipmentAzyk.type}
     ${EquipmentAzyk.type}
     ${ClientAzyk.type}
     ${OrganizationAzyk.type}
@@ -124,6 +126,7 @@ const typeDefs = gql`
         ${FaqAzyk.mutation}
         ${MerchandisingAzyk.mutation}
         ${AutoAzyk.mutation}
+        ${RepairEquipmentAzyk.mutation}
         ${EquipmentAzyk.mutation}
         ${ClientAzyk.mutation}
         ${OrganizationAzyk.mutation}
@@ -159,6 +162,7 @@ const typeDefs = gql`
         ${FaqAzyk.query}
         ${MerchandisingAzyk.query}
         ${AutoAzyk.query}
+        ${RepairEquipmentAzyk.query}
         ${EquipmentAzyk.query}
         ${OrganizationAzyk.query}
         ${AgentHistoryGeoAzyk.query}
@@ -223,6 +227,7 @@ const resolvers = {
         ...FaqAzyk.resolvers,
         ...MerchandisingAzyk.resolvers,
         ...AutoAzyk.resolvers,
+        ...RepairEquipmentAzyk.resolvers,
         ...EquipmentAzyk.resolvers,
         ...ClientAzyk.resolvers,
         ...OrganizationAzyk.resolvers,
@@ -266,6 +271,7 @@ const resolvers = {
         ...MerchandisingAzyk.resolversMutation,
         ...ClientAzyk.resolversMutation,
         ...AutoAzyk.resolversMutation,
+        ...RepairEquipmentAzyk.resolversMutation,
         ...EquipmentAzyk.resolversMutation,
         ...OrganizationAzyk.resolversMutation,
         ...AgentHistoryGeoAzyk.resolversMutation,
