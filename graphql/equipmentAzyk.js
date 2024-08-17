@@ -155,6 +155,7 @@ const resolvers = {
 const resolversMutation = {
     addEquipment: async(parent, {number, model, client, agent, organization}, {user}) => {
         if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация'].includes(user.role)){
+            if(['агент', 'суперагент'].includes(user.role)) agent = user._id
             let _object = new EquipmentAzyk({
                 number,
                 model,
