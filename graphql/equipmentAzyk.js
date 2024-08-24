@@ -101,36 +101,19 @@ const resolvers = {
                     .distinct('client')
                     .lean()
             }
-            let _clients = [];
-            let _agents = [];
-            if(search.length>0) {
-                _clients = await ClientAzyk.find({
-                    del: {$ne: 'deleted'},
-                    $or: [
-                        {name: {'$regex': search, '$options': 'i'}},
-                        {info: {'$regex': search, '$options': 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
-                    ]
-                }).distinct('_id').lean()
-                _agents = await EmploymentAzyk.find({
-                    name: {'$regex': search, '$options': 'i'},
-                    ...organization!=='super'?{organization}:{}
-                }).distinct('_id').lean()
-            }
             let equipments = await EquipmentAzyk.find({
-                organization: user.organization?user.organization:organization==='super'?null:organization,
-                ...agent?{agent}:{},
                 $and: [
-                    {...clients.length?{client: {$in: clients}}:{}},
-                    {...(search.length>0?{
-                        $or: [
-                            {number: {'$regex': search, '$options': 'i'}},
-                            {model: {'$regex': search, '$options': 'i'}},
-                            {client: {$in: _clients}},
-                            {agent: {$in: _agents}},
-                        ]
-                    }
-                    :{})}
+                    {organization: user.organization?user.organization:organization==='super'?null:organization},
+                    ...agent?[{agent}]:[],
+                    ...clients.length?[
+                        {
+                            $or: [
+                                {client: {$in: clients}},
+                                {agent: user.employment}
+                            ]
+                        }
+                    ]:[],
+                    ...search.length>0?[{number: {'$regex': search, '$options': 'i'}}]:[]
                 ]
             })
                 .populate({
@@ -154,8 +137,8 @@ const resolvers = {
 
 const resolversMutation = {
     addEquipment: async(parent, {number, model, client, agent, organization}, {user}) => {
-        if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация'].includes(user.role)){
-            if(['агент', 'суперагент'].includes(user.role)) agent = user._id
+        if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация', 'ремонтник'].includes(user.role)){
+            if(['агент', 'суперагент'].includes(user.role)) agent = user.employment
             let _object = new EquipmentAzyk({
                 number,
                 model,
@@ -164,7 +147,16 @@ const resolversMutation = {
                 organization
             });
             _object = await EquipmentAzyk.create(_object)
-            return _object
+            return await EquipmentAzyk.findById(_object._id)
+                .populate({
+                    path: 'client',
+                    select: 'name _id address'
+                })
+                .populate({
+                    path: 'agent',
+                    select: '_id name'
+                })
+                .lean()
         }
     },
     setEquipment: async(parent, {_id, number, model, client, agent}, {user}) => {
@@ -180,7 +172,7 @@ const resolversMutation = {
         return {data: 'OK'}
     },
     deleteEquipment: async(parent, { _id }, {user}) => {
-        if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация'].includes(user.role)){
+        if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация', 'ремонтник'].includes(user.role)){
             await EquipmentAzyk.deleteMany({_id: {$in: _id}, ...user.organization?{organization: user.organization}:{}})
         }
         return {data: 'OK'}

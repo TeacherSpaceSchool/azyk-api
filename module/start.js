@@ -28,6 +28,7 @@ const { checkAdss } = require('../graphql/adsAzyk');
 const { pubsub } = require('../graphql/index');
 const MerchandisingAzyk = require('../models/merchandisingAzyk');
 const {reductionOldestDB} = require('./db');
+const {reductionEquipment} = require('./equipmentAzyk');
 
 let startDeleteBD = async () => {
     if(isMainThread) {
@@ -98,6 +99,7 @@ let start = async () => {
     await startReminderClient();
     await startOutXMLShoroAzyk();
     await startDeleteBD();
+    await reductionEquipment();
     //await reductionReviews();
     //await reductionToEmployment()
     //await reductionSubBrands();
