@@ -15,7 +15,7 @@ const UserAzyk = require('../models/userAzyk');
 const AdsAzyk = require('../models/adsAzyk');
 const PlanAzyk = require('../models/planAzyk');
 const ModelsErrorAzyk = require('../models/errorAzyk');
-const { saveImage, saveFile, deleteFile, urlMain } = require('../module/const');
+const { saveImage, saveFile, deleteFile, urlMain, isTestUser, isNotTestUser} = require('../module/const');
 
 const type = `
   type Organization {
@@ -90,7 +90,7 @@ const resolvers = {
             const organizations = await OrganizationAzyk.find({
                 _id: {$in: brandOrganizations},
                 name: {'$regex': search, '$options': 'i'},
-                status: 'admin'===user.role?filter.length===0?{'$regex': filter, '$options': 'i'}:filter:'active',
+                status: (isTestUser(user)||'admin'===user.role)?filter.length===0?{'$regex': filter, '$options': 'i'}:filter:'active',
                 ...city?{cities: city}:{},
                 del: {$ne: 'deleted'},
                 ...['суперагент', 'суперэкспедитор'].includes(user.role)?{superagent: true}:{},
@@ -103,7 +103,7 @@ const resolvers = {
                 subBrands = await SubBrandAzyk.find({
                     _id: {$in: subBrands},
                     name: {'$regex': search, '$options': 'i'},
-                    status: 'admin'===user.role?filter.length===0?{'$regex': filter, '$options': 'i'}:filter:'active',
+                    status: (isTestUser(user)||'admin'===user.role)?filter.length===0?{'$regex': filter, '$options': 'i'}:filter:'active',
                     ...city?{cities: city}:{},
                     del: {$ne: 'deleted'},
                     ...user.city?{cities: user.city}:{},
@@ -173,7 +173,7 @@ const resolvers = {
     organizations: async(parent, {search, filter, city}, {user}) => {
         return await OrganizationAzyk.find({
             name: {'$regex': search, '$options': 'i'},
-            ...user.role!=='admin'?{status:'active'}:filter.length?{status: filter}:{},
+            ...(isNotTestUser(user)&&user.role!=='admin')?{status:'active'}:filter.length?{status: filter}:{},
             ...city?{cities: city}:{},
             del: {$ne: 'deleted'}
         })

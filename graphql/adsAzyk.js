@@ -3,7 +3,7 @@ const OrganizationAzyk = require('../models/organizationAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const DistributerAzyk = require('../models/distributerAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const { saveImage, deleteFile, urlMain } = require('../module/const');
+const { saveImage, deleteFile, urlMain, isNotTestUser} = require('../module/const');
 
 const type = `
   type Ads {
@@ -284,7 +284,7 @@ const resolvers = {
                 let organizations = await AdsAzyk.find({del: {$ne: 'deleted'}}).distinct('organization').lean()
                 organizations = await OrganizationAzyk.find({
                     _id: {$in: organizations},
-                    status: 'active',
+                    ...isNotTestUser(user)?{status: 'active'}:{},
                     ...user.city ? {cities: user.city} : {},
                     del: {$ne: 'deleted'}
                 })

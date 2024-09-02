@@ -99,7 +99,7 @@ let start = async () => {
     await startReminderClient();
     await startOutXMLShoroAzyk();
     await startDeleteBD();
-    await reductionEquipment();
+    //await reductionEquipment();
     //await reductionReviews();
     //await reductionToEmployment()
     //await reductionSubBrands();

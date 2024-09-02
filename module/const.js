@@ -14,6 +14,12 @@ const validMail = (mail) => {
 const validPhone = (phone) => {
     return /^[+]{1}996[0-9]{9}$/.test(phone);
 }
+const isNotTestUser = (profile) => {
+    return !profile||!profile.login||!profile.login.toLowerCase().includes('test')
+}
+const isTestUser = (profile) => {
+    return profile&&profile.login&&profile.login.toLowerCase().includes('test')
+}
 const getGeoDistance = (lat1, lon1, lat2, lon2) => {
     lat1 = parseFloat(lat1)
     lon1 = parseFloat(lon1)
@@ -161,3 +167,5 @@ module.exports.adminPass = adminPass;
 module.exports.adminLogin = adminLogin;
 module.exports.urlMain = urlMain;
 module.exports.checkFloat = checkFloat;
+module.exports.isNotTestUser = isNotTestUser;
+module.exports.isTestUser = isTestUser;
