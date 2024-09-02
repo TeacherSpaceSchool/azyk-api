@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const EquipmentAzykSchema = mongoose.Schema({
     number: String,
     model: String,
+    image: String,
     client: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ClientAzyk'

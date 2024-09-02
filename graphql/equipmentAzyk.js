@@ -1,18 +1,17 @@
 const EquipmentAzyk = require('../models/equipmentAzyk');
-const EmploymentAzyk = require('../models/employmentAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const ClientAzyk = require('../models/clientAzyk');
 const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const path = require('path');
 const fs = require('fs');
-const {urlMain} = require('../module/const');
+const {urlMain, saveImage} = require('../module/const');
 const app = require('../app');
 
 const type = `
   type Equipment {
     _id: ID
     createdAt: Date
+    image: String
     number: String
     model: String
     client: Client
@@ -28,7 +27,7 @@ const query = `
 
 const mutation = `
     addEquipment(number: String!, model: String!, client: ID, agent: ID, organization: ID): Equipment
-    setEquipment(_id: ID!, number: String, model: String, client: ID, agent: ID): Data
+    setEquipment(_id: ID!, image: Upload, number: String, model: String, client: ID, agent: ID): Data
     deleteEquipment(_id: [ID]!): Data
 `;
 
@@ -159,7 +158,7 @@ const resolversMutation = {
                 .lean()
         }
     },
-    setEquipment: async(parent, {_id, number, model, client, agent}, {user}) => {
+    setEquipment: async(parent, {_id, image, number, model, client, agent}, {user}) => {
         if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация', 'ремонтник'].includes(user.role)) {
             let object = await EquipmentAzyk.findById(_id)
             if(client) object.client = client
@@ -167,6 +166,11 @@ const resolversMutation = {
             if(model) object.model = model
             if(agent) object.agent = agent
             if(agent) object.agent = agent
+            if (image) {
+                let {stream, filename} = await image;
+                filename = await saveImage(stream, filename)
+                object.image = urlMain + filename
+            }
             await object.save();
         }
         return {data: 'OK'}
