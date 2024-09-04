@@ -8,6 +8,10 @@ const EquipmentAzykSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ClientAzyk'
     },
+    agentsHistory: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'EmploymentAzyk'
+    }],
     agent: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'EmploymentAzyk'

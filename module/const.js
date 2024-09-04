@@ -140,6 +140,12 @@ const pdDDMMYYYY = (date) =>
     date = `${date.getDate()<10?'0':''}${date.getDate()}.${date.getMonth()<9?'0':''}${date.getMonth()+1}.${date.getFullYear()}`
     return date
 }
+const pdDDMMYY = (date) =>
+{
+    date = new Date(date)
+    date = `${date.getDate()<10?'0':''}${date.getDate()}.${date.getMonth()<9?'0':''}${date.getMonth()+1}.${date.getYear()-100}`
+    return date
+}
 const pdDDMMYYHHMM = (date) =>
 {
     date = new Date(date)

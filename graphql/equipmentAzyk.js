@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const {urlMain, saveImage} = require('../module/const');
 const app = require('../app');
+const EmploymentAzyk = require('../models/employmentAzyk');
 
 const type = `
   type Equipment {
@@ -15,6 +16,7 @@ const type = `
     number: String
     model: String
     client: Client
+    agentsHistory: [Employment]
     agent: Employment
     organization: Organization
   }
@@ -124,6 +126,10 @@ const resolvers = {
                     select: '_id name'
                 })
                 .populate({
+                    path: 'agentsHistory',
+                    select: '_id name'
+                })
+                .populate({
                     path: 'organization',
                     select: '_id name'
                 })
@@ -143,6 +149,7 @@ const resolversMutation = {
                 model,
                 client,
                 agent,
+                agentsHistory: agent?[agent]:[],
                 organization
             });
             _object = await EquipmentAzyk.create(_object)
@@ -164,8 +171,10 @@ const resolversMutation = {
             if(client) object.client = client
             if(number) object.number = number
             if(model) object.model = model
-            if(agent) object.agent = agent
-            if(agent) object.agent = agent
+            if(agent) {
+                object.agent = agent
+                object.agentsHistory = [...object.agentsHistory, agent]
+            }
             if (image) {
                 let {stream, filename} = await image;
                 filename = await saveImage(stream, filename)
