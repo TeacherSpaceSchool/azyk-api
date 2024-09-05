@@ -9,8 +9,11 @@ const EquipmentAzykSchema = mongoose.Schema({
         ref: 'ClientAzyk'
     },
     agentsHistory: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'EmploymentAzyk'
+        agent: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'EmploymentAzyk'
+        },
+        date: Date
     }],
     agent: {
         type: mongoose.Schema.Types.ObjectId,

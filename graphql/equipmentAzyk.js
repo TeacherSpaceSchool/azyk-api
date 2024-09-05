@@ -6,7 +6,6 @@ const path = require('path');
 const fs = require('fs');
 const {urlMain, saveImage} = require('../module/const');
 const app = require('../app');
-const EmploymentAzyk = require('../models/employmentAzyk');
 
 const type = `
   type Equipment {
@@ -16,9 +15,13 @@ const type = `
     number: String
     model: String
     client: Client
-    agentsHistory: [Employment]
+    agentsHistory: [AgentHistoryEquipment]
     agent: Employment
     organization: Organization
+  }
+  type AgentHistoryEquipment {
+       date: Date
+       agent: Employment
   }
 `;
 
@@ -126,7 +129,7 @@ const resolvers = {
                     select: '_id name'
                 })
                 .populate({
-                    path: 'agentsHistory',
+                    path: 'agentsHistory.agent',
                     select: '_id name'
                 })
                 .populate({
@@ -149,7 +152,7 @@ const resolversMutation = {
                 model,
                 client,
                 agent,
-                agentsHistory: agent?[agent]:[],
+                agentsHistory: agent?[{agent, date: new Date()}]:[],
                 organization
             });
             _object = await EquipmentAzyk.create(_object)
@@ -160,6 +163,14 @@ const resolversMutation = {
                 })
                 .populate({
                     path: 'agent',
+                    select: '_id name'
+                })
+                .populate({
+                    path: 'agentsHistory.agent',
+                    select: '_id name'
+                })
+                .populate({
+                    path: 'organization',
                     select: '_id name'
                 })
                 .lean()
@@ -173,7 +184,7 @@ const resolversMutation = {
             if(model) object.model = model
             if(agent) {
                 object.agent = agent
-                object.agentsHistory = [...object.agentsHistory, agent]
+                object.agentsHistory = [...object.agentsHistory, {agent, date: new Date()}]
             }
             if (image) {
                 let {stream, filename} = await image;
