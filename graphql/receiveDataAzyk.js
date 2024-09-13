@@ -105,7 +105,7 @@ const resolversMutation = {
                     _client = await UserAzyk.create(_client);
                     _client = new ClientAzyk({
                         name: receivedData.name ? receivedData.name : 'Новый',
-                        phone: receivedData.phone,
+                        phone: [receivedData.phone],
                         city: organization.cities[0],
                         address: [[receivedData.addres ? receivedData.addres : '', '', receivedData.name ? receivedData.name : '']],
                         user: _client._id,
@@ -132,8 +132,18 @@ const resolversMutation = {
                 let _client = await ClientAzyk.findOne({_id: integrate1CAzyk.client});
                 if(receivedData.name)
                     _client.name = receivedData.name
-                _client.phone = receivedData.phone
-                _client.address = [[receivedData.addres?receivedData.addres:'', '', receivedData.name?receivedData.name:'']]
+                if(receivedData.phone) {
+                    _client.phone = [receivedData.phone]
+                    _client.markModified('phone');
+                }
+                if(receivedData.addres||receivedData.name) {
+                    _client.address = [[
+                        receivedData.addres ? receivedData.addres : _client.address[0][0],
+                        _client.address[0][1],
+                        receivedData.name ? receivedData.name : _client.address[0][2]
+                    ]]
+                    _client.markModified('address');
+                }
                 await _client.save()
 
                 let newDistrict = await DistrictAzyk.findOne({

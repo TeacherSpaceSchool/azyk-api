@@ -163,12 +163,18 @@ router.post('/:pass/put/client', async (req, res, next) => {
                                 let _client = await ClientAzyk.findOne({_id: integrate1CAzyk.client});
                                 if(req.body.elements[0].elements[i].attributes.name)
                                     _client.name = req.body.elements[0].elements[i].attributes.name
-                                _client.phone = req.body.elements[0].elements[i].attributes.tel
-                                _client.address = [[
-                                    req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : '',
-                                    '',
-                                    req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : ''
-                                ]]
+                                if(req.body.elements[0].elements[i].attributes.tel) {
+                                    _client.phone = [req.body.elements[0].elements[i].attributes.tel]
+                                    _client.markModified('phone');
+                                }
+                                if(req.body.elements[0].elements[i].attributes.address||req.body.elements[0].elements[i].attributes.name) {
+                                    _client.address = [[
+                                        req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : _client.address[0][0],
+                                        _client.address[0][1],
+                                        req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : _client.address[0][2]
+                                    ]]
+                                    _client.markModified('address');
+                                }
                                 await _client.save()
                                 //обновляем район
                                 let newDistrict = await DistrictAzyk.findOne({
