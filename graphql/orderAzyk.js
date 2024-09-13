@@ -341,41 +341,6 @@ const resolvers = {
                     .distinct('_id')
                     .lean()
             }
-            console.log(JSON.stringify({
-                del: {$ne: 'deleted'},
-                ...city ? {city: city} : {},
-                ...organization ? {organization: new mongoose.Types.ObjectId(organization)} : {},
-                ...user.client ? {client: user.client} : {},
-                ...['суперагент', 'агент'].includes(user.role) && clients.length || 'менеджер' === user.role ? {client: {$in: clients}} : ['суперагент', 'экспедитор', 'суперэкспедитор', 'агент'].includes(user.role) ? {agent: user.employment} : {},
-                ...['суперагент', 'суперэкспедитор'].includes(user.role) ? {organization: {$in: organizations}} : {},
-                ...(dateStart ? {$and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}]} : {}),
-                ...(filter === 'консигнации' ? {consignmentPrice: {$gt: 0}} : {}),
-                ...(filter === 'акция' ? {adss: {$ne: []}} : {}),
-                ...(filter === 'обработка' ? {
-                    taken: false,
-                    cancelClient: null,
-                    cancelForwarder: null
-                } : {}),
-                ...(filter === 'Без геолокации' ? {
-                    address: {$elemMatch: {$eq: ''}}
-                } : {}),
-                ...user.organization ? {
-                    $or: [
-                        {organization: user.organization},
-                        {sale: user.organization},
-                        {provider: user.organization},
-                    ],
-                } : {},
-                ...search.length > 0 ? {
-                    $or: [
-                        {number: {'$regex': search, '$options': 'i'}},
-                        {info: {'$regex': search, '$options': 'i'}},
-                        {address: {'$regex': search, '$options': 'i'}},
-                        {forwarder: {$in: _agents}},
-                        {agent: {$in: _agents}},
-                    ]
-                } : {}
-            }))
             let invoices = await InvoiceAzyk.aggregate(
                 [
                     {
