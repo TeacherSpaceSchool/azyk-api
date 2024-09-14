@@ -3,7 +3,7 @@ const FormAzyk = require('../models/form/formAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
-const { saveImage, deleteFile, urlMain } = require('../module/const');
+const { saveImage, urlMain, reductionSearch} = require('../module/const');
 
 const type = `
   type TemplateForm {
@@ -84,7 +84,7 @@ const resolvers = {
                 templateForms = await FormAzyk.find({client: user.client}).distinct('templateForm').lean()
             return await TemplateFormAzyk.find({
                 ...organization||user.organization?{organization: user.organization?user.organization:organization}:{},
-                title: {'$regex': search, '$options': 'i'},
+                title: {'$regex': reductionSearch(search), '$options': 'i'},
                 ...user.role==='агент'?{editorEmployment: true}:{},
                 ...user.role==='client'?{editorClient: true, _id: {$nin: templateForms}}:{},
             })
@@ -218,8 +218,8 @@ const resolvers = {
             if(search.length>0) {
                 _clients = await ClientAzyk.find({
                     $or: [
-                        {name: {'$regex': search, '$options': 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                     ]
                 })
                     .distinct('_id')

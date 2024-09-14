@@ -1,6 +1,7 @@
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
+const {reductionSearch} = require('../module/const');
 
 const type = `
   type AgentRoute {
@@ -31,7 +32,7 @@ const resolvers = {
             let _districts;
             if (search.length > 0) {
                 _districts = await DistrictAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
             }
             let districts
@@ -47,7 +48,7 @@ const resolvers = {
                     ...'менеджер' === user.role ? {district: {$in: districts}} : {},
                     ...(search.length > 0 ? {
                             $or: [
-                                {name: {'$regex': search, '$options': 'i'}},
+                                {name: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {district: {$in: _districts}},
                             ]
                         }

@@ -1,6 +1,7 @@
 const SingleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
+const {reductionSearch} = require('../module/const');
 
 
 const type = `
@@ -41,7 +42,7 @@ const resolvers = {
             let _districts;
             if (search.length > 0) {
                 _districts = await DistrictAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id')
                     .lean()
             }

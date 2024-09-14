@@ -6,7 +6,7 @@ const SubBrandAzyk = require('../models/subBrandAzyk');
 const BasketAzyk = require('../models/basketAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
-const { saveImage, deleteFile, urlMain } = require('../module/const');
+const { saveImage, deleteFile, urlMain, reductionSearch} = require('../module/const');
 
 const type = `
   type Item {
@@ -64,7 +64,7 @@ const resolvers = {
         if('admin'===user.role){
             return await ItemAzyk.find({
                     del: 'deleted',
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 })
                     .populate({
                         path: 'subCategory',
@@ -89,7 +89,7 @@ const resolvers = {
                     .lean())]
             return await ItemAzyk.find({
                 del: {$ne: 'deleted'},
-                name: {'$regex': search, '$options': 'i'},
+                name: {'$regex': reductionSearch(search), '$options': 'i'},
                 ...organization?{organization}:{},
                 ...subCategory!=='all'?{subCategory: subCategory}:{},
                 ...user.organization?{organization: {$in: organizations}}:{},
@@ -177,7 +177,7 @@ const resolvers = {
                 ...city ? {city: city} : {},
                 ...user.city ? {city: user.city} : {},
                 ...user.role === 'client' ? {categorys: user.category, city: user.city} : {},
-                name: {'$regex': search, '$options': 'i'},
+                name: {'$regex': reductionSearch(search), '$options': 'i'},
             })
                 .populate({
                     path: 'subCategory',

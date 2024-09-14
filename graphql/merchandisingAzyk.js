@@ -2,7 +2,7 @@ const MerchandisingAzyk = require('../models/merchandisingAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
-const {saveBase64ToFile, urlMain, deleteFile} = require('../module/const');
+const {saveBase64ToFile, urlMain, deleteFile, reductionSearch} = require('../module/const');
 
 const type = `
   type Merchandising {
@@ -77,8 +77,8 @@ const resolvers = {
             if (search.length > 0) {
                 _clients = await ClientAzyk.find({
                     $or: [
-                        {name: {'$regex': search, '$options': 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                     ]
                 }).distinct('_id').lean()
             }

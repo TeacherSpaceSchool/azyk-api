@@ -1,6 +1,6 @@
 const NotificationStatisticAzyk = require('../models/notificationStatisticAzyk');
 const {sendWebPush} = require('../module/webPush');
-const { saveImage, deleteFile, urlMain } = require('../module/const');
+const { saveImage, urlMain, reductionSearch} = require('../module/const');
 
 const type = `
   type NotificationStatistic {
@@ -30,10 +30,10 @@ const resolvers = {
         if('admin'===user.role)
             return await NotificationStatisticAzyk.find({
                 $or: [
-                    {title: {'$regex': search, '$options': 'i'}},
-                    {text: {'$regex': search, '$options': 'i'}},
-                    {tag: {'$regex': search, '$options': 'i'}},
-                    {url: {'$regex': search, '$options': 'i'}}
+                    {title: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {text: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {tag: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {url: {'$regex': reductionSearch(search), '$options': 'i'}}
                 ]
             })
                 .sort('-createdAt')

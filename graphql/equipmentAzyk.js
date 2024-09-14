@@ -4,7 +4,7 @@ const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const path = require('path');
 const fs = require('fs');
-const {urlMain, saveImage} = require('../module/const');
+const {urlMain, saveImage, reductionSearch} = require('../module/const');
 const app = require('../app');
 
 const type = `
@@ -117,7 +117,7 @@ const resolvers = {
                             ]
                         }
                     ]:[],
-                    ...search.length>0?[{number: {'$regex': search, '$options': 'i'}}]:[]
+                    ...search.length>0?[{number: {'$regex': reductionSearch(search), '$options': 'i'}}]:[]
                 ]
             })
                 .populate({

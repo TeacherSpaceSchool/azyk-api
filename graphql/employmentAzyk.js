@@ -3,7 +3,7 @@ const UserAzyk = require('../models/userAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const { createJwtGQL } = require('../module/passport');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
-const mongoose = require('mongoose')
+const {reductionSearch} = require('../module/const');
 
 const type = `
   type Employment {
@@ -42,7 +42,7 @@ const resolvers = {
         if(user.role==='admin') {
             return await EmploymentAzyk.find({
                 del: 'deleted',
-                name: {'$regex': search, '$options': 'i'}
+                name: {'$regex': reductionSearch(search), '$options': 'i'}
             })
                 .populate({
                     path: 'user',
@@ -69,7 +69,7 @@ const resolvers = {
                 organization: user.organization ? user.organization : organization === 'super' ? null : organization,
                 del: {$ne: 'deleted'},
                 ...filter && filter.length ? {user: {$in: users}} : {},
-                name: {'$regex': search, '$options': 'i'}
+                name: {'$regex': reductionSearch(search), '$options': 'i'}
             })
                 .populate({
                     path: 'user',

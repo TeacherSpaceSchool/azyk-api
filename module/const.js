@@ -159,6 +159,20 @@ const pdHHMM = (date) =>
     return date
 }
 
+module.exports.reductionSearch = (search) => {
+    if(search) {
+        search = search.replace(/\\/g, '')
+        search = search.replace(/\(/g, '\\(')
+        search = search.replace(/\)/g, '\\)')
+        search = search.replace(/\[/g, '\\[')
+        search = search.replace(/]/g, '\\]')
+        search = search.replace(/\+/g, '\\+')
+        search = search.replace(/\*/g, '\\*')
+        search = search.replace(/\?/g, '\\?')
+        return search
+    }
+    return ''
+}
 
 module.exports.statsCollection = statsCollection;
 module.exports.getGeoDistance = getGeoDistance;

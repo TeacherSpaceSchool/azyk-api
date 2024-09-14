@@ -5,7 +5,7 @@ const ItemAzyk = require('../models/itemAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const OrderAzyk = require('../models/orderAzyk');
 const mongoose = require('mongoose');
-const { saveFile, deleteFile } = require('../module/const');
+const { saveFile, deleteFile, reductionSearch} = require('../module/const');
 const readXlsxFile = require('read-excel-file/node');
 const path = require('path');
 const app = require('../app');
@@ -49,19 +49,19 @@ const resolvers = {
             let _employments;
             if(search.length>0){
                 _items = await ItemAzyk.find({
-                    name: {'$regex': search, '$options': 'i'},
+                    name: {'$regex': reductionSearch(search), '$options': 'i'},
                     del: {$ne: 'deleted'},
                     ...(organization==='super'?{organization: null}:{organization: organization})
                 }).distinct('_id').lean()
                 _clients = await ClientAzyk.find({
                     $or: [
-                        {name: {'$regex': search, '$options': 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                     ],
                     del: {$ne: 'deleted'}
                 }).distinct('_id').lean()
                 _employments = await EmploymentAzyk.find({
-                    name: {'$regex': search, '$options': 'i'},
+                    name: {'$regex': reductionSearch(search), '$options': 'i'},
                     del: {$ne: 'deleted'},
                     ...(organization==='super'?{organization: null}:{organization: organization})
                 }).distinct('_id').lean()
@@ -96,7 +96,7 @@ const resolvers = {
                                         {client: {$in: _clients}},
                                         {ecspeditor: {$in: _employments}},
                                         {item: {$in: _items}},
-                                        {guid: {'$regex': search, '$options': 'i'}}
+                                        {guid: {'$regex': reductionSearch(search), '$options': 'i'}}
                                     ]
                                 }
                                 :{}),
@@ -117,19 +117,19 @@ const resolvers = {
             if(search.length>0){
                 _items = await ItemAzyk.find({
                     ...(organization==='super'?{organization: null}:{organization: organization}),
-                    name: {'$regex': search, '$options': 'i'},
+                    name: {'$regex': reductionSearch(search), '$options': 'i'},
                     del: {$ne: 'deleted'}
                 }).distinct('_id').lean()
                 _clients = await ClientAzyk.find({
                     $or: [
-                        {name: {'$regex': search, '$options': 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                     ],
                     del: {$ne: 'deleted'}
                 }).distinct('_id').lean()
                 _employments = await EmploymentAzyk.find({
                     ...(organization==='super'?{organization: null}:{organization: organization}),
-                    name: {'$regex': search, '$options': 'i'},
+                    name: {'$regex': reductionSearch(search), '$options': 'i'},
                     del: {$ne: 'deleted'}
                 }).distinct('_id').lean()
             }
@@ -163,7 +163,7 @@ const resolvers = {
                                         {manager: {$in: _employments}},
                                         {ecspeditor: {$in: _employments}},
                                         {item: {$in: _items}},
-                                        {guid: {'$regex': search, '$options': 'i'}}
+                                        {guid: {'$regex': reductionSearch(search), '$options': 'i'}}
                                     ]
                                 }
                                 :{}),

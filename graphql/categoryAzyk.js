@@ -1,6 +1,6 @@
 const CategoryAzyk = require('../models/categoryAzyk');
 const SubCategoryAzyk = require('../models/subCategoryAzyk');
-const { saveFile, deleteFile, urlMain } = require('../module/const');
+const { saveFile, deleteFile, urlMain, reductionSearch} = require('../module/const');
 
 const type = `
   type Category {
@@ -33,7 +33,7 @@ const resolvers = {
             ...(await CategoryAzyk.find({
                     $and: [
                         {name: {$ne: 'Не задано'}},
-                        {name: {'$regex': search, '$options': 'i'}}
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}}
                     ],
                     status: user.role==='admin'?filter.length===0?{'$regex': filter, '$options': 'i'}:filter:'active'
                 })

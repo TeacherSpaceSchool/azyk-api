@@ -7,8 +7,7 @@ const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
 const { setSingleOutXMLReturnedAzykLogic } = require('../module/singleOutXMLAzyk');
 const { pubsub } = require('./index');
-const { checkFloat } = require('../module/const');
-const { withFilter } = require('graphql-subscriptions');
+const { checkFloat, reductionSearch} = require('../module/const');
 const RELOAD_RETURNED = 'RELOAD_RETURNED';
 const HistoryReturnedAzyk = require('../models/historyReturnedAzyk');
 const mongoose = require('mongoose');
@@ -113,12 +112,12 @@ const resolvers = {
         let returneds = [];
         if(search.length>0){
             _organizations = await OrganizationAzyk.find({
-                name: {'$regex': search, '$options': 'i'}
+                name: {'$regex': reductionSearch(search), '$options': 'i'}
             }).distinct('_id').lean()
             _clients = await ClientAzyk.find({
                 $or: [
-                    {name: {'$regex': search, '$options': 'i'}},
-                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                 ]
             }).distinct('_id').lean()
         }
@@ -128,9 +127,9 @@ const resolvers = {
                     del: 'deleted',
                     ...(search.length>0?{
                             $or: [
-                                {number: {'$regex': search, '$options': 'i'}},
-                                {info: {'$regex': search, '$options': 'i'}},
-                                {address: {'$regex': search, '$options': 'i'}},
+                                {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {client: {$in: _clients}},
                                 {organization: {$in: _organizations}},
                                 {sale: {$in: _organizations}},
@@ -149,12 +148,12 @@ const resolvers = {
         let _clients;
         if(search.length>0){
             _organizations = await OrganizationAzyk.find({
-                name: {'$regex': search, '$options': 'i'}
+                name: {'$regex': reductionSearch(search), '$options': 'i'}
             }).distinct('_id').lean()
             _clients = await ClientAzyk.find({
                 $or: [
-                    {name: {'$regex': search, '$options': 'i'}},
-                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                 ]
             }).distinct('_id').lean()
         }
@@ -166,9 +165,9 @@ const resolvers = {
                             del: 'deleted',
                             ...(search.length>0?{
                                     $or: [
-                                        {number: {'$regex': search, '$options': 'i'}},
-                                        {info: {'$regex': search, '$options': 'i'}},
-                                        {address: {'$regex': search, '$options': 'i'}},
+                                        {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                        {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                        {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {client: {$in: _clients}},
                                         {organization: {$in: _organizations}},
                                         {sale: {$in: _organizations}},
@@ -323,12 +322,12 @@ const resolvers = {
             let _clients;
             if (search.length > 0) {
                 _organizations = await OrganizationAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
                 _clients = await ClientAzyk.find({
                     $or: [
-                        {name: {'$regex': search, '$options': 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                     ]
                 }).distinct('_id').lean()
             }
@@ -339,9 +338,9 @@ const resolvers = {
                 ...city?{city: city}:{},
                 ...search.length > 0 ? {
                         $or: [
-                            {number: {'$regex': search, '$options': 'i'}},
-                            {info: {'$regex': search, '$options': 'i'}},
-                            {address: {'$regex': search, '$options': 'i'}},
+                            {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                             {client: {$in: _clients}},
                             {organization: {$in: _organizations}},
                             {sale: {$in: _organizations}},
@@ -573,11 +572,11 @@ const resolvers = {
             let _clients;
             if(search.length>0){
                 _organizations = await OrganizationAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
                 _clients = await ClientAzyk.find({$or: [
-                    {name: {'$regex': search, '$options': 'i'}},
-                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                 ]
                 }).distinct('_id').lean()
             }
@@ -600,9 +599,9 @@ const resolvers = {
                             ...user.role==='суперагент'?{organization: {$in: organizations}}:{},
                             ...(search.length > 0 ? {
                                     $or: [
-                                        {number: {'$regex': search, '$options': 'i'}},
-                                        {info: {'$regex': search, '$options': 'i'}},
-                                        {address: {'$regex': search, '$options': 'i'}},
+                                        {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                        {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                        {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {client: {$in: _clients}},
                                         {organization: {$in: _organizations}},
                                         {sale: {$in: _organizations}},
@@ -1014,26 +1013,7 @@ const resolversMutation = {
     }
 };
 
-const resolversSubscription = {
-    reloadReturned: {
-        subscribe: withFilter(
-            () => pubsub.asyncIterator(RELOAD_RETURNED),
-            (payload, variables, {user} ) => {
-                return (
-                    user._id.toString()!==payload.reloadOrder.who&&
-                    (['admin', 'суперагент'].includes(user.role)||
-                    (user.employment&&payload.reloadReturned.agent&&payload.reloadReturned.agent.toString()===user.employment.toString())||
-                    (user.employment&&payload.reloadReturned.manager&&payload.reloadReturned.manager.toString()===user.employment.toString())||
-                    (user.organization&&payload.reloadReturned.organization&&['суперорганизация', 'организация'].includes(user.role)&&payload.reloadReturned.organization.toString()===user.organization.toString()))
-                )
-            },
-        )
-    },
-
-}
-
 module.exports.RELOAD_RETURNED = RELOAD_RETURNED;
-module.exports.resolversSubscription = resolversSubscription;
 module.exports.subscription = subscription;
 module.exports.resolversMutation = resolversMutation;
 module.exports.mutation = mutation;

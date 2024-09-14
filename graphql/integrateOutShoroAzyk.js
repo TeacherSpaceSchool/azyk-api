@@ -4,6 +4,7 @@ const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const ReturnedAzyk = require('../models/returnedAzyk');
+const {reductionSearch} = require('../module/const');
 
 const type = `
   type OutXMLShoro{
@@ -61,7 +62,7 @@ const resolvers = {
             let outXMLShoro = await OutXMLShoroAzyk
                 .find({
                     status: {'$regex': filter, '$options': 'i'},
-                    number: {'$regex': search, '$options': 'i'},
+                    number: {'$regex': reductionSearch(search), '$options': 'i'},
                     organization: organization
                 })
                 .sort('-createdAt')
@@ -119,7 +120,7 @@ const resolvers = {
             let outXMLShoro = await OutXMLReturnedShoroAzyk
                 .find({
                     status: {'$regex': filter, '$options': 'i'},
-                    number: {'$regex': search, '$options': 'i'},
+                    number: {'$regex': reductionSearch(search), '$options': 'i'},
                     organization: organization
                 })
                 .sort('-createdAt')

@@ -1,5 +1,6 @@
 const AutoAzyk = require('../models/autoAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
+const {reductionSearch} = require('../module/const');
 
 const type = `
   type Auto {
@@ -33,7 +34,7 @@ const resolvers = {
             let _employments;
             if(search.length>0){
                 _employments = await EmploymentAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
             }
 
@@ -41,7 +42,7 @@ const resolvers = {
                     organization: user.organization?user.organization:organization==='super'?null:organization,
                     ...(search.length>0?{
                             $or: [
-                                {number: {'$regex': search, '$options': 'i'}},
+                                {number: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {employment: {$in: _employments}},
                             ]
                         }

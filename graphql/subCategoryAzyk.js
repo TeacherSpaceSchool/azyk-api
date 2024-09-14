@@ -1,7 +1,7 @@
 const SubCategoryAzyk = require('../models/subCategoryAzyk');
 const ItemAzyk = require('../models/itemAzyk');
-const BasketAzyk = require('../models/basketAzyk');
 const mongoose = require('mongoose');
+const {reductionSearch} = require('../module/const');
 
 const type = `
   type SubCategory {
@@ -37,7 +37,7 @@ const resolvers = {
                     ...(await SubCategoryAzyk.find({
                         $and: [
                             {name: {$ne: 'Не задано'}},
-                            {name: {'$regex': search, '$options': 'i'}}
+                            {name: {'$regex': reductionSearch(search), '$options': 'i'}}
                         ],
                         ...category!=='all'?{category: category}:{},
                         status:  filter.length===0?{'$regex': filter, '$options': 'i'}:filter
@@ -50,7 +50,7 @@ const resolvers = {
                     _id: {$in: subCategorys},
                     $and: [
                         {name: {$ne: 'Не задано'}},
-                        {name: {'$regex': search, '$options': 'i'}}
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}}
                     ],
                     ...category!=='all'?{category: category}:{},
                     status:  filter.length===0?{'$regex': filter, '$options': 'i'}:filter
@@ -62,7 +62,7 @@ const resolvers = {
             else {
                 return await SubCategoryAzyk.find({
                     $and: [
-                        {name: {'$regex': search, '$options': 'i'}},
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
                         {name: {$ne: 'Не задано'},}
                     ],
                     ...category!=='all'?{category: category}:{},

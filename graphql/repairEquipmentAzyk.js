@@ -3,6 +3,7 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
+const {reductionSearch} = require('../module/const');
 
 const type = `
   type RepairEquipment {
@@ -49,10 +50,10 @@ const resolvers = {
             let _clients = [];
             let _agents = [];
             if(search.length>0) {
-                _clients = await ClientAzyk.find({del: {$ne: 'deleted'}, $or: [{name: {'$regex': search, '$options': 'i'}},{info: {'$regex': search, '$options': 'i'}}, {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}]})
+                _clients = await ClientAzyk.find({del: {$ne: 'deleted'}, $or: [{name: {'$regex': reductionSearch(search), '$options': 'i'}},{info: {'$regex': reductionSearch(search), '$options': 'i'}}, {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}]})
                     .distinct('_id').lean()
                 _agents = await EmploymentAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
             }
             let repairEquipments = await RepairEquipmentAzyk.find({
@@ -62,8 +63,8 @@ const resolvers = {
                     {...['агент', 'менеджер'].includes(user.role)?{client: {$in: clients}}:{}},
                     {...(search.length>0?{
                         $or: [
-                            {number: {'$regex': search, '$options': 'i'}},
-                            {equipment: {'$regex': search, '$options': 'i'}},
+                            {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {equipment: {'$regex': reductionSearch(search), '$options': 'i'}},
                             {client: {$in: _clients}},
                             {agent: {$in: _agents}},
                             {repairMan: {$in: _agents}},

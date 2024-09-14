@@ -18,7 +18,7 @@ const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const UserAzyk = require('../models/userAzyk');
 const AdsAzyk = require('../models/adsAzyk');
-const {pdDDMMYYYY, statsCollection} = require('../module/const');
+const {pdDDMMYYYY, statsCollection, reductionSearch} = require('../module/const');
 const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const app = require('../app');
@@ -3572,11 +3572,11 @@ const resolvers = {
                 del: {$ne: 'deleted'},
                 ...city?{city: city}:{},
                 ...search&&search.length?{$or: [
-                    {name: {'$regex': search, '$options': 'i'}},
-                    {email: {'$regex': search, '$options': 'i'}},
-                    {city: {'$regex': search, '$options': 'i'}},
-                    {info: {'$regex': search, '$options': 'i'}},
-                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}},
+                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {email: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {city: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}},
                 ]}:{}
             })
                 .select('address name _id notification lastActive')

@@ -9,6 +9,7 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const UserAzyk = require('../models/userAzyk');
 const OutXMLAdsShoroAzyk = require('../models/integrate/shoro/outXMLAdsShoroAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
+const {reductionSearch} = require('../module/const');
 
 const type = `
   type District {
@@ -47,24 +48,24 @@ const resolvers = {
                 _clients = await ClientAzyk
                     .find({
                         $or: [
-                            {name: {'$regex': search, '$options': 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                            {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                         ]
                     })
                     .distinct('_id')
                     .lean()
                 _agents = await EmploymentAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
                 _organizations = await OrganizationAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
             }
             return await DistrictAzyk.find({
                 organization: user.organization?user.organization: organization === 'super' ? null : organization,
                 ...(search.length > 0 ? {
                     $or: [
-                        {name: {'$regex': search, '$options': 'i'}},
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
                         {agent: {$in: _agents}},
                         {ecspeditor: {$in: _agents}},
                         {manager: {$in: _agents}},

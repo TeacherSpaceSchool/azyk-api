@@ -18,7 +18,7 @@ const { pubsub } = require('./index');
 const { withFilter } = require('graphql-subscriptions');
 const RELOAD_ORDER = 'RELOAD_ORDER';
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
-const { checkFloat } = require('../module/const');
+const { checkFloat, reductionSearch} = require('../module/const');
 const maxDates = 90
 const { checkAdss } = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
@@ -150,7 +150,7 @@ const resolvers = {
         let _agents;
         if(search.length>0){
             _agents = await EmploymentAzyk.find({
-                name: {'$regex': search, '$options': 'i'}
+                name: {'$regex': reductionSearch(search), '$options': 'i'}
             }).distinct('_id').lean()
         }
         let invoices = [];
@@ -160,9 +160,9 @@ const resolvers = {
                     del: 'deleted',
                     ...(search.length>0?{
                             $or: [
-                                {number: {'$regex': search, '$options': 'i'}},
-                                {info: {'$regex': search, '$options': 'i'}},
-                                {address: {'$regex': search, '$options': 'i'}},
+                                {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {forwarder: {$in: _agents}},
                                 {agent: {$in: _agents}},
                             ]
@@ -208,7 +208,7 @@ const resolvers = {
             let _agents;
             if (search.length > 0) {
                 _agents = await EmploymentAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
             }
             let clients
@@ -245,11 +245,12 @@ const resolvers = {
                     ...city ? {city: city} : {},
                     ...user.client ? {client: user.client} : {},
                     ...user.role === 'суперагент' ? {organization: {$in: organizations}} : {},
+                    ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$eq: ''}}} : {}),
                     ...(search.length > 0 ? {
                             $or: [
-                                {number: {'$regex': search, '$options': 'i'}},
-                                {info: {'$regex': search, '$options': 'i'}},
-                                {address: {'$regex': search, '$options': 'i'}},
+                                {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {forwarder: {$in: _agents}},
                                 {agent: {$in: _agents}},
                             ]
@@ -330,7 +331,7 @@ const resolvers = {
             let _agents;
             if (search.length) {
                 _agents = await EmploymentAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
             }
             let organizations
@@ -354,13 +355,11 @@ const resolvers = {
                             ...(dateStart ? {$and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}]} : {}),
                             ...(filter === 'консигнации' ? {consignmentPrice: {$gt: 0}} : {}),
                             ...(filter === 'акция' ? {adss: {$ne: []}} : {}),
+                            ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$eq: ''}}} : {}),
                             ...(filter === 'обработка' ? {
                                 taken: false,
                                 cancelClient: null,
                                 cancelForwarder: null
-                            } : {}),
-                            ...(filter === 'Без геолокации' ? {
-                                address: {$elemMatch: {$eq: ''}}
                             } : {}),
                             ...user.organization ? {
                                 $or: [
@@ -371,9 +370,9 @@ const resolvers = {
                             } : {},
                             ...search.length > 0 ? {
                                 $or: [
-                                    {number: {'$regex': search, '$options': 'i'}},
-                                    {info: {'$regex': search, '$options': 'i'}},
-                                    {address: {'$regex': search, '$options': 'i'}},
+                                    {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {forwarder: {$in: _agents}},
                                     {agent: {$in: _agents}},
                                 ]
@@ -505,7 +504,7 @@ const resolvers = {
         let _agents;
         if(search.length>0){
             _agents = await EmploymentAzyk.find({
-                name: {'$regex': search, '$options': 'i'}
+                name: {'$regex': reductionSearch(search), '$options': 'i'}
             }).distinct('_id').lean()
         }
         if(user.role==='admin') {
@@ -520,9 +519,9 @@ const resolvers = {
                         $match: {
                             ...(search.length > 0 ? {
                                     $or: [
-                                        {number: {'$regex': search, '$options': 'i'}},
-                                        {info: {'$regex': search, '$options': 'i'}},
-                                        {address: {'$regex': search, '$options': 'i'}},
+                                        {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                        {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                        {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {forwarder: {$in: _agents}},
                                         {agent: {$in: _agents}},
                                     ]

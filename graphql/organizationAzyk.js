@@ -15,7 +15,7 @@ const UserAzyk = require('../models/userAzyk');
 const AdsAzyk = require('../models/adsAzyk');
 const PlanAzyk = require('../models/planAzyk');
 const ModelsErrorAzyk = require('../models/errorAzyk');
-const { saveImage, saveFile, deleteFile, urlMain, isTestUser, isNotTestUser} = require('../module/const');
+const { saveImage, saveFile, deleteFile, urlMain, isTestUser, isNotTestUser, reductionSearch} = require('../module/const');
 
 const type = `
   type Organization {
@@ -89,7 +89,7 @@ const resolvers = {
             }
             const organizations = await OrganizationAzyk.find({
                 _id: {$in: brandOrganizations},
-                name: {'$regex': search, '$options': 'i'},
+                name: {'$regex': reductionSearch(search), '$options': 'i'},
                 status: (isTestUser(user)||'admin'===user.role)?filter.length===0?{'$regex': filter, '$options': 'i'}:filter:'active',
                 ...city?{cities: city}:{},
                 del: {$ne: 'deleted'},
@@ -99,80 +99,77 @@ const resolvers = {
                 .select('name autoAcceptAgent _id image miniInfo unite onlyIntegrate onlyDistrict priotiry catalog')
                 .sort('-priotiry')
                 .lean()
-            /*?*/if(/*!user.organization*/true) {
-                subBrands = await SubBrandAzyk.find({
-                    _id: {$in: subBrands},
-                    name: {'$regex': search, '$options': 'i'},
-                    status: (isTestUser(user)||'admin'===user.role)?filter.length===0?{'$regex': filter, '$options': 'i'}:filter:'active',
-                    ...city?{cities: city}:{},
-                    del: {$ne: 'deleted'},
-                    ...user.city?{cities: user.city}:{},
-                    /*?*/...user.organization?{organization: user.organization}:{}
+            subBrands = await SubBrandAzyk.find({
+                _id: {$in: subBrands},
+                name: {'$regex': reductionSearch(search), '$options': 'i'},
+                status: (isTestUser(user)||'admin'===user.role)?filter.length===0?{'$regex': filter, '$options': 'i'}:filter:'active',
+                ...city?{cities: city}:{},
+                del: {$ne: 'deleted'},
+                ...user.city?{cities: user.city}:{},
+                /*?*/...user.organization?{organization: user.organization}:{}
+            })
+                .populate({
+                    path: 'organization',
+                    select: 'onlyIntegrate onlyDistrict _id unite autoAcceptAgent'
                 })
-                    .populate({
-                        path: 'organization',
-                        select: 'onlyIntegrate onlyDistrict _id unite autoAcceptAgent'
-                    })
-                    .sort('-priotiry')
-                    .lean()
-                for(let i = 0; i<subBrands.length;i++){
-                    subBrands[i].type = 'subBrand'
-                    subBrands[i].unite = subBrands[i].organization.unite
-                    subBrands[i].autoAcceptAgent = subBrands[i].organization.autoAcceptAgent
-                }
-                organizationsRes = [...subBrands, ...organizations]
-                organizationsRes = organizationsRes.sort(function (a, b) {
-                    return b.priotiry - a.priotiry
-                });
-                if(user.role==='client') {
-                    for (let i = 0; i < organizationsRes.length; i++) {
-                        onlyIntegrate =  organizationsRes[i].organization?organizationsRes[i].organization.onlyIntegrate:organizationsRes[i].onlyIntegrate
-                        onlyDistrict = organizationsRes[i].organization?organizationsRes[i].organization.onlyDistrict:organizationsRes[i].onlyDistrict
-                        organizationId = organizationsRes[i].organization?organizationsRes[i].organization._id:organizationsRes[i]._id
-                        if (onlyIntegrate && onlyDistrict) {
-                            let district = await DistrictAzyk.findOne({
-                                client: user.client,
-                                organization: organizationId
-                            }).select('_id').lean()
-                            let integrate = await Integrate1CAzyk.findOne({
-                                client: user.client,
-                                organization: organizationId
-                            }).select('_id').lean()
-                            if(!integrate||!district) {
-                                organizationsRes.splice(i, 1)
-                                i -= 1
-                            }
+                .sort('-priotiry')
+                .lean()
+            for(let i = 0; i<subBrands.length;i++){
+                subBrands[i].type = 'subBrand'
+                subBrands[i].unite = subBrands[i].organization.unite
+                subBrands[i].autoAcceptAgent = subBrands[i].organization.autoAcceptAgent
+            }
+            organizationsRes = [...subBrands, ...organizations]
+            organizationsRes = organizationsRes.sort(function (a, b) {
+                return b.priotiry - a.priotiry
+            });
+            if(user.role==='client') {
+                for (let i = 0; i < organizationsRes.length; i++) {
+                    onlyIntegrate =  organizationsRes[i].organization?organizationsRes[i].organization.onlyIntegrate:organizationsRes[i].onlyIntegrate
+                    onlyDistrict = organizationsRes[i].organization?organizationsRes[i].organization.onlyDistrict:organizationsRes[i].onlyDistrict
+                    organizationId = organizationsRes[i].organization?organizationsRes[i].organization._id:organizationsRes[i]._id
+                    if (onlyIntegrate && onlyDistrict) {
+                        let district = await DistrictAzyk.findOne({
+                            client: user.client,
+                            organization: organizationId
+                        }).select('_id').lean()
+                        let integrate = await Integrate1CAzyk.findOne({
+                            client: user.client,
+                            organization: organizationId
+                        }).select('_id').lean()
+                        if(!integrate||!district) {
+                            organizationsRes.splice(i, 1)
+                            i -= 1
                         }
-                        else if (onlyDistrict) {
-                            let district = await DistrictAzyk.findOne({
-                                client: user.client,
-                                organization: organizationId
-                            }).select('_id').lean()
-                            if (!district) {
-                                organizationsRes.splice(i, 1)
-                                i -= 1
-                            }
+                    }
+                    else if (onlyDistrict) {
+                        let district = await DistrictAzyk.findOne({
+                            client: user.client,
+                            organization: organizationId
+                        }).select('_id').lean()
+                        if (!district) {
+                            organizationsRes.splice(i, 1)
+                            i -= 1
                         }
-                        else if (onlyIntegrate) {
-                            let integrate = await Integrate1CAzyk.findOne({
-                                client: user.client,
-                                organization: organizationId
-                            }).select('_id').lean()
-                            if (!integrate) {
-                                organizationsRes.splice(i, 1)
-                                i -= 1
-                            }
+                    }
+                    else if (onlyIntegrate) {
+                        let integrate = await Integrate1CAzyk.findOne({
+                            client: user.client,
+                            organization: organizationId
+                        }).select('_id').lean()
+                        if (!integrate) {
+                            organizationsRes.splice(i, 1)
+                            i -= 1
                         }
                     }
                 }
-                return organizationsRes
             }
-            else return organizations
+            return organizationsRes
         }
     },
     organizations: async(parent, {search, filter, city}, {user}) => {
         return await OrganizationAzyk.find({
-            name: {'$regex': search, '$options': 'i'},
+            name: {'$regex': reductionSearch(search), '$options': 'i'},
             ...(isNotTestUser(user)&&user.role!=='admin')?{status:'active'}:filter.length?{status: filter}:{},
             ...city?{cities: city}:{},
             del: {$ne: 'deleted'}
@@ -184,7 +181,7 @@ const resolvers = {
     organizationsTrash: async(parent, {search}, {user}) => {
         if(user.role==='admin'){
             return await OrganizationAzyk.find({
-                name: {'$regex': search, '$options': 'i'},
+                name: {'$regex': reductionSearch(search), '$options': 'i'},
                 del: 'deleted'
             })
                 .select('name _id image miniInfo')

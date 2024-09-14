@@ -3,7 +3,7 @@ const OrganizationAzyk = require('../models/organizationAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const DistributerAzyk = require('../models/distributerAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const { saveImage, deleteFile, urlMain, isNotTestUser} = require('../module/const');
+const { saveImage, deleteFile, urlMain, isNotTestUser, reductionSearch} = require('../module/const');
 
 const type = `
   type Ads {
@@ -228,7 +228,7 @@ const resolvers = {
         if(user.role==='admin') {
             return await AdsAzyk.find({
                 del: 'deleted',
-                title: {'$regex': search, '$options': 'i'}
+                title: {'$regex': reductionSearch(search), '$options': 'i'}
             })
                 .populate({
                     path: 'item',
@@ -243,7 +243,7 @@ const resolvers = {
             let _organization = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
             let res = await AdsAzyk.find({
                 del: {$ne: 'deleted'},
-                title: {'$regex': search, '$options': 'i'},
+                title: {'$regex': reductionSearch(search), '$options': 'i'},
                 organization: _organization?_organization.organization:organization
             })
                 .populate({

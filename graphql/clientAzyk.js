@@ -7,7 +7,7 @@ const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
-const { deleteFile, urlMain, saveImage } = require('../module/const');
+const { deleteFile, urlMain, saveImage, reductionSearch} = require('../module/const');
 const { createJwtGQL } = require('../module/passport');
 const mongoose = require('mongoose')
 
@@ -66,10 +66,10 @@ const resolvers = {
                                 del: 'deleted',
                                 user: {$ne: null},
                                 $or: [
-                                    {name: {'$regex': search, '$options': 'i'}},
-                                    {email: {'$regex': search, '$options': 'i'}},
-                                    {info: {'$regex': search, '$options': 'i'}},
-                                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}},
+                                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {email: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}},
                                 ]
                             }
                         },
@@ -125,10 +125,10 @@ const resolvers = {
                                 del: {$ne: 'deleted'},
                                 ...['менеджер', 'экспедитор', 'агент', 'суперагент'].includes(user.role)||['суперорганизация', 'организация'].includes(user.role)&&!accessToClient?{_id: {$in: clients}}:{},
                                 $or: [
-                                    {name: {'$regex': search, '$options': 'i'}},
-                                    {email: {'$regex': search, '$options': 'i'}},
-                                    {info: {'$regex': search, '$options': 'i'}},
-                                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {email: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                                 ]
                             }
                         },
@@ -175,10 +175,10 @@ const resolvers = {
                                 del: 'deleted',
                                 user: {$ne: null},
                                 $or: [
-                                    {name: {'$regex': search, '$options': 'i'}},
-                                    {email: {'$regex': search, '$options': 'i'}},
-                                    {info: {'$regex': search, '$options': 'i'}},
-                                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {email: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                                 ]
                             }
                         },
@@ -211,10 +211,10 @@ const resolvers = {
                 sync: organization.toString(),
                 ...city?{city}:{},
                 $or: [
-                    {name: {'$regex': search, '$options': 'i'}},
-                    {email: {'$regex': search, '$options': 'i'}},
-                    {info: {'$regex': search, '$options': 'i'}},
-                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {email: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                 ]
             })
                 .distinct('_id')
@@ -232,10 +232,10 @@ const resolvers = {
                                 ...city?{city}:{},
                                 sync: organization.toString(),
                                 $or: [
-                                    {name: {'$regex': search, '$options': 'i'}},
-                                    {email: {'$regex': search, '$options': 'i'}},
-                                    {info: {'$regex': search, '$options': 'i'}},
-                                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {email: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                                 ]
                             }
                         },
@@ -308,10 +308,10 @@ const resolvers = {
                                 ...['менеджер', 'экспедитор'].includes(user.role)||['агент', 'суперагент'].includes(user.role)&&(clients.length||search.length<3)||['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)&&!accessToClient ? {_id: {$in: clients}} : {},
                                 del: {$ne: 'deleted'},
                                 $or: [
-                                    {name: {'$regex': search, '$options': 'i'}},
-                                    {email: {'$regex': search, '$options': 'i'}},
-                                    {info: {'$regex': search, '$options': 'i'}},
-                                    {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                                    {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {email: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                                 ]
                             }
                         },

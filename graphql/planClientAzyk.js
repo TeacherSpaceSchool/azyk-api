@@ -2,7 +2,7 @@ const PlanClient = require('../models/planClientAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
-const {saveFile, deleteFile, checkInt, urlMain} = require('../module/const');
+const {saveFile, deleteFile, checkInt, urlMain, reductionSearch} = require('../module/const');
 const path = require('path');
 const readXlsxFile = require('read-excel-file/node');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
@@ -66,9 +66,9 @@ const resolvers = {
                     ...city?[{city}]:[{city: {$in: cities}}],
                     ...districtClients?[{_id: {$in: districtClients}}]:[],
                     ...search?[{$or: [
-                            {name: {'$regex': search, '$options': 'i'}},
-                            {info: {'$regex': search, '$options': 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                            {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                         ]}]:[]
                 ]
             })
@@ -202,9 +202,9 @@ const resolvers = {
                     del: {$ne: 'deleted'},
                     ...city?{city}:{},
                     ...search?{$or: [
-                            {name: {'$regex': search, '$options': 'i'}},
-                            {info: {'$regex': search, '$options': 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                            {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                         ]}:{}
                 })
                     .distinct('_id').lean()
@@ -271,9 +271,9 @@ const resolvers = {
                     del: {$ne: 'deleted'},
                     ...city?{city}:{},
                     ...search?{$or: [
-                            {name: {'$regex': search, '$options': 'i'}},
-                            {info: {'$regex': search, '$options': 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {'$regex': search, '$options': 'i'}}}}
+                            {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                         ]}:{}
                 })
                     .distinct('_id').lean()

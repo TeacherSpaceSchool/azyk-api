@@ -1,6 +1,7 @@
 const DistributerAzyk = require('../models/distributerAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const mongoose = require('mongoose');
+const {reductionSearch} = require('../module/const');
 
 const type = `
   type Distributer {
@@ -29,7 +30,7 @@ const resolvers = {
             let _organizations;
             if(search.length>0){
                 _organizations = await OrganizationAzyk.find({
-                    name: {'$regex': search, '$options': 'i'}
+                    name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
             }
             let distributers = await DistributerAzyk.find({

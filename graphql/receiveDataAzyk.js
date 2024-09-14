@@ -6,6 +6,7 @@ const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const UserAzyk = require('../models/userAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const randomstring = require('randomstring');
+const {reductionSearch} = require('../module/const');
 
 const type = `
   type ReceivedData {
@@ -42,8 +43,8 @@ const resolvers = {
                 type: {'$regex': filter, '$options': 'i'},
                 ...search.length ? {
                     $or: [
-                        {name: {'$regex': search, '$options': 'i'}},
-                        {addres: {'$regex': search, '$options': 'i'}}
+                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                        {addres: {'$regex': reductionSearch(search), '$options': 'i'}}
                     ]
                 } : {},
             })

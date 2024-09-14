@@ -1,5 +1,5 @@
 const FaqAzyk = require('../models/faqAzyk');
-const { saveFile, deleteFile, urlMain } = require('../module/const');
+const { saveFile, deleteFile, urlMain, reductionSearch} = require('../module/const');
 
 const type = `
   type Faq {
@@ -24,14 +24,14 @@ const mutation = `
 
 const resolvers = {
     faqs: async(parent, {search}, {user}) => {
-        let typex = ''
+        /*let typex = ''
         if(user.role==='client')
             typex='клиенты'
         else if(['суперорганизация', 'организация', 'менеджер', 'экспедитор', 'агент'].includes(user.role))
-            typex='сотрудники'
+            typex='сотрудники'*/
         return await FaqAzyk.find({
-            title: {'$regex': search, '$options': 'i'},
-            typex: {'$regex': typex, '$options': 'i'},
+            title: {'$regex': reductionSearch(search), '$options': 'i'},
+            typex: {'$regex': reductionSearch(search), '$options': 'i'},
         }).sort('title').lean()
     }
 };

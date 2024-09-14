@@ -1,6 +1,6 @@
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const ItemAzyk = require('../models/itemAzyk');
-const { saveImage, deleteFile, urlMain } = require('../module/const');
+const { saveImage, deleteFile, urlMain, reductionSearch} = require('../module/const');
 
 const type = `
   type SubBrand {
@@ -34,7 +34,7 @@ const resolvers = {
             if(user.organization) organization = user.organization
             return await SubBrandAzyk.find({
                 del: {$ne: 'deleted'},
-                miniInfo: {'$regex': search, '$options': 'i'},
+                miniInfo: {'$regex': reductionSearch(search), '$options': 'i'},
                 ...organization?{organization}:{},
                 ...(city?{cities: city}:{}),
             })
