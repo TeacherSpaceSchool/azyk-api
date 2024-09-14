@@ -21,7 +21,6 @@ module.exports.reductionToClient = async() => {
             .select('address')
             .lean()
         if(invoice) {
-            console.log({_id: clients[i]._id})
             count += 1
             const address = clients[i].address
             if(!address[0][0])
