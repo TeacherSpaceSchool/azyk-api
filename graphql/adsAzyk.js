@@ -64,6 +64,8 @@ const checkAdss = async(invoice, canceled) => {
         .lean()
     //Рассчитывается дата
     const dateStart = new Date(invoice.createdAt)
+    if(dateStart.getHours() < 3)
+        dateStart.setDate(dateStart.getDate() - 1)
     dateStart.setHours(3, 0, 0, 0)
     const dateEnd = new Date(dateStart)
     dateEnd.setDate(dateEnd.getDate() + 1)

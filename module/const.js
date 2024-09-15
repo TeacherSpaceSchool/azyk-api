@@ -174,6 +174,16 @@ module.exports.reductionSearch = (search) => {
     return ''
 }
 
+module.exports.getDateRange = (date) => {
+    const dateStart = new Date(date)
+    if(dateStart.getHours() < 3)
+        dateStart.setDate(dateStart.getDate() - 1)
+    dateStart.setHours(3, 0, 0, 0)
+    const dateEnd = new Date(dateStart)
+    dateEnd.setDate(dateEnd.getDate() + 1)
+    return {dateStart, dateEnd}
+}
+
 module.exports.statsCollection = statsCollection;
 module.exports.getGeoDistance = getGeoDistance;
 module.exports.checkInt = checkInt;
