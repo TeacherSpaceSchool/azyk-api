@@ -12,6 +12,8 @@ const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const FaqAzyk = require('../models/faqAzyk');
+const EquipmentAzyk = require('../models/equipmentAzyk');
+const SubBrandAzyk = require('../models/subBrandAzyk');
 
 const type = `
   type File {
@@ -58,6 +60,8 @@ const resolvers = {
                 ...(await OrganizationAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Организация'}}),
                 ...(await ItemAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Товар'}}),
                 ...(await FaqAzyk.find({url: {$in: filesUrl}}).select('title url').lean()).map(element=>{return {...element, name: element.title, type: 'Инструкция'}}),
+                ...(await EquipmentAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Оборудование'}}),
+                ...(await SubBrandAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Подбренд'}}),
             ]
             filesUrl = {}
             for (let i = 0; i < res.length; i++) {
@@ -119,6 +123,8 @@ const resolversMutation = {
                 ...(await OrganizationAzyk.find({image: {$in: data}}).distinct('image').lean()),
                 ...(await ItemAzyk.find({image: {$in: data}}).distinct('image').lean()),
                 ...(await FaqAzyk.find({url: {$in: data}}).distinct('url').lean()),
+                ...(await EquipmentAzyk.find({image: {$in: data}}).distinct('image').lean()),
+                ...(await SubBrandAzyk.find({image: {$in: data}}).distinct('image').lean()),
             ]
             for (let i = 0; i < data.length; i++) {
                 if(!filesUrl.includes(data[i]))

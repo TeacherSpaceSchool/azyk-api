@@ -95,8 +95,6 @@ const resolvers = {
         }
     },
     equipments: async(parent, {organization, search, agent}, {user}) => {
-        const date = new Date('2024-02-01T03:00:00.000Z')
-        await EquipmentAzyk.deleteMany({createdAt: {$lte: date}})
         if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
             let clients = []
             if(['агент', 'менеджер'].includes(user.role)){

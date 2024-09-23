@@ -643,7 +643,6 @@ const resolvers = {
                             }
                     }
                 ])
-
             for(let i=0; i<data.length; i++) {
                 if(!orderClient.includes(data[i]._id.toString()))
                     orderClient.push(data[i]._id.toString())
@@ -2389,7 +2388,10 @@ const resolvers = {
         if(['admin'].includes(user.role)){
             let res = [], data = []
             let organizations = await OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id').lean()
-            if(!dateStart) dateStart = new Date('2023-01-01T03:00:00.000Z')
+            if(!dateStart) {
+                dateStart = new Date()
+                dateStart.setYear(dateStart.getFullYear()-1)
+            }
             data = await InvoiceAzyk.find(
                 {
                     createdAt: {$gte: dateStart},
@@ -3422,57 +3424,68 @@ const resolvers = {
             dateStart.setHours(3, 0, 0, 0)
             let dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
-            let data = []
-            let agents = await UserAzyk.find({
-                ...(organization!=='super'?
-                        {$or: [{role: 'агент'}, {role: 'суперагент'}]}
-                        :
-                        {role: 'суперагент'}
-                )
-            })
-                .distinct('_id')
-                .lean()
-            agents = await EmploymentAzyk.find({
-                ...(organization&&organization!=='super'?{organization: organization}:{}),
-                user: {$in: agents},
-                del: {$ne: 'deleted'}
-            })
-                .select('_id name')
-                .lean()
-            for (let i = 0; i < agents.length; i++) {
-                let orders = await InvoiceAzyk.find(
-                    {
-                        $and: [
-                            {createdAt: {$gte: dateStart}},
-                            {createdAt: {$lt: dateEnd}}
-                        ],
-                        del: {$ne: 'deleted'},
-                        taken: true,
-                        agent: agents[i]._id,
-                    }
-                )
-                    .select('createdAt')
-                    .sort('createdAt')
-                    .lean()
-                let agentHistoryGeoAzyks = await AgentHistoryGeoAzyk.find({
-                    $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt:dateEnd}}],
-                    agent: agents[i]._id
+            let data = {}
+            const agents = await EmploymentAzyk.find({organization: organization==='super'?null:organization}).distinct('_id').lean()
+            let orders = await InvoiceAzyk.find(
+                {
+                    $and: [
+                        {createdAt: {$gte: dateStart}},
+                        {createdAt: {$lt: dateEnd}}
+                    ],
+                    del: {$ne: 'deleted'},
+                    agent: {$in: agents}
+                }
+            )
+                .select('createdAt agent')
+                .populate({
+                    path: 'agent',
+                    select: '_id name'
                 })
-                    .distinct('_id')
-                    .lean()
-                data.push({
-                    _id: agents[i]._id,
+                .sort('createdAt')
+                .lean()
+            for (let i = 0; i < orders.length; i++) {
+                const ID = orders[i].agent._id.toString()
+                if(!data[ID]) {
+                    data[ID] = {
+                        _id: orders[i].agent._id,
+                        name: orders[i].agent.name,
+                        start: '-',
+                        end: '-',
+                        orders: 0,
+                        attendance: 0
+                    }
+                }
+                if(data[ID].start==='-')
+                    data[ID].start = pdHHMM(orders[i].createdAt)
+                data[ID].end = pdHHMM(orders[i].createdAt)
+                data[ID].orders++
+            }
+            let agentHistoryGeoAzyks = await AgentHistoryGeoAzyk.find({
+                $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt:dateEnd}}],
+                agent: {$in: agents}
+            })
+                .select('agent')
+                .lean()
+            for (let i = 0; i < agentHistoryGeoAzyks.length; i++) {
+                const ID = agentHistoryGeoAzyks[i].agent.toString()
+                data[ID].attendance++
+            }
+            data = Object.values(data)
+            for (let i = 0; i < data.length; i++) {
+                data[i] = {
+                    _id: data[i]._id,
                     data: [
-                        agents[i].name,
-                        orders.length>0?pdHHMM(orders[0].createdAt):'-',
-                        orders.length>0?pdHHMM(orders[orders.length-1].createdAt):'-',
-                        orders.length,
-                        agentHistoryGeoAzyks.length
+                        data[i].name,
+                        data[i].start,
+                        data[i].end,
+                        data[i].orders,
+                        data[i].attendance
 
                     ]
-                })
+                }
 
             }
+            data = data.sort((a, b) => b.data[3] - a.data[3])
             return {
                 columns: ['агент', 'начало', 'конец', 'заказов', 'посещений'],
                 row: data
