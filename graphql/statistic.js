@@ -2468,14 +2468,14 @@ const resolvers = {
                             data[i].district = districts[i1]
                     }
                     if(!data[i].district)
-                        data[i].district = {_id: 'lol', name: 'Без района'}
+                        data[i].district = {_id: 'lol', agent: {name: 'Без района'}}
                 }
                 let allCheck = 0
                 let allProcessing = 0
                 for(let i=0; i<data.length; i++) {
                     if(user.role!=='менеджер'||data[i].district._id!=='lol') {
                         if (!statistic[data[i].district._id]) statistic[data[i].district._id] = {
-                            name: data[i].district.agent.name,
+                            name: data[i].district.agent?data[i].district.agent.name:'Не найден',
                             check: 0,
                             processing: 0
                         }
