@@ -10,6 +10,7 @@ const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const { deleteFile, urlMain, saveImage, reductionSearch} = require('../module/const');
 const { createJwtGQL } = require('../module/passport');
 const mongoose = require('mongoose')
+const uuidv1 = require('uuid/v1');
 
 const type = `
   type Client {
@@ -410,8 +411,8 @@ const resolvers = {
         }
         return sort
     },
-    filterClient: async() => {
-            return await [
+    filterClient: () => {
+            return [
                 {
                     name: 'Все',
                     value: ''
@@ -473,7 +474,22 @@ const resolversMutation = {
             }
             client.notification=false
             client = new ClientAzyk(client);
-            await ClientAzyk.create(client);
+            client = await ClientAzyk.create(client);
+            if(user.role === 'агент') {
+                let organization = await OrganizationAzyk.findById(user.organization).select('onlyIntegrate').lean()
+                if(organization&&organization.onlyIntegrate) {
+                    let _object = new Integrate1CAzyk({
+                        item: null,
+                        client: client._id,
+                        agent: null,
+                        ecspeditor: null,
+                        organization: user.organization,
+                        guid: await uuidv1(),
+                    });
+                    await Integrate1CAzyk.create(_object)
+                }
+                await DistrictAzyk.updateOne({agent: user.employment}, {$push: { client: client._id }})
+            }
         }
         return {data: 'OK'}
     },
