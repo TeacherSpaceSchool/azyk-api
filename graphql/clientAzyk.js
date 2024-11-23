@@ -476,8 +476,8 @@ const resolversMutation = {
             client = new ClientAzyk(client);
             client = await ClientAzyk.create(client);
             if(user.role === 'агент') {
-                let organization = await OrganizationAzyk.findById(user.organization).select('onlyIntegrate').lean()
-                if(organization&&organization.onlyIntegrate) {
+                let organization = await OrganizationAzyk.findById(user.organization).select('onlyIntegrate pass').lean()
+                if(organization&&organization.onlyIntegrate&&organization.pass) {
                     let _object = new Integrate1CAzyk({
                         item: null,
                         client: client._id,
