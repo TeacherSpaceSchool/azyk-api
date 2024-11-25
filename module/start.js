@@ -111,7 +111,7 @@ let start = async () => {
     //await reductionCategoryAzyk()
     //await reductionSubCategoryAzyk()
     //await reductionToRoute()
-    //await reductionToClient()
+    await reductionToClient()
     //await reductionToOrganization()
     //await reductionToItem()
     //await reductionToUser()
