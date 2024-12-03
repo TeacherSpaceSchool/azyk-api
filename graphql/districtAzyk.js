@@ -92,7 +92,7 @@ const resolvers = {
                     path: 'manager',
                     select: 'name _id'
                 })
-                .sort(sort)
+                .sort('name')
                 .lean()
         }
     },
