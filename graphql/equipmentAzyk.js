@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const {urlMain, saveImage, reductionSearch} = require('../module/const');
 const app = require('../app');
+const ClientAzyk = require('../models/clientAzyk');
 
 const type = `
   type Equipment {
@@ -103,6 +104,18 @@ const resolvers = {
                     .distinct('client')
                     .lean()
             }
+            let searchedClients;
+            if(search) {
+                searchedClients = await ClientAzyk.find({
+                    del: {$ne: 'deleted'},
+                    ...search?{$or: [
+                            {name: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
+                        ]}:{}
+                })
+                    .distinct('_id').lean()
+            }
             let equipments = await EquipmentAzyk.find({
                 $and: [
                     {organization: user.organization?user.organization:organization==='super'?null:organization},
@@ -115,7 +128,14 @@ const resolvers = {
                             ]
                         }
                     ]:[],
-                    ...search.length>0?[{number: {'$regex': reductionSearch(search), '$options': 'i'}}]:[]
+                    ...search?[
+                        {
+                            $or: [
+                                {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                {client: {$in: searchedClients}}
+                            ]
+                        }
+                    ]:[],
                 ]
             })
                 .populate({

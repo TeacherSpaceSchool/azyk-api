@@ -133,15 +133,23 @@ module.exports.sendWebPush = async({title, message, tag, url, icon, user}) => {
                     try{
                         let delivered = 0;
                         let failed = 0;
+                        const subscriptionsForDelete = []
                         for(let i=0; i<pushResults.length; i++){
-                            if(pushResults[i].state === 'rejected'||pushResults[i].reason)
-                                failed+=1
+                            if(pushResults[i].state === 'rejected'||pushResults[i].reason) {
+                                failed += 1
+                                try{
+                                    if([410, 404].includes(pushResults[i].reason.data.statusCode)) {
+                                        subscriptionsForDelete.push(pushResults[i].reason.endpoint)
+                                    }
+                                } catch (err) {/**/}
+                            }
                             else
                                 delivered += 1
                         }
                         _object.delivered = delivered
                         _object.failed = failed
                         await _object.save()
+                        await SubscriberAzyk.deleteMany({endpoint: {$in: subscriptionsForDelete}})
                     } catch (err) {
                         console.error(err)
                     }

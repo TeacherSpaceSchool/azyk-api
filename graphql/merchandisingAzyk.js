@@ -3,6 +3,9 @@ const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
 const {saveBase64ToFile, urlMain, deleteFile, reductionSearch} = require('../module/const');
+const {sendWebPush} = require('../module/webPush');
+const SubscriberAzyk = require('../models/subscriberAzyk');
+const EmploymentAzyk = require('../models/employmentAzyk');
 
 const type = `
   type Merchandising {
@@ -193,6 +196,16 @@ const resolversMutation = {
             object.reviewerScore = reviewerScore
             object.reviewerComment = reviewerComment
             await object.save();
+            try{
+                const clientName = ((await ClientAzyk.findById(object.client)).address)[0][2]
+                const employmentUser = (await EmploymentAzyk.findById(object.employment)).user
+                sendWebPush({
+                    title: 'Мерчендайзинг',
+                    message: `${clientName}\nОценка: ${reviewerScore}${reviewerComment?`\nКомментарий: ${reviewerComment}`:''}`,
+                    user: employmentUser,
+                    url: `https://azyk.store/merchandising/${_id}`
+                })
+            } catch (err) {/**/}
         }
         return {data: 'OK'}
     },
