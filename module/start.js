@@ -93,32 +93,13 @@ let startReminderClient = async () => {
 
 let start = async () => {
     await createAdmin();
-    //await startClientRedis()
-    //await reductionMerchandising()
-    //await reductionRepairEquipment()
+    //threads
     await startResetUnloading()
     await startReminderClient();
     await startOutXMLShoroAzyk();
     await startDeleteBD();
-    //await reductionEquipment();
-    //await reductionReviews();
-    //await reductionToEmployment()
-    //await reductionSubBrands();
-    //await reductionToDeliveryDate();
-    //await reductionSingleOutXMLAzyk()
-    //await reductionInvoices()
-    //await reductionReturneds()
-    //await reductionCategoryAzyk()
-    //await reductionSubCategoryAzyk()
-    //await reductionToRoute()
-    //await reductionToClient()
-    //await reductionToOrganization()
-    //await reductionToItem()
-    //await reductionToUser()
-    //await reductionToAgentRoute();
-    //await reductionOutAdsXMLShoroAzyk()
-    //await reductionToAds()
-    ///await reductionOldestDB()
+    //reductions
+    await reductionToClient();
 }
 
 module.exports.start = start;
