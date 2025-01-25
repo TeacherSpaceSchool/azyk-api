@@ -65,7 +65,7 @@ const query = `
     unloadingAgentRoutes(organization: ID!): Data
     checkAgentRoute(agentRoute: ID!): Statistic
     unloadingAdsOrders(organization: ID!, dateStart: Date!): Data
-    statisticClients(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
+    statisticClients(company: String, dateStart: Date, filter: String, dateType: String, district: ID, city: String): Statistic
     statisticClientActivity(organization: ID, online: Boolean, city: String): Statistic
     statisticItemActivity(organization: ID, online: Boolean, city: String): Statistic
     statisticOrganizationActivity(organization: ID, online: Boolean, city: String): Statistic
@@ -1140,8 +1140,10 @@ const resolvers = {
             return data;
         }
     },
-    statisticClients: async(parent, { company, dateStart, dateType, online, city }, {user}) => {
+    statisticClients: async(parent, { company, dateStart, filter, dateType, city, district }, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)){
+            const needOnline = filter==='online'
+            const needOffline = filter==='offline'
             company = user.organization?user.organization:company
             let dateEnd
             if(dateStart){
@@ -1157,16 +1159,17 @@ const resolvers = {
                 else
                     dateEnd.setMonth(dateEnd.getMonth() + 1)
             }
-            let excludedAgents = []
             let profitAll = 0
-            let returnedAll = 0
-            let consignmentPriceAll = 0
-            let completAll = 0
-            if(online){
-                excludedAgents = await UserAzyk.find({$or: [{role: 'агент'}, {role: 'менеджер'}, {role: 'организация'}, {role: 'суперорганизация'}]}).distinct('_id').lean()
-                excludedAgents = await EmploymentAzyk.find({user: {$in: excludedAgents}}).distinct('_id').lean()
-            }
+            let profitOnlineAll = 0
+            let profitOfflineAll = 0
+            let completeAll = 0
+            let completeOnlineAll = 0
+            let completeOfflineAll = 0
             let statistic = {}
+            let districtClients
+            if(district) {
+                districtClients = await DistrictAzyk.findById(district).distinct('client').lean()
+            }
             let data = await InvoiceAzyk.find(
                 {
                     $and: [
@@ -1177,10 +1180,10 @@ const resolvers = {
                     taken: true,
                     ...(company==='all'?{}:{ organization: company }),
                     ...city?{city: city}:{},
-                    agent: {$nin: excludedAgents}
+                    ...districtClients?{client: {$in: districtClients}}:{}
                 }
             )
-                .select('client returnedPrice _id allPrice paymentConsignation consignmentPrice')
+                .select('client agent returnedPrice _id allPrice')
                 .populate({
                     path: 'client',
                     select: 'name _id address'
@@ -1188,25 +1191,33 @@ const resolvers = {
                 .lean()
             for(let i=0; i<data.length; i++) {
                 if (!(data[i].client.name.toLowerCase()).includes('агент')&&!(data[i].client.name.toLowerCase()).includes('agent')) {
+                    const isOnline = !data[i].agent
                     if (!statistic[data[i].client._id])
                         statistic[data[i].client._id] = {
                             profit: 0,
-                            returned: 0,
-                            complet: 0,
-                            consignmentPrice: 0,
+                            profitOnline: 0,
+                            profitOffline: 0,
+                            complete: 0,
+                            completeOnline: 0,
+                            completeOffline: 0,
                             client: `${data[i].client.name}${data[i].client.address&&data[i].client.address[0]?` (${data[i].client.address[0][2]?`${data[i].client.address[0][2]}, `:''}${data[i].client.address[0][0]})`:''}`
                         }
-                    if(data[i].allPrice!==data[i].returnedPrice) {
-                        statistic[data[i].client._id].complet += 1
-                        completAll += 1
+                    statistic[data[i].client._id].complete += 1
+                    completeAll += 1
+                    const profit = data[i].allPrice - data[i].returnedPrice
+                    statistic[data[i].client._id].profit += profit
+                    profitAll += profit
+                    if(isOnline) {
+                        statistic[data[i].client._id].completeOnline += 1
+                        statistic[data[i].client._id].profitOnline += profit
+                        completeOnlineAll += 1
+                        profitOnlineAll += profit
                     }
-                    statistic[data[i].client._id].profit += data[i].allPrice - data[i].returnedPrice
-                    profitAll += data[i].allPrice - data[i].returnedPrice
-                    statistic[data[i].client._id].returned += data[i].returnedPrice
-                    returnedAll += data[i].returnedPrice
-                    if (data[i].consignmentPrice && !data[i].paymentConsignation) {
-                        statistic[data[i].client._id].consignmentPrice += data[i].consignmentPrice
-                        consignmentPriceAll += data[i].consignmentPrice
+                    else {
+                        statistic[data[i].client._id].completeOffline += 1
+                        statistic[data[i].client._id].profitOffline += profit
+                        completeOfflineAll += 1
+                        profitOfflineAll += profit
                     }
                 }
             }
@@ -1214,21 +1225,22 @@ const resolvers = {
             data = []
 
             for(let i=0; i<keys.length; i++){
+                if((!needOffline||statistic[keys[i]].profitOffline)&&(!needOnline||statistic[keys[i]].profitOnline))
                 data.push({
                     _id: keys[i],
                     data: [
                         statistic[keys[i]].client,
-                        checkFloat( statistic[keys[i]].profit),
-                        statistic[keys[i]].complet,
-                        checkFloat(statistic[keys[i]].returned),
-                        checkFloat(statistic[keys[i]].consignmentPrice),
-                        checkFloat(statistic[keys[i]].profit/statistic[keys[i]].complet),
-                        checkFloat(statistic[keys[i]].profit*100/profitAll)
+                        `${checkFloat(statistic[keys[i]].profit)}(${checkFloat(statistic[keys[i]].profit*100/profitAll)}%)`,
+                        ...!needOffline?[`${checkFloat(statistic[keys[i]].profitOnline)}(${checkFloat(statistic[keys[i]].profitOnline*100/statistic[keys[i]].profit)}%)`]:[],
+                        ...!needOnline?[`${checkFloat(statistic[keys[i]].profitOffline)}(${checkFloat(statistic[keys[i]].profitOffline*100/statistic[keys[i]].profit)}%)`]:[],
+                        `${checkFloat(statistic[keys[i]].complete)}(${checkFloat(statistic[keys[i]].complete*100/completeAll)}%)`,
+                        ...!needOffline?[`${checkFloat(statistic[keys[i]].completeOnline)}(${checkFloat(statistic[keys[i]].completeOnline*100/statistic[keys[i]].complete)}%)`]:[],
+                        ...!needOnline?[`${checkFloat(statistic[keys[i]].completeOffline)}(${checkFloat(statistic[keys[i]].completeOffline*100/statistic[keys[i]].complete)}%)`]:[],
                     ]
                 })
             }
             data = data.sort(function(a, b) {
-                return b.data[1] - a.data[1]
+                return checkFloat(b.data[1].split('(')[0]) - checkFloat(a.data[1].split('(')[0])
             });
             data = [
                 {
@@ -1236,15 +1248,20 @@ const resolvers = {
                     data: [
                         data.length,
                         checkFloat(profitAll),
-                        completAll,
-                        checkFloat(returnedAll),
-                        checkFloat(consignmentPriceAll),
+                        !needOffline?`${checkFloat(profitOnlineAll)}(${checkFloat(profitOnlineAll*100/profitAll)}%)`:'',
+                        !needOnline?`${checkFloat(profitOfflineAll)}(${checkFloat(profitOfflineAll*100/profitAll)}%)`:'',
+                        completeAll,
+                        !needOffline?`${completeOnlineAll}(${checkFloat(completeOnlineAll*100/completeAll)}%)`:'',
+                        !needOnline?`${completeOfflineAll}(${checkFloat(completeOfflineAll*100/completeAll)}%)`:'',
                     ]
                 },
                 ...data
             ]
             return {
-                columns: ['клиент', 'выручка(сом)', 'выполнен(шт)', 'отказы(сом)', 'конс(сом)', 'средний чек(сом)', 'процент'],
+                columns: ['клиент',
+                    'выручка(сом)', ...!needOffline?['выручка online(сом)']:[], ...!needOnline?['выручка offline(сом)']:[],
+                    'выполнен(шт)', ...!needOffline?['выполнен online(шт)']:[], ...!needOnline?['выполнен offline(шт)']:[]
+                ],
                 row: data
             };
         }

@@ -4,13 +4,13 @@ const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
 const {saveBase64ToFile, urlMain, deleteFile, reductionSearch} = require('../module/const');
 const {sendWebPush} = require('../module/webPush');
-const SubscriberAzyk = require('../models/subscriberAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 
 const type = `
   type Merchandising {
       _id: ID
       date: Date
+      type: String
       employment: Employment
       organization: Organization
       client: Client
@@ -54,7 +54,7 @@ const query = `
 `;
 
 const mutation = `
-    addMerchandising(organization: ID!, geo: String, client: ID!, productAvailability: [String]!, productInventory: Boolean!, productConditions: Int!, productLocation: Int!, images: [Upload]!, fhos: [InputFho]!, needFho: Boolean!, stateProduct: Int!, comment: String!): Data
+    addMerchandising(organization: ID!, type: String!, geo: String, client: ID!, productAvailability: [String]!, productInventory: Boolean!, productConditions: Int!, productLocation: Int!, images: [Upload]!, fhos: [InputFho]!, needFho: Boolean!, stateProduct: Int!, comment: String!): Data
     checkMerchandising(_id: ID!, reviewerScore: Int, reviewerComment: String): Data
     deleteMerchandising(_id: [ID]!): Data
 `;
@@ -89,14 +89,16 @@ const resolvers = {
                 ...client?{client: client}:{},
                 ...agent?{employment: agent}:{},
                 organization: user.organization?user.organization:organization==='super'?null:organization,
-                ...filter==='обработка'?{check: false}:{},
+                ...filter?
+                    filter==='обработка'?{check: false}:{type: filter}
+                    :{},
                 $and: [
                     {...['суперагент', 'агент'].includes(user.role) && clients.length||user.role==='менеджер'?{client: {$in: clients}}:['суперагент', 'агент', 'мерчендайзер'].includes(user.role)?{employment: user.employment}:{}},
                     {...search.length>0?{client: {$in: _clients}}:{}},
                     ...(!date||date===''?[]:[{date: {$gte: dateStart}}, {date: {$lt:dateEnd}}]),
                 ]
             })
-                .select('_id client employment date stateProduct check fhos')
+                .select('_id client type employment date stateProduct check fhos')
                 .populate({
                     path: 'client',
                     select: '_id name address'
@@ -151,19 +153,26 @@ const resolvers = {
         },{
             name: 'Обработка',
             value: 'обработка'
+        },{
+            name: 'Холодные полки',
+            value: 'холодные полки'
+        },{
+            name: 'Теплые полки',
+            value: 'теплые полки'
         }]
         return filter
     }
 };
 
 const resolversMutation = {
-    addMerchandising: async(parent, {organization, client, geo, productAvailability, productInventory, productConditions, productLocation, images, fhos, needFho, stateProduct, comment}, {user}) => {
+    addMerchandising: async(parent, {organization, type, client, geo, productAvailability, productInventory, productConditions, productLocation, images, fhos, needFho, stateProduct, comment}, {user}) => {
         if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)){
             let _object = new MerchandisingAzyk({
                 organization: user.organization?user.organization:organization==='super'?null:organization,
                 employment: user.employment?user.employment:null,
                 client: user.client?user.client:client,
                 date: new Date(),
+                type,
                 productAvailability: productAvailability,
                 productInventory: productInventory,
                 productConditions: productConditions,

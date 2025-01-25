@@ -23,6 +23,7 @@ const MerchandisingAzykSchema = mongoose.Schema({
     needFho: Boolean,
     check: Boolean,
     stateProduct: Number,
+    type: String,
     comment: String,
     geo: String,
     reviewerScore: {
