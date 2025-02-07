@@ -26,7 +26,7 @@ const mutation = `
 
 const resolvers = {
     specialPriceClients: async(parent, {client, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin', 'суперагент', 'client', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
+        if(user.role) {
             return await SpecialPriceClient
                 .find({
                     client,
@@ -66,7 +66,7 @@ const resolvers = {
 
 const resolversMutation = {
     addSpecialPriceClient: async(parent, {client, organization, price, item}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)&&!(await SpecialPriceClient.findOne({item, client}).select('_id').lean())) {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)&&!(await SpecialPriceClient.findOne({item, client}).select('_id').lean())) {
             let _object = new SpecialPriceClient({
                 item,
                 price,
@@ -92,7 +92,7 @@ const resolversMutation = {
         }
     },
     setSpecialPriceClient: async(parent, {_id, price}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)){
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
             let object = await SpecialPriceClient.findById(_id)
             object.price = price
             await object.save();
@@ -100,7 +100,7 @@ const resolversMutation = {
         return {data: 'OK'};
     },
     deleteSpecialPriceClient: async(parent, { _id }, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)){
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
             await SpecialPriceClient.deleteOne({_id})
         }
         return {data: 'OK'}

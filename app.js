@@ -53,8 +53,8 @@ app.use(function(req, res, next){
         next();
     }
 });
-app.use(bodyParser.json({limit: '100mb'}));
-app.use(bodyParser.xml());
+app.use(bodyParser.json({limit: '10mb'}));
+app.use(bodyParser.xml({limit: '10mb'}));
 app.use(express.static(path.join(__dirname, 'admin')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(compression());

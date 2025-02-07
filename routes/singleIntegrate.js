@@ -97,137 +97,138 @@ router.post('/:pass/put/client', async (req, res, next) => {
         .findOne({pass: req.params.pass}).select('_id autoIntegrate cities').lean()
     res.set('Content-Type', 'application/xml');
     try{
-        let agent
+        let agent, district
         let _object
         let integrate1CAzyk
         if(req.body.elements[0].elements) {
             for (let i = 0; i < req.body.elements[0].elements.length; i++) {
+                //интеграция клиента
                 integrate1CAzyk = await Integrate1CAzyk.findOne({
                     organization: organization._id,
                     guid: req.body.elements[0].elements[i].attributes.guid
                 }).lean()
+                //находим агента
                 agent = await Integrate1CAzyk.findOne({
                     organization: organization._id,
                     guid: req.body.elements[0].elements[i].attributes.agent
                 }).select('agent').lean()
-                if (agent) {
-                    let district = await DistrictAzyk.findOne({
-                        agent: agent.agent
-                    }).select('_id').lean()
-                    if(district) {
-                        if(organization.autoIntegrate) {
-                            //новый клиент
-                            if(!integrate1CAzyk){
-                                //ищем район
-                                district = await DistrictAzyk.findOne({
-                                    agent: agent.agent
-                                })
-                                //создаем клиента
-                                let _client = new UserAzyk({
-                                    login: randomstring.generate(20),
-                                    role: 'client',
-                                    status: 'active',
-                                    password: '12345678',
-                                });
-                                _client = await UserAzyk.create(_client);
-                                _client = new ClientAzyk({
-                                    name: req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : 'Новый',
-                                    phone: req.body.elements[0].elements[i].attributes.tel,
-                                    city: organization.cities[0],
-                                    address: [[
-                                        req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : '',
-                                        '',
-                                        req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : ''
-                                    ]],
-                                    user: _client._id,
-                                    notification: false
-                                });
-                                _client = await ClientAzyk.create(_client);
-                                //создаем интеграцию
-                                let _object = new Integrate1CAzyk({
-                                    item: null,
-                                    client: _client._id,
-                                    agent: null,
-                                    ecspeditor: null,
-                                    organization: organization._id,
-                                    guid: req.body.elements[0].elements[i].attributes.guid,
-                                });
-                                await Integrate1CAzyk.create(_object)
-                                //добавляем клиента в район
+                //автоинтеграция
+                if(organization.autoIntegrate) {
+                    //новый клиент
+                    if(!integrate1CAzyk){
+                        //создаем клиента
+                        let _client = new UserAzyk({
+                            login: randomstring.generate(20),
+                            role: 'client',
+                            status: 'active',
+                            password: '12345678',
+                        });
+                        _client = await UserAzyk.create(_client);
+                        _client = new ClientAzyk({
+                            name: req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : 'Новый',
+                            phone: req.body.elements[0].elements[i].attributes.tel,
+                            city: organization.cities[0],
+                            address: [[
+                                req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : '',
+                                '',
+                                req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : ''
+                            ]],
+                            user: _client._id,
+                            notification: false
+                        });
+                        _client = await ClientAzyk.create(_client);
+                        //создаем интеграцию
+                        let _object = new Integrate1CAzyk({
+                            item: null,
+                            client: _client._id,
+                            agent: null,
+                            ecspeditor: null,
+                            organization: organization._id,
+                            guid: req.body.elements[0].elements[i].attributes.guid,
+                        });
+                        await Integrate1CAzyk.create(_object)
+                        //добавляем клиента в район
+                        if(agent) {
+                            district = await DistrictAzyk.findOne({
+                                agent: agent.agent
+                            })
+                            if(district) {
                                 district.client.push(_client._id)
                                 district.markModified('client');
                                 await district.save()
                             }
-                            else {
-                                //обновляем клиента
-                                let _client = await ClientAzyk.findOne({_id: integrate1CAzyk.client});
-                                if(req.body.elements[0].elements[i].attributes.name)
-                                    _client.name = req.body.elements[0].elements[i].attributes.name
-                                if(req.body.elements[0].elements[i].attributes.tel) {
-                                    _client.phone = [req.body.elements[0].elements[i].attributes.tel]
-                                    _client.markModified('phone');
-                                }
-                                if(req.body.elements[0].elements[i].attributes.address||req.body.elements[0].elements[i].attributes.name) {
-                                    _client.address = [[
-                                        req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : _client.address[0][0],
-                                        _client.address[0][1],
-                                        req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : _client.address[0][2]
-                                    ]]
-                                    _client.markModified('address');
-                                }
-                                await _client.save()
-                                //обновляем район
-                                let newDistrict = await DistrictAzyk.findOne({
-                                    agent: agent.agent
-                                })
-                                //если клиент не добавлен в район
-                                if(newDistrict&&!newDistrict.client.toString().includes(_client._id.toString())){
-                                    let oldDistrict = await DistrictAzyk.findOne({
-                                        client: _client._id
-                                    })
-                                    if(oldDistrict){
-                                        //очищаем старый маршрут агента
-                                        let objectAgentRouteAzyk = await AgentRouteAzyk.findOne({district: oldDistrict._id})
-                                        if(objectAgentRouteAzyk){
-                                            for(let i=0; i<7; i++) {
-                                                let index = objectAgentRouteAzyk.clients[i].indexOf(_client._id.toString())
-                                                if(index!==-1)
-                                                    objectAgentRouteAzyk.clients[i].splice(index, 1)
-                                            }
-                                            objectAgentRouteAzyk.markModified('clients');
-                                            await objectAgentRouteAzyk.save()
-                                        }
-                                        //очищаем старый район
-                                        for(let i=0; i<oldDistrict.client.length; i++) {
-                                            if(oldDistrict.client[i].toString()===_client._id.toString()){
-                                                oldDistrict.client.splice(i, 1)
-                                                break
-                                            }
-                                        }
-                                        oldDistrict.markModified('client');
-                                        await oldDistrict.save()
-                                    }
-                                    //добавляем в новый район
-                                    newDistrict.client.push(_client._id)
-                                    newDistrict.markModified('client');
-                                    await newDistrict.save()
-                                }
-                            }
-                        }
-                        else {
-                            _object = new ReceivedDataAzyk({
-                                status: integrate1CAzyk ? 'изменить' : 'добавить',
-                                organization: organization._id,
-                                name: req.body.elements[0].elements[i].attributes.name,
-                                guid: req.body.elements[0].elements[i].attributes.guid,
-                                addres: req.body.elements[0].elements[i].attributes.address,
-                                agent: agent.agent,
-                                phone: req.body.elements[0].elements[i].attributes.tel,
-                                type: 'клиент'
-                            });
-                            await ReceivedDataAzyk.create(_object)
                         }
                     }
+                    else {
+                        //обновляем клиента
+                        let _client = await ClientAzyk.findOne({_id: integrate1CAzyk.client});
+                        if(req.body.elements[0].elements[i].attributes.name)
+                            _client.name = req.body.elements[0].elements[i].attributes.name
+                        if(req.body.elements[0].elements[i].attributes.tel) {
+                            _client.phone = [req.body.elements[0].elements[i].attributes.tel]
+                            _client.markModified('phone');
+                        }
+                        if(req.body.elements[0].elements[i].attributes.address||req.body.elements[0].elements[i].attributes.name) {
+                            _client.address = [[
+                                req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : _client.address[0][0],
+                                _client.address[0][1],
+                                req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : _client.address[0][2]
+                            ]]
+                            _client.markModified('address');
+                        }
+                        await _client.save()
+                        //обновляем район
+                        if(agent) {
+                            let newDistrict = await DistrictAzyk.findOne({
+                                agent: agent.agent
+                            })
+                            //если клиент не добавлен в район
+                            if (newDistrict && !newDistrict.client.toString().includes(_client._id.toString())) {
+                                let oldDistrict = await DistrictAzyk.findOne({
+                                    client: _client._id
+                                })
+                                if (oldDistrict) {
+                                    //очищаем старый маршрут агента
+                                    let objectAgentRouteAzyk = await AgentRouteAzyk.findOne({district: oldDistrict._id})
+                                    if (objectAgentRouteAzyk) {
+                                        for (let i = 0; i < 7; i++) {
+                                            let index = objectAgentRouteAzyk.clients[i].indexOf(_client._id.toString())
+                                            if (index !== -1)
+                                                objectAgentRouteAzyk.clients[i].splice(index, 1)
+                                        }
+                                        objectAgentRouteAzyk.markModified('clients');
+                                        await objectAgentRouteAzyk.save()
+                                    }
+                                    //очищаем старый район
+                                    for (let i = 0; i < oldDistrict.client.length; i++) {
+                                        if (oldDistrict.client[i].toString() === _client._id.toString()) {
+                                            oldDistrict.client.splice(i, 1)
+                                            break
+                                        }
+                                    }
+                                    oldDistrict.markModified('client');
+                                    await oldDistrict.save()
+                                }
+                                //добавляем в новый район
+                                newDistrict.client.push(_client._id)
+                                newDistrict.markModified('client');
+                                await newDistrict.save()
+                            }
+                        }
+                    }
+                }
+                else {
+                    _object = new ReceivedDataAzyk({
+                        status: integrate1CAzyk ? 'изменить' : 'добавить',
+                        organization: organization._id,
+                        name: req.body.elements[0].elements[i].attributes.name,
+                        guid: req.body.elements[0].elements[i].attributes.guid,
+                        addres: req.body.elements[0].elements[i].attributes.address,
+                        agent: agent?agent.agent:null,
+                        phone: req.body.elements[0].elements[i].attributes.tel,
+                        type: 'клиент'
+                    });
+                    await ReceivedDataAzyk.create(_object)
                 }
             }
         }
