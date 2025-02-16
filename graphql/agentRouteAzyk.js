@@ -9,7 +9,6 @@ const type = `
       createdAt: Date
       organization: Organization
       clients: [[ID]],
-      name: String
       district: District
   }
 `;
@@ -21,8 +20,8 @@ const query = `
 `;
 
 const mutation = `
-    addAgentRoute(organization: ID, clients: [[ID]]!, name: String!, district: ID): Data
-    setAgentRoute(_id: ID!, clients: [[ID]], name: String): Data
+    addAgentRoute(organization: ID, clients: [[ID]]!, district: ID): Data
+    setAgentRoute(_id: ID!, clients: [[ID]]): Data
     deleteAgentRoute(_id: [ID]!): Data
 `;
 
@@ -46,15 +45,9 @@ const resolvers = {
                 .find({
                     organization: user.organization ? user.organization : organization === 'super' ? null : organization,
                     ...'менеджер' === user.role ? {district: {$in: districts}} : {},
-                    ...(search.length > 0 ? {
-                            $or: [
-                                {name: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                {district: {$in: _districts}},
-                            ]
-                        }
-                        : {})
+                    ...(search.length > 0 ? {district: {$in: _districts}} : {})
                 })
-                .select('_id createdAt organization name district')
+                .select('_id createdAt organization district')
                 .populate({
                     path: 'district',
                     select: 'name _id'
@@ -78,10 +71,10 @@ const resolvers = {
                     _id: {$nin: districts},
                     organization: user.organization ? user.organization : organization === 'super' ? null : organization
                 })
-                .select('_id createdAt organization client name ')
+                .select('_id createdAt organization client')
                 .populate({path: 'client', select: '_id image createdAt name address lastActive device notification city phone user', populate: [{path: 'user', select: 'status'}]})
                 .populate({path: 'organization', select: 'name _id'})
-                .sort('-name')
+                .sort('-createdAt')
                 .lean()
             return districts
         }
@@ -120,10 +113,9 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addAgentRoute: async(parent, {organization, clients, name, district}, {user}) => {
+    addAgentRoute: async(parent, {organization, clients, district}, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             let _object = new AgentRouteAzyk({
-                name: name,
                 district: district,
                 organization: organization!=='super'?organization:undefined,
                 clients: clients,
@@ -132,10 +124,9 @@ const resolversMutation = {
         }
         return {data: 'OK'};
     },
-    setAgentRoute: async(parent, {_id, clients, name}, {user}) => {
+    setAgentRoute: async(parent, {_id, clients}, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             let object = await AgentRouteAzyk.findById(_id)
-            if(name)object.name = name
             if(clients)object.clients = clients
             await object.save();
         }

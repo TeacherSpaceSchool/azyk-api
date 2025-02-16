@@ -2477,7 +2477,7 @@ const resolvers = {
                     ],
                     organization: user.organization?user.organization:organization,
                 })
-                    .select('client check')
+                    .select('client type check')
                     .lean()
                 for(let i=0; i<data.length; i++) {
                     for(let i1=0; i1<districts.length; i1++) {
@@ -2487,35 +2487,49 @@ const resolvers = {
                     if(!data[i].district)
                         data[i].district = {_id: 'lol', agent: {name: 'Без района'}}
                 }
-                let allCheck = 0
-                let allProcessing = 0
                 for(let i=0; i<data.length; i++) {
                     if(user.role!=='менеджер'||data[i].district._id!=='lol') {
                         if (!statistic[data[i].district._id]) statistic[data[i].district._id] = {
                             name: data[i].district.agent?data[i].district.agent.name:'Не найден',
-                            check: 0,
-                            processing: 0
+                            checkC: 0,
+                            checkW: 0,
+                            processingC: 0,
+                            processingW: 0
+                        }
+                        let fieldType = 'C'
+                        if(data[i].type==='теплые полки') {
+                            fieldType = 'W'
                         }
                         if (data[i].check) {
-                            statistic[data[i].district._id].check += 1
-                            allCheck += 1
+                            statistic[data[i].district._id][`check${fieldType}`] += 1
                         }
                         else {
-                            statistic[data[i].district._id].processing += 1
-                            allProcessing += 1
+                            statistic[data[i].district._id][`processing${fieldType}`] += 1
                         }
                     }
                 }
                 const keys = Object.keys(statistic)
                 data = []
+                let allCheckW = 0
+                let allCheckC = 0
+                let allProcessingW = 0
+                let allProcessingC = 0
                 for(let i=0; i<keys.length; i++){
+                    const checkW = statistic[keys[i]].checkW, checkC = statistic[keys[i]].checkC
+                    const check = checkW + checkC
+                    allCheckW += checkW
+                    allCheckC += checkC
+                    const processingW = statistic[keys[i]].processingW,  processingC = statistic[keys[i]].processingC
+                    const processing = processingW + processingC
+                    allProcessingW += processingW
+                    allProcessingC += processingC
                     data.push({
                         _id: keys[i],
                         data: [
                             statistic[keys[i]].name,
-                            statistic[keys[i]].check + statistic[keys[i]].processing,
-                            statistic[keys[i]].check,
-                            statistic[keys[i]].processing,
+                            `${check+processing}(${checkC+processingC}|${checkW+processingW})`,
+                            `${check}(${checkC}|${checkW})`,
+                            `${processing}(${processingC}|${processingW})`,
                         ]
                     })
                 }
@@ -2526,15 +2540,15 @@ const resolvers = {
                     {
                         _id: 'All',
                         data: [
-                            allCheck+allProcessing,
-                            allCheck,
-                            allProcessing
+                            `${allCheckW + allCheckC + allProcessingW + allProcessingC}(${allCheckC + allProcessingC}|${allCheckW + allProcessingW})`,
+                            `${allCheckW + allCheckC}(${allCheckC}|${allCheckW})`,
+                            `${allProcessingW + allProcessingC}(${allProcessingC}|${allProcessingW})`
                         ]
                     },
                     ...data
                 ]
                 return {
-                    columns: ['агент', 'всего', 'проверено', 'обработка'],
+                    columns: ['агент', 'всего(хол|теп)', 'проверено(хол|теп)', 'обработка(хол|теп)'],
                     row: data
                 };
             }
@@ -2543,7 +2557,7 @@ const resolvers = {
                     organization: user.organization?user.organization:organization,
                     agent
                 })
-                    .select('_id client')
+                    .select('_id client type')
                     .populate({
                         path: 'client',
                         select: 'name _id'
@@ -2566,27 +2580,35 @@ const resolvers = {
                     organization: user.organization?user.organization:organization,
                     client: {$in: Object.keys(statistic)}
                 })
-                    .select('client createdAt')
+                    .select('client type createdAt')
                     .sort('-createdAt')
                     .lean()
                 for(let i=0; i<data.length; i++) {
-                    if(!statistic[data[i].client].date)
+                    if(!statistic[data[i].client].date) {
                         statistic[data[i].client].date = data[i].createdAt
+                        statistic[data[i].client].type = data[i].type?data[i].type:'холодные полки'
+                    }
                 }
-                let allMerch = 0
+                let allMerch = 0, allMerchC = 0, allMerchW = 0
                 let allMiss = 0
                 const keys = Object.keys(statistic)
                 data = []
                 for(let i=0; i<keys.length; i++){
                     if(!statistic[keys[i]].date)
                         allMiss += 1
-                    else
+                    else {
                         allMerch += 1
+                        if(statistic[keys[i]].type==='холодные полки')
+                            allMerchC += 1
+                        else
+                            allMerchW += 1
+                    }
                     data.push({
                         _id: keys[i],
                         data: [
                             statistic[keys[i]].name,
                             statistic[keys[i]].date,
+                            statistic[keys[i]].type,
                         ]
                     })
                 }
@@ -2600,14 +2622,14 @@ const resolvers = {
                     {
                         _id: 'All',
                         data: [
-                            allMerch,
+                            `${allMerch}(${allMerchC}|${allMerchW})`,
                             allMiss
                         ]
                     },
                     ...data
                 ]
                 return {
-                    columns: ['клиент', 'дата'],
+                    columns: ['клиент', 'дата', 'тип'],
                     row: data
                 };
             }

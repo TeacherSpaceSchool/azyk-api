@@ -9,7 +9,6 @@ const AgentRouteAzykSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ClientAzyk'
     }]],
-    name: String,
     district: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'DistrictAzyk'
