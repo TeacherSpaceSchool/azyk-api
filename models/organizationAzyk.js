@@ -30,6 +30,10 @@ const OrganizationAzykSchema = mongoose.Schema({
         type: Boolean,
         default: false
     },
+    refusal: {
+        type: Boolean,
+        default: false
+    },
     accessToClient: {
         type: Boolean,
         default: false

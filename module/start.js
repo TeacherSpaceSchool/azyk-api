@@ -98,6 +98,7 @@ let start = async () => {
     await startReminderClient();
     await startOutXMLShoroAzyk();
     await startDeleteBD();
+    await reductionToClient();
     //reductions
 }
 
