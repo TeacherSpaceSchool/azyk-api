@@ -266,7 +266,7 @@ const resolvers = {
         let dateStart;
         let dateEnd;
         let accessToClient = true
-        let clients
+        let clients = []
         let _sort = {}
         if(date&&date!==''){
             dateStart = new Date(date)
@@ -306,7 +306,10 @@ const resolvers = {
                                 ...(!date || date === '' ? {} : {$and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}]}),
                                 ...city ? {city: city} : {},
                                 ...user.cities?{city: {$in: user.cities}}:{},
-                                ...['менеджер', 'экспедитор'].includes(user.role)||['агент', 'суперагент'].includes(user.role)&&(clients.length||search.length<3)||['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)&&!accessToClient ? {_id: {$in: clients}} : {},
+                                ...['менеджер', 'экспедитор'].includes(user.role)
+                                ||user.role==='агент'/*&&(clients.length||search.length<3)*/
+                                ||user.role==='суперагент'&&(clients.length||search.length<3)
+                                ||['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)&&!accessToClient ? {_id: {$in: clients}} : {},
                                 del: {$ne: 'deleted'},
                                 $or: [
                                     {name: {'$regex': reductionSearch(search), '$options': 'i'}},
