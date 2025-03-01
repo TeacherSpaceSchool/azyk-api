@@ -72,6 +72,7 @@ const query = `
     statisticItem(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticAdss(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticOrder(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
+    statisticOrdersOffRoute(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticSubBrand(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticHours(organization: ID!, dateStart: Date, dateType: String, city: String, type: String!): Statistic
     statisticAzykStoreOrder(company: ID, filter: String, dateStart: Date, dateType: String, city: String): Statistic
@@ -84,7 +85,7 @@ const query = `
     statisticReturned(company: String, dateStart: Date, dateType: String, city: String): Statistic
     statisticAgents(company: String, dateStart: Date, dateType: String, city: String): Statistic
     statisticAgentsWorkTime(organization: String, date: Date): Statistic
-    statisticMerchandising(agent: ID, dateStart: Date, dateType: String, organization: ID): Statistic
+    statisticMerchandising(type: String, agent: ID, dateStart: Date, dateType: String, organization: ID): Statistic
     checkOrder(company: String, today: Date!, city: String): Statistic
     statisticOrderChart(company: String, dateStart: Date, dateType: String, type: String, online: Boolean, city: String): ChartStatisticAll
     activeItem(organization: ID!): [Item]
@@ -1935,6 +1936,147 @@ const resolvers = {
             };
         }
     },
+    statisticOrdersOffRoute: async(parent, { company, dateStart, dateType, online, city }, {user}) => {
+        if(['admin', 'суперорганизация'].includes(user.role)){
+            company = user.organization?user.organization:company
+            let dateEnd
+            if(dateStart){
+                dateStart= new Date(dateStart)
+                dateStart.setHours(3, 0, 0, 0)
+                dateEnd = new Date(dateStart)
+
+                if(dateType==='year')
+                    dateEnd.setFullYear(dateEnd.getFullYear() + 1)
+                else if(dateType==='day')
+                    dateEnd.setDate(dateEnd.getDate() + 1)
+                else if(dateType==='week')
+                    dateEnd.setDate(dateEnd.getDate() + 7)
+                else
+                    dateEnd.setMonth(dateEnd.getMonth() + 1)
+            }
+            let statistic = {}, data
+            let excludedAgents = []
+            let superOrganizations = []
+            let profitAll = 0
+            let consignmentPriceAll = 0
+            let completAll = 0
+            let returnedPriceAll = 0
+
+            if(online){
+                excludedAgents = await UserAzyk.find({$or: [{role: 'агент'}, {role: 'менеджер'}, {role: 'организация'}, {role: 'суперорганизация'}]}).distinct('_id').lean()
+                excludedAgents = await EmploymentAzyk.find({user: {$in: excludedAgents}}).distinct('_id').lean()
+            }
+
+            let route = [[],[],[],[],[],[],[]]
+            data = await AgentRouteAzyk.find({organization: company}).select('clients').lean()
+            for(let i=0; i<data.length; i++) {
+                route = [[...route[0], ...data[i].clients[0]],[...route[1], ...data[i].clients[1]],[...route[2], ...data[i].clients[2]],[...route[3], ...data[i].clients[3]],[...route[4], ...data[i].clients[4]],[...route[5], ...data[i].clients[5]],[...route[6], ...data[i].clients[6]]]
+            }
+            route = [route[0].toString(),route[1].toString(),route[2].toString(),route[3].toString(),route[4].toString(),route[5].toString(),route[6].toString()]
+
+            data = await DistrictAzyk.find({
+                ...(company!=='super'?{organization: company}:{organization: null}),
+                name: {$ne: 'super'}
+            })
+                .select('_id name client')
+                .lean()
+            let districts = {}
+            for(let i=0; i<data.length; i++) {
+                for(let i1=0; i1<data[i].client.length; i1++) {
+                    districts[data[i].client[i1].toString()] = data[i]
+                }
+            }
+            data = await InvoiceAzyk.find(
+                {
+                    $and: [
+                        dateStart ? {createdAt: {$gte: dateStart}} : {},
+                        dateEnd ? {createdAt: {$lt: dateEnd}} : {}
+                    ],
+                    del: {$ne: 'deleted'},
+                    taken: true,
+                    ...(company!=='super'?{organization: company}:{...online?{organization: {$in: superOrganizations}}:{}}),
+                    agent: {$nin: excludedAgents},
+                    ...city?{city: city}:{},
+                }
+            )
+                .select('_id createdAt returnedPrice allPrice paymentConsignation consignmentPrice client')
+                .lean()
+            let orderAllCount = data.length
+            for(let i=0; i<data.length; i++) {
+                const date = new Date(data[i].createdAt); // Указываем дату
+                const dayOfWeek = (date.getDay() + 6) % 7;
+                if(!route[dayOfWeek].includes(data[i].client._id.toString())) {
+                    let district = {_id: 'Прочие', name: 'Прочие'}
+                    if (districts[data[i].client.toString()]) {
+                        district = districts[data[i].client.toString()]
+                    }
+                    if (!statistic[district._id])
+                        statistic[district._id] = {
+                            profit: 0,
+                            complet: 0,
+                            consignmentPrice: 0,
+                            returnedPrice: 0,
+                            clients: {},
+                            organization: district.name
+                        }
+                    if (!statistic[district._id].clients[data[i].client]) {
+                        statistic[district._id].clients[data[i].client] = 1
+                    }
+                    statistic[district._id].profit += data[i].allPrice - data[i].returnedPrice
+                    profitAll += data[i].allPrice - data[i].returnedPrice
+                    statistic[district._id].returnedPrice += data[i].returnedPrice
+                    returnedPriceAll += data[i].returnedPrice
+                    if (data[i].allPrice !== data[i].returnedPrice) {
+                        statistic[district._id].complet += 1
+                        completAll += 1
+                    }
+                    if (data[i].consignmentPrice && !data[i].paymentConsignation) {
+                        statistic[district._id].consignmentPrice += data[i].consignmentPrice
+                        consignmentPriceAll += data[i].consignmentPrice
+                    }
+                }
+            }
+
+            const keys = Object.keys(statistic)
+            data = []
+
+            for(let i=0; i<keys.length; i++){
+                data.push({
+                    _id: keys[i],
+                    data: [
+                        statistic[keys[i]].organization,
+                        checkFloat(statistic[keys[i]].profit),
+                        statistic[keys[i]].complet,
+                        checkFloat(statistic[keys[i]].returnedPrice),
+                        checkFloat(statistic[keys[i]].consignmentPrice),
+                        checkFloat(statistic[keys[i]].profit/statistic[keys[i]].complet),
+                        Object.keys(statistic[keys[i]].clients).length,
+                        checkFloat(statistic[keys[i]].profit*100/profitAll)
+                    ]
+                })
+            }
+
+            data = data.sort(function(a, b) {
+                return b.data[1] - a.data[1]
+            });
+            data = [
+                {
+                    _id: 'All',
+                    data: [
+                        `${completAll}/${orderAllCount}`,
+                        checkFloat(profitAll),
+                        checkFloat(returnedPriceAll),
+                        checkFloat(consignmentPriceAll),
+                    ]
+                },
+                ...data
+            ]
+            return {
+                columns: [company?'район':'организация', 'выручка(сом)', 'выполнен(шт)', 'отказы(сом)', 'конс(сом)', 'средний чек(сом)', 'клиенты', 'процент'],
+                row: data
+            };
+        }
+    },
     statisticSubBrand: async(parent, { company, dateStart, dateType, online, city }, {user}) => {
         if('admin'===user.role){
             company = user.organization?user.organization:company
@@ -2440,7 +2582,7 @@ const resolvers = {
             };
         }
     },
-    statisticMerchandising: async(parent, { dateStart, dateType, organization, agent }, {user}) => {
+    statisticMerchandising: async(parent, {type, dateStart, dateType, organization, agent }, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)){
             let dateEnd
             if(dateStart){
@@ -2475,6 +2617,7 @@ const resolvers = {
                         dateEnd ? {createdAt: {$lt: dateEnd}} : {}
                     ],
                     organization: user.organization?user.organization:organization,
+                    ...type?{type}:{}
                 })
                     .select('client type check')
                     .lean()
@@ -2490,45 +2633,31 @@ const resolvers = {
                     if(user.role!=='менеджер'||data[i].district._id!=='lol') {
                         if (!statistic[data[i].district._id]) statistic[data[i].district._id] = {
                             name: data[i].district.agent?data[i].district.agent.name:'Не найден',
-                            checkC: 0,
-                            checkW: 0,
-                            processingC: 0,
-                            processingW: 0
-                        }
-                        let fieldType = 'C'
-                        if(data[i].type==='теплые полки') {
-                            fieldType = 'W'
+                            check: 0,
+                            processing: 0
                         }
                         if (data[i].check) {
-                            statistic[data[i].district._id][`check${fieldType}`] += 1
+                            statistic[data[i].district._id]['check'] += 1
                         }
                         else {
-                            statistic[data[i].district._id][`processing${fieldType}`] += 1
+                            statistic[data[i].district._id]['processing'] += 1
                         }
                     }
                 }
                 const keys = Object.keys(statistic)
                 data = []
-                let allCheckW = 0
-                let allCheckC = 0
-                let allProcessingW = 0
-                let allProcessingC = 0
+                let allCheck = 0
+                let allProcessing = 0
                 for(let i=0; i<keys.length; i++){
-                    const checkW = statistic[keys[i]].checkW, checkC = statistic[keys[i]].checkC
-                    const check = checkW + checkC
-                    allCheckW += checkW
-                    allCheckC += checkC
-                    const processingW = statistic[keys[i]].processingW,  processingC = statistic[keys[i]].processingC
-                    const processing = processingW + processingC
-                    allProcessingW += processingW
-                    allProcessingC += processingC
+                    allCheck += statistic[keys[i]].check
+                    allProcessing += statistic[keys[i]].processing
                     data.push({
                         _id: keys[i],
                         data: [
                             statistic[keys[i]].name,
-                            `${check+processing}(${checkC+processingC}|${checkW+processingW})`,
-                            `${check}(${checkC}|${checkW})`,
-                            `${processing}(${processingC}|${processingW})`,
+                            statistic[keys[i]].check+statistic[keys[i]].processing,
+                            statistic[keys[i]].check,
+                            statistic[keys[i]].processing
                         ]
                     })
                 }
@@ -2539,89 +2668,72 @@ const resolvers = {
                     {
                         _id: 'All',
                         data: [
-                            `${allCheckW + allCheckC + allProcessingW + allProcessingC}(${allCheckC + allProcessingC}|${allCheckW + allProcessingW})`,
-                            `${allCheckW + allCheckC}(${allCheckC}|${allCheckW})`,
-                            `${allProcessingW + allProcessingC}(${allProcessingC}|${allProcessingW})`
+                            allCheck + allProcessing,
+                            allCheck,
+                            allProcessing
                         ]
                     },
                     ...data
                 ]
                 return {
-                    columns: ['агент', 'всего(хол|теп)', 'проверено(хол|теп)', 'обработка(хол|теп)'],
+                    columns: ['агент', 'всего', 'проверено', 'обработка'],
                     row: data
                 };
             }
             else {
-                let districts = await DistrictAzyk.find({
+                let districtsClients = await DistrictAzyk.find({
                     organization: user.organization?user.organization:organization,
                     agent
                 })
-                    .select('_id client type')
-                    .populate({
-                        path: 'client',
-                        select: 'name _id'
-                    })
+                    .distinct('client')
                     .lean()
-                for(let i=0; i<districts.length; i++) {
-                    for(let i1=0; i1<districts[i].client.length; i1++) {
-                        if(!statistic[districts[i].client[i1]._id])
-                            statistic[districts[i].client[i1]._id] = {
-                                name: districts[i].client[i1].name,
-                                date: null
-                            }
-                    }
-                }
-                let data = await MerchandisingAzyk.find({
+                let merchandisings = await MerchandisingAzyk.find({
                     $and: [
                         dateStart ? {createdAt: {$gte: dateStart}} : {},
                         dateEnd ? {createdAt: {$lt: dateEnd}} : {}
                     ],
+                    ...type?{type}:{},
                     organization: user.organization?user.organization:organization,
-                    client: {$in: Object.keys(statistic)}
+                    client: {$in: districtsClients}
                 })
-                    .select('client type createdAt')
+                    .select('_id client type createdAt')
+                    .populate({
+                        path: 'client',
+                        select: 'name _id'
+                    })
                     .sort('-createdAt')
                     .lean()
-                for(let i=0; i<data.length; i++) {
-                    if(!statistic[data[i].client].date) {
-                        statistic[data[i].client].date = data[i].createdAt
-                        statistic[data[i].client].type = data[i].type?data[i].type:'холодные полки'
+                let data = []
+                let allMerch = []
+                for(let i=0; i<merchandisings.length; i++) {
+
+                    const index = districtsClients.indexOf(merchandisings[i].client._id);
+                    if (index !== -1) {
+                        districtsClients.splice(index, 1);
                     }
-                }
-                let allMerch = 0, allMerchC = 0, allMerchW = 0
-                let allMiss = 0
-                const keys = Object.keys(statistic)
-                data = []
-                for(let i=0; i<keys.length; i++){
-                    if(!statistic[keys[i]].date)
-                        allMiss += 1
-                    else {
-                        allMerch += 1
-                        if(statistic[keys[i]].type==='холодные полки')
-                            allMerchC += 1
-                        else
-                            allMerchW += 1
-                    }
+
+                    if(!allMerch.includes(merchandisings[i].client._id.toString()))
+                        allMerch.push(merchandisings[i].client._id.toString())
+
                     data.push({
-                        _id: keys[i],
+                        _id: merchandisings[i]._id,
                         data: [
-                            statistic[keys[i]].name,
-                            statistic[keys[i]].date,
-                            statistic[keys[i]].type,
+                            merchandisings[i].client.name,
+                            pdDDMMYYYY(merchandisings[i].createdAt),
+                            merchandisings[i].type,
                         ]
                     })
                 }
+                allMerch = allMerch.length
+                let allMiss = districtsClients.length
                 data = data.sort(function(a, b) {
                     return b.data[1] - a.data[1]
                 });
-                for(let i=0; i<data.length; i++) {
-                    data[i].data[1] = !data[i].data[1]?'-':pdDDMMYYYY(data[i].data[1])
-                }
                 data = [
                     {
                         _id: 'All',
                         data: [
-                            `${allMerch}(${allMerchC}|${allMerchW})`,
+                            allMerch,
                             allMiss
                         ]
                     },
