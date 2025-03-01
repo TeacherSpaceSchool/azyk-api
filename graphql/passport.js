@@ -9,6 +9,7 @@ const type = `
     client: ID
     employment: ID
     addedClient: Boolean
+    agentSubBrand: Boolean
     city: String
     _id: ID
   }
@@ -28,6 +29,7 @@ const resolvers = {
             login: user.login,
             organization: user.organization,
             addedClient: user.addedClient,
+            agentSubBrand: user.agentSubBrand,
             _id: user._id,
             city: user.city
         }

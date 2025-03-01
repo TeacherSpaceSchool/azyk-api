@@ -36,6 +36,7 @@ const type = `
     minimumOrder: Int
     accessToClient: Boolean
     unite: Boolean
+    agentSubBrand: Boolean
     addedClient: Boolean
     superagent: Boolean
     consignation: Boolean
@@ -63,8 +64,8 @@ const query = `
 `;
 
 const mutation = `
-    addOrganization(cities: [String]!, autoIntegrate: Boolean!, catalog: Upload, pass: String, warehouse: String!, miniInfo: String!, priotiry: Int, minimumOrder: Int, image: Upload!, name: String!, address: [String]!, email: [String]!, phone: [String]!, info: String!, accessToClient: Boolean!, consignation: Boolean!, refusal: Boolean!, addedClient: Boolean!, unite: Boolean!, superagent: Boolean!, onlyDistrict: Boolean!, dateDelivery: Boolean!, onlyIntegrate: Boolean!, autoAcceptAgent: Boolean!, autoAcceptNight: Boolean!, divideBySubBrand: Boolean!): Data
-    setOrganization(cities: [String], pass: String, autoIntegrate: Boolean, catalog: Upload, warehouse: String, miniInfo: String, _id: ID!, priotiry: Int, minimumOrder: Int, image: Upload, name: String, address: [String], email: [String], phone: [String], info: String, accessToClient: Boolean, consignation: Boolean, refusal: Boolean, addedClient: Boolean, unite: Boolean, superagent: Boolean, onlyDistrict: Boolean, dateDelivery: Boolean, onlyIntegrate: Boolean, autoAcceptAgent: Boolean, autoAcceptNight: Boolean, divideBySubBrand: Boolean): Data
+    addOrganization(cities: [String]!, autoIntegrate: Boolean!, catalog: Upload, pass: String, warehouse: String!, miniInfo: String!, priotiry: Int, minimumOrder: Int, image: Upload!, name: String!, address: [String]!, email: [String]!, phone: [String]!, info: String!, accessToClient: Boolean!, consignation: Boolean!, refusal: Boolean!, addedClient: Boolean!, agentSubBrand: Boolean!, unite: Boolean!, superagent: Boolean!, onlyDistrict: Boolean!, dateDelivery: Boolean!, onlyIntegrate: Boolean!, autoAcceptAgent: Boolean!, autoAcceptNight: Boolean!, divideBySubBrand: Boolean!): Data
+    setOrganization(cities: [String], pass: String, autoIntegrate: Boolean, catalog: Upload, warehouse: String, miniInfo: String, _id: ID!, priotiry: Int, minimumOrder: Int, image: Upload, name: String, address: [String], email: [String], phone: [String], info: String, accessToClient: Boolean, consignation: Boolean, refusal: Boolean, addedClient: Boolean, agentSubBrand: Boolean, unite: Boolean, superagent: Boolean, onlyDistrict: Boolean, dateDelivery: Boolean, onlyIntegrate: Boolean, autoAcceptAgent: Boolean, autoAcceptNight: Boolean, divideBySubBrand: Boolean): Data
     restoreOrganization(_id: [ID]!): Data
     deleteOrganization(_id: [ID]!): Data
     onoffOrganization(_id: [ID]!): Data
@@ -226,7 +227,7 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addOrganization: async(parent, {cities, autoIntegrate, catalog, addedClient, autoAcceptAgent, autoAcceptNight, divideBySubBrand, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, accessToClient, consignation, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
+    addOrganization: async(parent, {cities, autoIntegrate, catalog, addedClient, agentSubBrand, autoAcceptAgent, autoAcceptNight, divideBySubBrand, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, accessToClient, consignation, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
         if(user.role==='admin'){
             let { stream, filename } = await image;
             filename = await saveImage(stream, filename)
@@ -256,6 +257,7 @@ const resolversMutation = {
                 divideBySubBrand,
                 dateDelivery,
                 addedClient,
+                agentSubBrand,
                 autoIntegrate
             });
             if(catalog){
@@ -268,7 +270,7 @@ const resolversMutation = {
         }
         return {data: 'OK'};
     },
-    setOrganization: async(parent, {catalog, cities, addedClient, autoIntegrate, dateDelivery, autoAcceptAgent, autoAcceptNight, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, _id, priotiry, info, phone, email, address, image, name, minimumOrder, accessToClient, refusal, consignation, onlyDistrict, onlyIntegrate}, {user}) => {
+    setOrganization: async(parent, {catalog, cities, addedClient, agentSubBrand, autoIntegrate, dateDelivery, autoAcceptAgent, autoAcceptNight, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, _id, priotiry, info, phone, email, address, image, name, minimumOrder, accessToClient, refusal, consignation, onlyDistrict, onlyIntegrate}, {user}) => {
         if(user.role==='admin'||(['суперорганизация', 'организация'].includes(user.role)&&user.organization.toString()===_id.toString())) {
             let object = await OrganizationAzyk.findById(_id)
             if (image) {
@@ -313,6 +315,7 @@ const resolversMutation = {
             if(minimumOrder!=undefined) object.minimumOrder = minimumOrder
             if(miniInfo!=undefined) object.miniInfo = miniInfo
             if(addedClient!=undefined) object.addedClient = addedClient
+            if(agentSubBrand!=undefined) object.agentSubBrand = agentSubBrand
             if(autoIntegrate!=undefined) object.autoIntegrate = autoIntegrate
             await object.save();
         }

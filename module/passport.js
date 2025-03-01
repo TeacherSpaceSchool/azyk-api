@@ -119,13 +119,14 @@ const verifydeuserGQL = async (req, res) => {
                 else {
                     let employment = await EmploymentAzyk.findOne({user: user._id})
                         .select('_id organization')
-                        .populate({ path: 'organization', select: 'onlyIntegrate onlyDistrict _id status addedClient cities' }).lean()
+                        .populate({ path: 'organization', select: 'onlyIntegrate onlyDistrict agentSubBrand _id status addedClient cities' }).lean()
                     if(employment.organization.status==='active') {
                         user.organization = employment.organization._id
                         user.employment = employment._id
                         user.onlyIntegrate = employment.organization.onlyIntegrate
                         user.onlyDistrict = employment.organization.onlyDistrict
                         user.addedClient = employment.organization.addedClient
+                        user.agentSubBrand = employment.organization.agentSubBrand
                         user.cities = employment.organization.cities
                         resolve(user)
                     }
