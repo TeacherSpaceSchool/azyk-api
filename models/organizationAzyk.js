@@ -21,6 +21,10 @@ const OrganizationAzykSchema = mongoose.Schema({
         default: ''
     },
     minimumOrder: Number,
+    agentHistory: {
+        type: Number,
+        default: 100
+    },
     priotiry: {
         type: Number,
         default: 0

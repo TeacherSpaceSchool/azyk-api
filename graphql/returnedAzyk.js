@@ -13,7 +13,6 @@ const HistoryReturnedAzyk = require('../models/historyReturnedAzyk');
 const mongoose = require('mongoose');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const uuidv1 = require('uuid/v1.js');
-const maxDates = 90
 
 const type = `
   type ReturnedItems {
@@ -291,7 +290,7 @@ const resolvers = {
             let dateStart;
             let dateEnd;
             if (date !== '') {
-                let differenceDates = maxDates
+                let differenceDates = user.agentHistory
                 dateStart = new Date(date)
                 dateStart.setHours(3, 0, 0, 0)
                 dateEnd = new Date(dateStart)
@@ -302,10 +301,11 @@ const resolvers = {
                     now.setHours(3, 0, 0, 0)
                     differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
                 }
-                if(differenceDates>maxDates) {
+                if(differenceDates>user.agentHistory) {
                     dateStart = new Date()
+                    dateStart.setHours(3, 0, 0, 0)
                     dateEnd = new Date(dateStart)
-                    dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - maxDates))
+                    dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
                 }
             }
             else {
@@ -536,7 +536,7 @@ const resolvers = {
             let dateEnd;
             let clients
             if(date!==''){
-                let differenceDates = maxDates
+                let differenceDates = user.agentHistory
                 dateStart = new Date(date)
                 dateStart.setHours(3, 0, 0, 0)
                 dateEnd = new Date(dateStart)
@@ -546,10 +546,11 @@ const resolvers = {
                     now.setHours(3, 0, 0, 0)
                     now.setDate(now.getDate() + 1)
                     differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
-                    if(differenceDates>maxDates) {
+                    if(differenceDates>user.agentHistory) {
                         dateStart = new Date()
+                        dateStart.setHours(3, 0, 0, 0)
                         dateEnd = new Date(dateStart)
-                        dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - maxDates))
+                        dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
                     }
                 }
             }
@@ -558,7 +559,7 @@ const resolvers = {
                 dateEnd.setHours(3, 0, 0, 0)
                 dateEnd.setDate(dateEnd.getDate() + 1)
                 dateStart = new Date(dateEnd)
-                dateStart = new Date(dateStart.setDate(dateStart.getDate() - maxDates))
+                dateStart = new Date(dateStart.setDate(dateStart.getDate() - user.agentHistory))
             }
             if(['суперагент', 'агент', 'менеджер'].includes(user.role)){
                 clients = await DistrictAzyk

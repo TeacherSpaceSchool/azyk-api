@@ -4876,7 +4876,7 @@ const resolversMutation = {
                     let client = new UserAzyk({
                         login: randomstring.generate(20),
                         role: 'client',
-                        status: 'deactive',
+                        status: 'active',
                         password: '12345678',
                     });
                     client = await UserAzyk.create(client);

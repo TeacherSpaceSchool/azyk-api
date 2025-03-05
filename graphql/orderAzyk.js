@@ -19,7 +19,6 @@ const { withFilter } = require('graphql-subscriptions');
 const RELOAD_ORDER = 'RELOAD_ORDER';
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
 const { checkFloat, reductionSearch} = require('../module/const');
-const maxDates = 90
 const { checkAdss } = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
 const uuidv1 = require('uuid/v1.js');
@@ -188,10 +187,11 @@ const resolvers = {
                     now.setDate(now.getDate() + 1)
                     now.setHours(3, 0, 0, 0)
                     let differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
-                    if (differenceDates > maxDates) {
+                    if (differenceDates > user.agentHistory) {
                         dateStart = new Date()
+                        dateStart.setHours(3, 0, 0, 0)
                         dateEnd = new Date(dateStart)
-                        dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - maxDates))
+                        dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
                     }
                 }
             }
@@ -299,10 +299,11 @@ const resolvers = {
                     now.setHours(3, 0, 0, 0)
                     now.setDate(now.getDate() + 1)
                     let differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
-                    if (differenceDates > maxDates) {
+                    if (differenceDates > user.agentHistory) {
                         dateStart = new Date()
+                        dateStart.setHours(3, 0, 0, 0)
                         dateEnd = new Date(dateStart)
-                        dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - maxDates))
+                        dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
                     }
                 }
             }
@@ -311,7 +312,7 @@ const resolvers = {
                 dateEnd.setHours(3, 0, 0, 0)
                 dateEnd.setDate(dateEnd.getDate() + 1)
                 dateStart = new Date(dateEnd)
-                dateStart = new Date(dateStart.setDate(dateStart.getDate() - maxDates))
+                dateStart = new Date(dateStart.setDate(dateStart.getDate() - user.agentHistory))
             }
             //заказы только за год
             else {
@@ -846,10 +847,10 @@ const resolvers = {
                 now.setDate(now.getDate() + 1)
                 now.setHours(3, 0, 0, 0)
                 let differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
-                if (differenceDates > maxDates) {
+                if (differenceDates > user.agentHistory) {
                     dateStart = new Date()
                     dateEnd = new Date(dateStart)
-                    dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - maxDates))
+                    dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
                 }
             }
             let _clients = await DistrictAzyk.findOne({

@@ -114,12 +114,13 @@ const verifydeuserGQL = async (req, res) => {
                 else if(['суперагент', 'суперменеджер', 'суперэкспедитор'].includes(user.role)) {
                     let employment = await EmploymentAzyk.findOne({user: user._id}).select('_id').lean()
                     user.employment = employment._id
+                    user.agentHistory = 100
                     resolve(user)
                 }
                 else {
                     let employment = await EmploymentAzyk.findOne({user: user._id})
                         .select('_id organization')
-                        .populate({ path: 'organization', select: 'onlyIntegrate onlyDistrict agentSubBrand _id status addedClient cities' }).lean()
+                        .populate({ path: 'organization', select: 'onlyIntegrate onlyDistrict agentSubBrand _id status addedClient cities agentHistory' }).lean()
                     if(employment.organization.status==='active') {
                         user.organization = employment.organization._id
                         user.employment = employment._id
@@ -127,6 +128,7 @@ const verifydeuserGQL = async (req, res) => {
                         user.onlyDistrict = employment.organization.onlyDistrict
                         user.addedClient = employment.organization.addedClient
                         user.agentSubBrand = employment.organization.agentSubBrand
+                        user.agentHistory = employment.organization.agentHistory
                         user.cities = employment.organization.cities
                         resolve(user)
                     }

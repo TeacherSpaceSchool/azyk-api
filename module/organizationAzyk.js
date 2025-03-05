@@ -1,10 +1,6 @@
 const OrganizationAzyk = require('../models/organizationAzyk');
 
 module.exports.reductionToOrganization= async()=>{
-    let organizations = await OrganizationAzyk.find()
-    console.log(`reductionToOrganization: ${organizations.length}`)
-    for(let i = 0; i<organizations.length;i++){
-        organizations[i].cities = ['Бишкек']
-        await organizations[i].save();
-    }
+    let organizations = await OrganizationAzyk.updateMany({agentHistory: null}, {agentHistory: 100})
+    console.log(`reductionToOrganization: ${organizations.nModified}`)
 }
