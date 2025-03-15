@@ -99,7 +99,6 @@ let start = async () => {
     await startOutXMLShoroAzyk();
     await startDeleteBD();
     //reductions
-    await reductionToOrganization();
 }
 
 module.exports.start = start;

@@ -14,6 +14,7 @@ const UserAzyk = require('../models/userAzyk');
 const randomstring = require('randomstring');
 const { checkFloat, checkInt } = require('../module/const');
 const DistrictAzyk = require('../models/districtAzyk');
+const StockAzyk = require('../models/stockAzyk');
 
 router.post('/:pass/put/item', async (req, res, next) => {
     let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id cities').lean()
@@ -84,6 +85,50 @@ router.post('/:pass/put/item', async (req, res, next) => {
         let _object = new ModelsErrorAzyk({
             err: err.message,
             path: 'integrate put item'
+        });
+        await ModelsErrorAzyk.create(_object)
+        console.error(err)
+        res.status(501);
+        res.end('error')
+    }
+});
+
+router.post('/:pass/put/stock', async (req, res, next) => {
+    let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id').lean()
+    res.set('Content-Type', 'application/xml');
+    try{
+        if(req.body.elements[0].elements) {
+            let stock, integrate1CAzyk, count
+            for (let i = 0; i < req.body.elements[0].elements.length; i++) {
+                integrate1CAzyk = await Integrate1CAzyk.findOne({
+                    organization: organization._id,
+                    guid: req.body.elements[0].elements[i].attributes.guid
+                })
+                stock = await StockAzyk.findOne({
+                    item: integrate1CAzyk.item,
+                    organization: organization._id
+                })
+                count = checkFloat(req.body.elements[0].elements[i].attributes.count)
+                if(!stock) {
+                    stock = new StockAzyk({
+                        item: integrate1CAzyk.item,
+                        count,
+                        organization: organization._id
+                    });
+                    await StockAzyk.create(stock)
+                }
+                else {
+                    stock.count = count
+                    await stock.save();
+                }
+            }
+        }
+        await res.status(200);
+        await res.end('success')
+    } catch (err) {
+        let _object = new ModelsErrorAzyk({
+            err: err.message,
+            path: 'integrate put stock'
         });
         await ModelsErrorAzyk.create(_object)
         console.error(err)

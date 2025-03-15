@@ -7,6 +7,7 @@ const BasketAzyk = require('../models/basketAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
 const { saveImage, deleteFile, urlMain, reductionSearch} = require('../module/const');
+const StockAzyk = require('../models/stockAzyk');
 
 const type = `
   type Item {
@@ -33,6 +34,7 @@ const type = `
     del: String
     city: String
     costPrice: Float
+    stock: Float
   }
   input InputItemCostPrice {
     _id: ID
@@ -163,13 +165,14 @@ const resolvers = {
         return itemsRes
     },
     brands: async(parent, {organization, search, sort, city}, {user}) => {
+        if(user.organization) organization = user.organization
         if(mongoose.Types.ObjectId.isValid(organization)) {
             let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization _id').lean()
             if(subBrand){
                 organization = subBrand.organization
                 subBrand = subBrand._id
             }
-            return await ItemAzyk.find({
+            const items = await ItemAzyk.find({
                 ...user.role==='client'||subBrand?{subBrand}:{},
                 ...user.role === 'admin' ? {} : {status: 'active'},
                 organization: organization,
@@ -189,6 +192,25 @@ const resolvers = {
                 })
                 .sort(sort)
                 .lean()
+
+            const stocks = await StockAzyk.find({organization}).select('item count').lean();
+            const stocksMap = {};
+            for (const stock of stocks) {
+                stocksMap[stock.item] = stock.count
+            }
+
+            for (let i = 0; i < items.length; i++) {
+                const stock = stocksMap[items[i]._id]
+                if(stock===0) {
+                    items.splice(i, 1)
+                    i -= 1
+                }
+                else {
+                    items[i].stock = stock
+                }
+            }
+
+            return items
         }
         else return []
 
