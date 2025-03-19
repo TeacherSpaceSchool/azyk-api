@@ -201,7 +201,7 @@ const resolvers = {
 
             for (let i = 0; i < items.length; i++) {
                 const stock = stocksMap[items[i]._id]
-                if(stock===0) {
+                if(stock<=0) {
                     items.splice(i, 1)
                     i -= 1
                 }
