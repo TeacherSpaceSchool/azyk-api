@@ -104,22 +104,23 @@ router.post('/:pass/put/stock', async (req, res, next) => {
                     organization: organization._id,
                     guid: req.body.elements[0].elements[i].attributes.guid
                 })
-                stock = await StockAzyk.findOne({
-                    item: integrate1CAzyk.item,
-                    organization: organization._id
-                })
-                count = checkFloat(req.body.elements[0].elements[i].attributes.count)
-                if(!stock) {
-                    stock = new StockAzyk({
+                if(integrate1CAzyk) {
+                    stock = await StockAzyk.findOne({
                         item: integrate1CAzyk.item,
-                        count,
                         organization: organization._id
-                    });
-                    await StockAzyk.create(stock)
-                }
-                else {
-                    stock.count = count
-                    await stock.save();
+                    })
+                    count = checkFloat(req.body.elements[0].elements[i].attributes.count)
+                    if (!stock) {
+                        stock = new StockAzyk({
+                            item: integrate1CAzyk.item,
+                            count,
+                            organization: organization._id
+                        });
+                        await StockAzyk.create(stock)
+                    } else {
+                        stock.count = count
+                        await stock.save();
+                    }
                 }
             }
         }

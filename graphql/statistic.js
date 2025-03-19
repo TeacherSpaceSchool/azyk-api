@@ -72,7 +72,7 @@ const query = `
     statisticItem(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticAdss(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticOrder(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
-    statisticOrdersOffRoute(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
+    statisticOrdersOffRoute(type: String, company: String, dateStart: Date, dateType: String, online: Boolean, city: String, district: ID): Statistic
     statisticSubBrand(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticHours(organization: ID!, dateStart: Date, dateType: String, city: String, type: String!): Statistic
     statisticAzykStoreOrder(company: ID, filter: String, dateStart: Date, dateType: String, city: String): Statistic
@@ -1200,7 +1200,7 @@ const resolvers = {
                             complete: 0,
                             completeOnline: 0,
                             completeOffline: 0,
-                            client: `${data[i].client.name}${data[i].client.address&&data[i].client.address[0]?` (${data[i].client.address[0][2]?`${data[i].client.address[0][2]}, `:''}${data[i].client.address[0][0]})`:''}`
+                            client: data[i].client.address[0][2]/*`${data[i].client.name}${data[i].client.address&&data[i].client.address[0]?` (${data[i].client.address[0][2]?`${data[i].client.address[0][2]}, `:''}${data[i].client.address[0][0]})`:''}`*/
                         }
                     statistic[data[i].client._id].complete += 1
                     completeAll += 1
@@ -1230,17 +1230,17 @@ const resolvers = {
                     _id: keys[i],
                     data: [
                         statistic[keys[i]].client,
-                        `${checkFloat(statistic[keys[i]].profit)}(${checkFloat(statistic[keys[i]].profit*100/profitAll)}%)`,
-                        ...!needOffline?[`${checkFloat(statistic[keys[i]].profitOnline)}(${checkFloat(statistic[keys[i]].profitOnline*100/statistic[keys[i]].profit)}%)`]:[],
-                        ...!needOnline?[`${checkFloat(statistic[keys[i]].profitOffline)}(${checkFloat(statistic[keys[i]].profitOffline*100/statistic[keys[i]].profit)}%)`]:[],
-                        `${checkFloat(statistic[keys[i]].complete)}(${checkFloat(statistic[keys[i]].complete*100/completeAll)}%)`,
-                        ...!needOffline?[`${checkFloat(statistic[keys[i]].completeOnline)}(${checkFloat(statistic[keys[i]].completeOnline*100/statistic[keys[i]].complete)}%)`]:[],
-                        ...!needOnline?[`${checkFloat(statistic[keys[i]].completeOffline)}(${checkFloat(statistic[keys[i]].completeOffline*100/statistic[keys[i]].complete)}%)`]:[],
+                        /*`${*/checkFloat(statistic[keys[i]].profit)/*}(${checkFloat(statistic[keys[i]].profit*100/profitAll)}%)`*/,
+                        ...!needOffline?[/*`${*/checkFloat(statistic[keys[i]].profitOnline)/*}(${checkFloat(statistic[keys[i]].profitOnline*100/statistic[keys[i]].profit)}%)`*/]:[],
+                        ...!needOnline?[/*`${*/checkFloat(statistic[keys[i]].profitOffline)/*}(${checkFloat(statistic[keys[i]].profitOffline*100/statistic[keys[i]].profit)}%)`*/]:[],
+                        /*`${*/checkFloat(statistic[keys[i]].complete)/*}(${checkFloat(statistic[keys[i]].complete*100/completeAll)}%)`*/,
+                        ...!needOffline?[/*`${*/checkFloat(statistic[keys[i]].completeOnline)/*}(${checkFloat(statistic[keys[i]].completeOnline*100/statistic[keys[i]].complete)}%)`*/]:[],
+                        ...!needOnline?[/*`${*/checkFloat(statistic[keys[i]].completeOffline)/*}(${checkFloat(statistic[keys[i]].completeOffline*100/statistic[keys[i]].complete)}%)`*/]:[],
                     ]
                 })
             }
             data = data.sort(function(a, b) {
-                return checkFloat(b.data[1].split('(')[0]) - checkFloat(a.data[1].split('(')[0])
+                return checkFloat(b.data[1]/*.split('(')[0]*/) - checkFloat(a.data[1]/*.split('(')[0]*/)
             });
             data = [
                 {
@@ -1248,11 +1248,11 @@ const resolvers = {
                     data: [
                         data.length,
                         checkFloat(profitAll),
-                        !needOffline?`${checkFloat(profitOnlineAll)}(${checkFloat(profitOnlineAll*100/profitAll)}%)`:'',
-                        !needOnline?`${checkFloat(profitOfflineAll)}(${checkFloat(profitOfflineAll*100/profitAll)}%)`:'',
+                        !needOffline?/*`${*/checkFloat(profitOnlineAll)/*}(${checkFloat(profitOnlineAll*100/profitAll)}%)`*/:'',
+                        !needOnline?/*`${*/checkFloat(profitOfflineAll)/*}(${checkFloat(profitOfflineAll*100/profitAll)}%)`*/:'',
                         completeAll,
-                        !needOffline?`${completeOnlineAll}(${checkFloat(completeOnlineAll*100/completeAll)}%)`:'',
-                        !needOnline?`${completeOfflineAll}(${checkFloat(completeOfflineAll*100/completeAll)}%)`:'',
+                        !needOffline?/*`${*/completeOnlineAll/*}(${checkFloat(completeOnlineAll*100/completeAll)}%)`*/:'',
+                        !needOnline?/*`${*/completeOfflineAll/*}(${checkFloat(completeOfflineAll*100/completeAll)}%)`*/:'',
                     ]
                 },
                 ...data
@@ -1936,7 +1936,7 @@ const resolvers = {
             };
         }
     },
-    statisticOrdersOffRoute: async(parent, { company, dateStart, dateType, online, city }, {user}) => {
+    statisticOrdersOffRoute: async(parent, {type, company, dateStart, dateType, online, city, district }, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)){
             company = user.organization?user.organization:company
             let dateEnd
@@ -1976,12 +1976,14 @@ const resolvers = {
 
             data = await DistrictAzyk.find({
                 ...(company!=='super'?{organization: company}:{organization: null}),
+                ...district?{_id: district}:{},
                 name: {$ne: 'super'}
             })
                 .select('_id name client')
                 .lean()
-            let districts = {}
+            let districts = {}, selectedClients = []
             for(let i=0; i<data.length; i++) {
+                selectedClients = [...selectedClients, ...data[i].client]
                 for(let i1=0; i1<data[i].client.length; i1++) {
                     districts[data[i].client[i1].toString()] = data[i]
                 }
@@ -1996,42 +1998,53 @@ const resolvers = {
                     taken: true,
                     ...(company!=='super'?{organization: company}:{...online?{organization: {$in: superOrganizations}}:{}}),
                     agent: {$nin: excludedAgents},
+                    client: {$in: selectedClients},
                     ...city?{city: city}:{},
                 }
             )
                 .select('_id createdAt returnedPrice allPrice paymentConsignation consignmentPrice client')
+                .populate({
+                    path: 'client',
+                    select: '_id name address'
+                })
                 .lean()
             let orderAllCount = data.length
             for(let i=0; i<data.length; i++) {
                 const date = new Date(data[i].createdAt); // Указываем дату
                 const dayOfWeek = (date.getDay() + 6) % 7;
                 if(!route[dayOfWeek].includes(data[i].client._id.toString())) {
-                    let district = {_id: 'Прочие', name: 'Прочие'}
-                    if (districts[data[i].client.toString()]) {
-                        district = districts[data[i].client.toString()]
+                    let object = {_id: 'Прочие', name: 'Прочие'}
+                    if(type==='клиенты') {
+                        object = data[i].client
+                        object.name = data[i].client.address[0][2]/*`${data[i].client.name}${data[i].client.address&&data[i].client.address[0]?` (${data[i].client.address[0][2]?`${data[i].client.address[0][2]}, `:''}${data[i].client.address[0][0]})`:''}`*/
                     }
-                    if (!statistic[district._id])
-                        statistic[district._id] = {
+                    else {
+                        if (districts[data[i].client._id.toString()]) {
+                            object = districts[data[i].client._id.toString()]
+                        }
+                    }
+                    if (!statistic[object._id])
+                        statistic[object._id] = {
                             profit: 0,
                             complet: 0,
                             consignmentPrice: 0,
                             returnedPrice: 0,
                             clients: {},
-                            organization: district.name
+                            organization: object.name
                         }
-                    if (!statistic[district._id].clients[data[i].client]) {
-                        statistic[district._id].clients[data[i].client] = 1
+                    if (!statistic[object._id].clients[data[i].client._id]) {
+                        statistic[object._id].clients[data[i].client._id] = 1
                     }
-                    statistic[district._id].profit += data[i].allPrice - data[i].returnedPrice
+                    statistic[object._id].profit += data[i].allPrice - data[i].returnedPrice
                     profitAll += data[i].allPrice - data[i].returnedPrice
-                    statistic[district._id].returnedPrice += data[i].returnedPrice
+                    statistic[object._id].returnedPrice += data[i].returnedPrice
                     returnedPriceAll += data[i].returnedPrice
                     if (data[i].allPrice !== data[i].returnedPrice) {
-                        statistic[district._id].complet += 1
+                        statistic[object._id].complet += 1
                         completAll += 1
                     }
                     if (data[i].consignmentPrice && !data[i].paymentConsignation) {
-                        statistic[district._id].consignmentPrice += data[i].consignmentPrice
+                        statistic[object._id].consignmentPrice += data[i].consignmentPrice
                         consignmentPriceAll += data[i].consignmentPrice
                     }
                 }
@@ -2319,11 +2332,11 @@ const resolvers = {
                     data: [
                         statistic[keys[i]].name,
                         checkFloat(statistic[keys[i]].profitAll),
-                        `${checkFloat(statistic[keys[i]].profitOnline)}(${checkFloat(statistic[keys[i]].profitOnline*100/statistic[keys[i]].profitAll)}%)`,
-                        `${checkFloat(statistic[keys[i]].profitOffline)}(${checkFloat(statistic[keys[i]].profitOffline*100/statistic[keys[i]].profitAll)}%)`,
+                        /*`${*/checkFloat(statistic[keys[i]].profitOnline)/*}(${checkFloat(statistic[keys[i]].profitOnline*100/statistic[keys[i]].profitAll)}%)`*/,
+                        /*`${*/checkFloat(statistic[keys[i]].profitOffline)/*}(${checkFloat(statistic[keys[i]].profitOffline*100/statistic[keys[i]].profitAll)}%)`*/,
                         checkFloat(statistic[keys[i]].completAll),
-                        `${checkFloat(statistic[keys[i]].completOnline)}(${checkFloat(statistic[keys[i]].completOnline*100/statistic[keys[i]].completAll)}%)`,
-                        `${checkFloat(statistic[keys[i]].completOffline)}(${checkFloat(statistic[keys[i]].completOffline*100/statistic[keys[i]].completAll)}%)`,
+                        /*`${*/checkFloat(statistic[keys[i]].completOnline)/*}(${checkFloat(statistic[keys[i]].completOnline*100/statistic[keys[i]].completAll)}%)`*/,
+                        /*`${*/checkFloat(statistic[keys[i]].completOffline)/*}(${checkFloat(statistic[keys[i]].completOffline*100/statistic[keys[i]].completAll)}%)`*/,
                     ]
                 })
             }
@@ -2333,11 +2346,11 @@ const resolvers = {
                     _id: 'All',
                     data: [
                         checkFloat(profitAll),
-                        `${checkFloat(profitOnline)}(${checkFloat(profitOnline*100/profitAll)}%)`,
-                        `${checkFloat(profitOffline)}(${checkFloat(profitOffline*100/profitAll)}%)`,
+                        /*`${*/checkFloat(profitOnline)/*}(${checkFloat(profitOnline*100/profitAll)}%)`*/,
+                        /*`${*/checkFloat(profitOffline)/*}(${checkFloat(profitOffline*100/profitAll)}%)`*/,
                         checkFloat(completAll),
-                        `${checkFloat(completOnline)}(${checkFloat(completOnline*100/completAll)}%)`,
-                        `${checkFloat(completOffline)}(${checkFloat(completOffline*100/completAll)}%)`,
+                        /*`${*/checkFloat(completOnline)/*}(${checkFloat(completOnline*100/completAll)}%)`*/,
+                        /*`${*/checkFloat(completOffline)/*}(${checkFloat(completOffline*100/completAll)}%)`*/,
                     ]
                 },
                 ...data
