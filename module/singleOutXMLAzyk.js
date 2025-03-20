@@ -322,9 +322,9 @@ module.exports.checkSingleOutXMLClientAzyk = async(pass, guid, exc) => {
         .findOne({pass: pass}).select('_id').lean()
     let guidClient = await Integrate1CAzyk
         .findOne({guid: guid, organization: organization._id}).select('client').lean()
-    if (guidClient&&!exc) {
-        let client = await ClientAzyk
-            .findOne({_id: guidClient.client})
+    let client = await ClientAzyk
+        .findOne({_id: guidClient.client})
+    if (guidClient&&!exc&&client) {
         client.sync.push(organization._id.toString())
         await client.save()
     }
