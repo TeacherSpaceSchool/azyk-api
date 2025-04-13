@@ -37,7 +37,7 @@ const type = `
 
 const query = `
     clientsSimpleStatistic(search: String!, filter: String!, date: String, city: String): [String]
-    clients(search: String!, sort: String!, filter: String!, date: String, skip: Int, city: String): [Client]
+    clients(search: String!, sort: String!, filter: String!, date: String, skip: Int, city: String, catalog: Boolean): [Client]
     clientsSync(search: String!, organization: ID!, skip: Int!, city: String): [Client]
     clientsSyncStatistic(search: String!, organization: ID!, city: String): String
     clientsTrashSimpleStatistic(search: String!): [String]
@@ -98,12 +98,6 @@ const resolvers = {
                     .find({$or: [{manager: user.employment}, {ecspeditor: user.employment}, {agent: user.employment}]})
                     .distinct('client')
                     .lean()
-                if(user.onlyIntegrate){
-                    clients = await Integrate1CAzyk
-                        .find({client: {$in: clients}, organization: user.organization})
-                        .distinct('client')
-                        .lean()
-                }
             }
             else if(['суперорганизация', 'организация'].includes(user.role)) {
                 accessToClient = (await OrganizationAzyk.findOne({_id: user.organization}).select('accessToClient').lean()).accessToClient
@@ -262,7 +256,7 @@ const resolvers = {
             return clients
         }
     },
-    clients: async(parent, {search, sort, date, skip, filter, city}, {user}) => {
+    clients: async(parent, {search, sort, date, skip, filter, city, catalog}, {user}) => {
         let dateStart;
         let dateEnd;
         let accessToClient = true
@@ -280,12 +274,6 @@ const resolvers = {
                 .find({$or: [{manager: user.employment}, {ecspeditor: user.employment}, {agent: user.employment}]})
                 .distinct('client')
                 .lean()
-            if(user.onlyIntegrate){
-                clients = await Integrate1CAzyk
-                    .find({client: {$in: clients}, organization: user.organization})
-                    .distinct('client')
-                    .lean()
-            }
         }
         else if(['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)) {
             accessToClient = (await OrganizationAzyk.findOne({_id: user.organization}).select('accessToClient').lean()).accessToClient
@@ -293,6 +281,24 @@ const resolvers = {
                 let items = await ItemAzyk.find({organization: user.organization}).distinct('_id').lean()
                 clients = await OrderAzyk.find({item: {$in: items}}).distinct('client').lean()
             }
+            if(user.onlyDistrict&&catalog){
+                clients = await DistrictAzyk
+                    .find({
+                        ...clients.length? {client: {$in: clients}}:{},
+                        organization: user.organization
+                    })
+                    .distinct('client')
+                    .lean()
+            }
+        }
+        if(user.onlyIntegrate&&catalog){
+            clients = await Integrate1CAzyk
+                .find({
+                    ...clients.length? {client: {$in: clients}}:{},
+                    organization: user.organization
+                })
+                .distinct('client')
+                .lean()
         }
         if(skip != undefined||search.length>2) {
             return await ClientAzyk
@@ -306,10 +312,9 @@ const resolvers = {
                                 ...(!date || date === '' ? {} : {$and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}]}),
                                 ...city ? {city: city} : {},
                                 ...user.cities?{city: {$in: user.cities}}:{},
-                                ...['менеджер', 'экспедитор'].includes(user.role)
-                                ||user.role==='агент'/*&&(clients.length||search.length<3)*/
+                                ...['менеджер', 'экспедитор', 'агент'].includes(user.role)
                                 ||user.role==='суперагент'&&(clients.length||search.length<3)
-                                ||['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)&&!accessToClient ? {_id: {$in: clients}} : {},
+                                ||['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)&&(!accessToClient||clients.length) ? {_id: {$in: clients}} : {},
                                 del: {$ne: 'deleted'},
                                 $or: [
                                     {name: {'$regex': reductionSearch(search), '$options': 'i'}},
@@ -482,7 +487,7 @@ const resolversMutation = {
             client.notification=false
             client = new ClientAzyk(client);
             client = await ClientAzyk.create(client);
-            if(user.role === 'агент') {
+            if(user.organization) {
                 let organization = await OrganizationAzyk.findById(user.organization).select('onlyIntegrate pass').lean()
                 if(organization&&organization.onlyIntegrate&&organization.pass) {
                     let _object = new Integrate1CAzyk({

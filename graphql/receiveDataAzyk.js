@@ -94,7 +94,7 @@ const resolversMutation = {
             if(!integrate1CAzyk){
                 let organization = await OrganizationAzyk.findOne({_id: receivedData.organization}).select('_id cities').lean()
                 let _client = new UserAzyk({
-                    login: randomstring.generate(20),
+                    login: randomstring.generate({length: 12, charset: 'numeric'}),
                     role: 'client',
                     status: 'active',
                     password: '12345678',

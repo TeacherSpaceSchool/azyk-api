@@ -4887,7 +4887,7 @@ const resolversMutation = {
                 })
                 if(!integrate1CAzyk) {
                     let client = new UserAzyk({
-                        login: randomstring.generate(20),
+                        login: randomstring.generate({length: 12, charset: 'numeric'}),
                         role: 'client',
                         status: 'active',
                         password: '12345678',

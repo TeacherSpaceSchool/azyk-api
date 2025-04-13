@@ -164,7 +164,7 @@ router.post('/:pass/put/client', async (req, res, next) => {
                     if(!integrate1CAzyk){
                         //создаем клиента
                         let _client = new UserAzyk({
-                            login: randomstring.generate(20),
+                            login: randomstring.generate({length: 12, charset: 'numeric'}),
                             role: 'client',
                             status: 'active',
                             password: '12345678',
@@ -321,7 +321,7 @@ router.post('/:pass/put/employment', async (req, res, next) => {
                 }
                 else {
                     _object = new UserAzyk({
-                        login: randomstring.generate(20),
+                        login: randomstring.generate({length: 12, charset: 'numeric'}),
                         role: position,
                         status: 'active',
                         password: '12345678',

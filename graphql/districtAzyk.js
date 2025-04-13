@@ -29,7 +29,7 @@ const query = `
     district(_id: ID): District
     clientDistrict(organization: ID!): District
     sortDistrict: [Sort]
-    clientsWithoutDistrict(organization: ID, city: String): [Client]
+    clientsWithoutDistrict(organization: ID, district: ID, city: String): [Client]
 `;
 
 const mutation = `
@@ -96,26 +96,29 @@ const resolvers = {
                 .lean()
         }
     },
-    clientsWithoutDistrict: async(parent, { organization, city }, {user}) => {
+    clientsWithoutDistrict: async(parent, { organization, city, district }, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)){
-            let accessToClient = true
-            let clients = []
-            let usedClients = await DistrictAzyk.find({organization: user.organization?user.organization:organization==='super'?null:organization}).distinct('client').lean()
             if(organization!=='super')
-                accessToClient = (await OrganizationAzyk.findOne({_id: organization}).select('accessToClient').lean()).accessToClient
-            if(!accessToClient){
+                 organization = await OrganizationAzyk.findOne({_id: organization}).select('_id accessToClient clientDuplicate').lean()
+            let usedClients
+            if(!organization.clientDuplicate||district)
+                usedClients = await DistrictAzyk.find({
+                    organization: user.organization?user.organization:organization._id,
+                    ...district?{_id: district}:{}
+                }).distinct('client').lean()
+            let clients
+            if(!organization.accessToClient) {
                 let items = await ItemAzyk.find({organization: user.organization}).distinct('_id').lean()
                 clients = await OrderAzyk.find({item: {$in: items}}).distinct('client').lean()
             }
-
             clients = await ClientAzyk
                 .aggregate(
                     [
                         {
                             $match: {
                                 $and: [
-                                    {_id: { $nin: usedClients}},
-                                    ...!accessToClient?[{_id: {$in: clients}}]:[],
+                                    ...usedClients?[{_id: { $nin: usedClients}}]:[],
+                                    ...clients?[{_id: {$in: clients}}]:[],
                                     {name: {'$regex': '^((?!агент).)*$', '$options': 'i'}},
                                     {name: {'$regex': '^((?!agent).)*$', '$options': 'i'}}
                                 ],
