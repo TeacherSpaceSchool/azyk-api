@@ -311,7 +311,9 @@ router.post('/:pass/put/employment', async (req, res, next) => {
                 if (_object) {
                     if (req.body.elements[0].elements[i].attributes.del === '1') {
                         await Integrate1CAzyk.deleteMany({_id: _object._id})
-                        await EmploymentAzyk.updateMany({$or: [{_id: _object.agent}, {_id: _object.ecspeditor}]}, {del: 'deleted'})
+                        let employment = await EmploymentAzyk.findOne({$or: [{_id: _object.agent}, {_id: _object.ecspeditor}]}).select('_id user').lean()
+                        await EmploymentAzyk.update({_id: employment._id}, {del: 'deleted'})
+                        await UserAzyk.update({_id: employment.user}, {status: 'deactive', login: randomstring.generate({length: 12, charset: 'numeric'})})
                     }
                     else {
                         _object = await EmploymentAzyk.findOne({$or: [{_id: _object.agent}, {_id: _object.ecspeditor}]})

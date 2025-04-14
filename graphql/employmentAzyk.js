@@ -4,6 +4,7 @@ const DistrictAzyk = require('../models/districtAzyk');
 const { createJwtGQL } = require('../module/passport');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const {reductionSearch} = require('../module/const');
+const randomstring = require('randomstring');
 
 const type = `
   type Employment {
@@ -286,7 +287,7 @@ const resolversMutation = {
         for(let i=0; i<objects.length; i++){
             if(user.role==='admin'){
                 await EmploymentAzyk.update({_id: objects[i]._id}, {del: 'deleted'})
-                await UserAzyk.update({_id: objects[i].user}, {status: 'deactive'})
+                await UserAzyk.update({_id: objects[i].user}, {status: 'deactive', login: randomstring.generate({length: 12, charset: 'numeric'})})
                 await Integrate1CAzyk.deleteOne({
                         organization: objects[i].organization,
                         $or:

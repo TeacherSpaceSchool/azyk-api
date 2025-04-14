@@ -184,7 +184,7 @@ module.exports.getDateRange = (date) => {
     return {dateStart, dateEnd}
 }
 
-module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Боконбаева', 'Жалал-Абад', 'Кара-Балта', 'Каракол', 'Казарман', 'Кочкор', 'Кызыл-Кия', 'Нарын', 'Ош', 'Талас', 'Токмок', 'Чолпон-Ата', 'Москва'];
+module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Боконбаева', 'Жалал-Абад', 'Кара-Балта', 'Каракол', 'Казарман', 'Кочкор', 'Кызыл-Кия', 'Нарын', 'Ош', 'Раззаков', 'Талас', 'Токмок', 'Чолпон-Ата', 'Москва'];
 
 module.exports.statsCollection = statsCollection;
 module.exports.getGeoDistance = getGeoDistance;

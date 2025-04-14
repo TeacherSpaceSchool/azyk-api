@@ -11,6 +11,7 @@ const { deleteFile, urlMain, saveImage, reductionSearch} = require('../module/co
 const { createJwtGQL } = require('../module/passport');
 const mongoose = require('mongoose')
 const uuidv1 = require('uuid/v1');
+const randomstring = require('randomstring');
 
 const type = `
   type Client {
@@ -549,6 +550,7 @@ const resolversMutation = {
                 if(objects[i].user) {
                     let object = await UserAzyk.findOne({_id: objects[i].user})
                     object.status = 'deactive'
+                    object.login = randomstring.generate({length: 12, charset: 'numeric'})
                     await object.save()
                 }
                 objects[i].del = 'deleted'
