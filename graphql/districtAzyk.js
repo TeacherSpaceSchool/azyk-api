@@ -101,11 +101,12 @@ const resolvers = {
             if(organization!=='super')
                  organization = await OrganizationAzyk.findOne({_id: organization}).select('_id accessToClient clientDuplicate').lean()
             let usedClients
-            if(!organization.clientDuplicate||district)
+            if(!organization.clientDuplicate||district) {
                 usedClients = await DistrictAzyk.find({
-                    organization: user.organization?user.organization:organization._id,
-                    ...district?{_id: district}:{}
+                    organization: user.organization ? user.organization : organization._id,
+                    ...organization.clientDuplicate ? {_id: district} : {}
                 }).distinct('client').lean()
+            }
             let clients
             if(!organization.accessToClient) {
                 let items = await ItemAzyk.find({organization: user.organization}).distinct('_id').lean()
