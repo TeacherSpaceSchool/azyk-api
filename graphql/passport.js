@@ -11,6 +11,7 @@ const type = `
     addedClient: Boolean
     agentSubBrand: Boolean
     city: String
+    category: String
     _id: ID
   }
 `;
@@ -31,7 +32,8 @@ const resolvers = {
             addedClient: user.addedClient,
             agentSubBrand: user.agentSubBrand,
             _id: user._id,
-            city: user.city
+            city: user.city,
+            category: user.category
         }
     },
 };

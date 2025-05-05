@@ -1,13 +1,14 @@
-const SpecialPriceClient = require('../models/specialPriceClientAzyk');
+const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 const Item = require('../models/itemAzyk');
-const Client = require('../models/clientAzyk');
+const Category = require('../models/categoryAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
+const ClientAzyk = require('../models/clientAzyk');
 
 const type = `
-  type SpecialPriceClient {
+  type SpecialPriceCategory {
     _id: ID
     createdAt: Date
-    client: Client
+    category: String
     price: Float
     organization: Organization
     item: Item
@@ -15,28 +16,34 @@ const type = `
 `;
 
 const query = `
-    specialPriceClients(client: ID!, organization: ID): [SpecialPriceClient]
-    itemsForSpecialPriceClients(client: ID!, organization: ID): [Item]
+    specialPriceCategories(category: String, client: ID, organization: ID): [SpecialPriceCategory]
+    itemsForSpecialPriceCategories(category: String!, organization: ID): [Item]
 `;
 
 const mutation = `
-    addSpecialPriceClient(client: ID!, organization: ID!, price: Float!, item: ID!): SpecialPriceClient
-    setSpecialPriceClient(_id: ID!, price: Float!): Data
-    deleteSpecialPriceClient(_id: ID!): Data
+    addSpecialPriceCategory(category: String!, organization: ID!, price: Float!, item: ID!): SpecialPriceCategory
+    setSpecialPriceCategory(_id: ID!, price: Float!): Data
+    deleteSpecialPriceCategory(_id: ID!): Data
 `;
 
 const resolvers = {
-    specialPriceClients: async(parent, {client, organization}, {user}) => {
-        if(user.role) {
+    specialPriceCategories: async(parent, {category, client, organization}, {user}) => {
+        if(user.role&&(category||client)) {
             if(organization) {
                 let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
-                if(subBrand){
+                if(subBrand) {
                     organization = subBrand.organization
                 }
             }
-            return await SpecialPriceClient
+            if(client) {
+                client = await ClientAzyk.findById(client).select('category').lean();
+                if(client) {
+                    category = client.category
+                }
+            }
+            return await SpecialPriceCategory
                 .find({
-                    client,
+                    category: user.role==='client'?user.category:category,
                     organization: user.organization?user.organization:organization
                 })
                 .populate({
@@ -47,24 +54,19 @@ const resolvers = {
                     path: 'item',
                     select: '_id name'
                 })
-                .populate({
-                    path: 'client',
-                    select: '_id name address'
-                })
                 .lean()
         }
     },
-    itemsForSpecialPriceClients: async(parent, {client, organization}, {user}) => {
+    itemsForSpecialPriceCategories: async(parent, {category, organization}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
-            let excludedItems = await SpecialPriceClient.find({
-                client,
+            let excludedItems = await SpecialPriceCategory.find({
+                category,
                 organization: user.organization?user.organization:organization
             })
                 .distinct('item')
                 .lean()
-            let city = (await Client.findOne({_id: client}).select('city').lean()).city
 
-            return await Item.find({_id: {$nin: excludedItems}, organization: user.organization?user.organization:organization, city})
+            return await Item.find({_id: {$nin: excludedItems}, organization: user.organization?user.organization:organization})
                 .select('_id name')
                 .lean()
         }
@@ -72,16 +74,16 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addSpecialPriceClient: async(parent, {client, organization, price, item}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)&&!(await SpecialPriceClient.findOne({item, client}).select('_id').lean())) {
-            let _object = new SpecialPriceClient({
+    addSpecialPriceCategory: async(parent, {category, organization, price, item}, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)&&!(await SpecialPriceCategory.findOne({item, category}).select('_id').lean())) {
+            let _object = new SpecialPriceCategory({
                 item,
                 price,
-                client,
+                category,
                 organization
             });
-            _object = await SpecialPriceClient.create(_object)
-            return await SpecialPriceClient
+            _object = await SpecialPriceCategory.create(_object)
+            return await SpecialPriceCategory
                 .findById(_object._id)
                 .populate({
                     path: 'organization',
@@ -91,24 +93,20 @@ const resolversMutation = {
                     path: 'item',
                     select: '_id name'
                 })
-                .populate({
-                    path: 'client',
-                    select: '_id name address'
-                })
                 .lean()
         }
     },
-    setSpecialPriceClient: async(parent, {_id, price}, {user}) => {
+    setSpecialPriceCategory: async(parent, {_id, price}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
-            let object = await SpecialPriceClient.findById(_id)
+            let object = await SpecialPriceCategory.findById(_id)
             object.price = price
             await object.save();
         }
         return {data: 'OK'};
     },
-    deleteSpecialPriceClient: async(parent, { _id }, {user}) => {
+    deleteSpecialPriceCategory: async(parent, { _id }, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
-            await SpecialPriceClient.deleteOne({_id})
+            await SpecialPriceCategory.deleteOne({_id})
         }
         return {data: 'OK'}
     }
