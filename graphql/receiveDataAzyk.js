@@ -106,7 +106,8 @@ const resolversMutation = {
                     city: organization.cities[0],
                     address: [[receivedData.addres ? receivedData.addres : '', '', receivedData.name ? receivedData.name : '']],
                     user: _client._id,
-                    notification: false
+                    notification: false,
+                    ...receivedData.category?{category: receivedData.category}:{}
                 });
                 _client = await ClientAzyk.create(_client);
                 let _object = new Integrate1CAzyk({
@@ -127,12 +128,14 @@ const resolversMutation = {
                     district.markModified('client');
                     await district.save()
                 }
-                await ReceivedDataAzyk.deleteMany({_id: _id})
+                await ReceivedDataAzyk.deleteOne({_id: _id})
             }
             else {
                 let _client = await ClientAzyk.findOne({_id: integrate1CAzyk.client});
                 if(receivedData.name)
                     _client.name = receivedData.name
+                if(receivedData.category)
+                    _client.category = receivedData.category
                 if(receivedData.phone) {
                     _client.phone = [receivedData.phone]
                     _client.markModified('phone');
@@ -180,7 +183,7 @@ const resolversMutation = {
                         await newDistrict.save()
                     }
                 }
-                await ReceivedDataAzyk.deleteMany({_id: _id})
+                await ReceivedDataAzyk.deleteOne({_id: _id})
             }
         }
         return {data: 'OK'}

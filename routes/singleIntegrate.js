@@ -15,6 +15,8 @@ const randomstring = require('randomstring');
 const { checkFloat, checkInt } = require('../module/const');
 const DistrictAzyk = require('../models/districtAzyk');
 const StockAzyk = require('../models/stockAzyk');
+const SpecialPriceClient = require('../models/specialPriceClientAzyk');
+const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 
 router.post('/:pass/put/item', async (req, res, next) => {
     let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id cities').lean()
@@ -180,7 +182,8 @@ router.post('/:pass/put/client', async (req, res, next) => {
                                 req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : ''
                             ]],
                             user: _client._id,
-                            notification: false
+                            notification: false,
+                            ...req.body.elements[0].elements[i].attributes.category? {category: req.body.elements[0].elements[i].attributes.category}:{}
                         });
                         _client = await ClientAzyk.create(_client);
                         //создаем интеграцию
@@ -210,6 +213,8 @@ router.post('/:pass/put/client', async (req, res, next) => {
                         let _client = await ClientAzyk.findOne({_id: integrate1CAzyk.client});
                         if(req.body.elements[0].elements[i].attributes.name)
                             _client.name = req.body.elements[0].elements[i].attributes.name
+                        if(req.body.elements[0].elements[i].attributes.category)
+                            _client.category = req.body.elements[0].elements[i].attributes.category
                         if(req.body.elements[0].elements[i].attributes.tel) {
                             _client.phone = [req.body.elements[0].elements[i].attributes.tel]
                             _client.markModified('phone');
@@ -270,6 +275,7 @@ router.post('/:pass/put/client', async (req, res, next) => {
                         name: req.body.elements[0].elements[i].attributes.name,
                         guid: req.body.elements[0].elements[i].attributes.guid,
                         addres: req.body.elements[0].elements[i].attributes.address,
+                        category: req.body.elements[0].elements[i].attributes.category,
                         agent: agent?agent.agent:null,
                         phone: req.body.elements[0].elements[i].attributes.tel,
                         type: 'клиент'
@@ -310,7 +316,7 @@ router.post('/:pass/put/employment', async (req, res, next) => {
                 }).select('_id agent ecspeditor').lean()
                 if (_object) {
                     if (req.body.elements[0].elements[i].attributes.del === '1') {
-                        await Integrate1CAzyk.deleteMany({_id: _object._id})
+                        await Integrate1CAzyk.deleteOne({_id: _object._id})
                         let employment = await EmploymentAzyk.findOne({$or: [{_id: _object.agent}, {_id: _object.ecspeditor}]}).select('_id user').lean()
                         await EmploymentAzyk.update({_id: employment._id}, {del: 'deleted'})
                         await UserAzyk.update({_id: employment.user}, {status: 'deactive', login: randomstring.generate({length: 12, charset: 'numeric'})})
@@ -352,6 +358,98 @@ router.post('/:pass/put/employment', async (req, res, next) => {
         let _object = new ModelsErrorAzyk({
             err: err.message,
             path: 'integrate put employment'
+        });
+        await ModelsErrorAzyk.create(_object)
+        console.error(err)
+        res.status(501);
+        res.end('error')
+    }
+});
+
+router.post('/:pass/put/specialpriceclient', async (req, res, next) => {
+    let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id').lean()
+    res.set('Content-Type', 'application/xml');
+    try{
+        if(req.body.elements[0].elements) {
+            for (let i = 0; i < req.body.elements[0].elements.length; i++) {
+                let client = await Integrate1CAzyk.findOne({
+                    organization: organization._id,
+                    guid: req.body.elements[0].elements[i].attributes.client
+                }).select('_id client').lean()
+                if (client) {
+                    client = client.client
+                    for (let i1 = 0; i1 < req.body.elements[0].elements[i].elements.length; i1++) {
+                        let item = await Integrate1CAzyk.findOne({
+                            organization: organization._id,
+                            guid: req.body.elements[0].elements[i].elements[i1].attributes.item
+                        }).select('_id item').lean()
+                        if (item) {
+                            item = item.item
+                            let specialPriceClient = await SpecialPriceClient.findOne({client, item, organization: organization._id})
+                            if(specialPriceClient) {
+                                specialPriceClient.price = checkFloat(req.body.elements[0].elements[i].elements[i1].attributes.price)
+                            }
+                            else {
+                                specialPriceClient = new SpecialPriceClient({
+                                    client, item, organization: organization._id,
+                                    price: checkFloat(req.body.elements[0].elements[i].elements[i1].attributes.price),
+                                });
+                                await SpecialPriceClient.create(specialPriceClient)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        await res.status(200);
+        await res.end('success')
+    } catch (err) {
+        let _object = new ModelsErrorAzyk({
+            err: err.message,
+            path: 'integrate put specialpriceclient'
+        });
+        await ModelsErrorAzyk.create(_object)
+        console.error(err)
+        res.status(501);
+        res.end('error')
+    }
+});
+
+router.post('/:pass/put/specialpricecategory', async (req, res, next) => {
+    let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id').lean()
+    res.set('Content-Type', 'application/xml');
+    try{
+        if(req.body.elements[0].elements) {
+            for (let i = 0; i < req.body.elements[0].elements.length; i++) {
+                let category = req.body.elements[0].elements[i].attributes.category
+                for (let i1 = 0; i1 < req.body.elements[0].elements[i].elements.length; i1++) {
+                    let item = await Integrate1CAzyk.findOne({
+                        organization: organization._id,
+                        guid: req.body.elements[0].elements[i].elements[i1].attributes.item
+                    }).select('_id item').lean()
+                    if (item) {
+                        item = item.item
+                        let specialPriceClient = await SpecialPriceCategory.findOne({category, item, organization: organization._id})
+                        if(specialPriceClient) {
+                            specialPriceClient.price = checkFloat(req.body.elements[0].elements[i].elements[i1].attributes.price)
+                        }
+                        else {
+                            specialPriceClient = new SpecialPriceCategory({
+                                category, item, organization: organization._id,
+                                price: checkFloat(req.body.elements[0].elements[i].elements[i1].attributes.price),
+                            });
+                            await SpecialPriceCategory.create(specialPriceClient)
+                        }
+                    }
+                }
+            }
+        }
+        await res.status(200);
+        await res.end('success')
+    } catch (err) {
+        let _object = new ModelsErrorAzyk({
+            err: err.message,
+            path: 'integrate put specialpriceclient'
         });
         await ModelsErrorAzyk.create(_object)
         console.error(err)

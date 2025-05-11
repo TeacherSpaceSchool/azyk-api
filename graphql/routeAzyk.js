@@ -938,7 +938,7 @@ const resolversMutation = {
     },
     deleteRoute: async(parent, { _id, selectedOrders }, {user}) => {
         if(!['экспедитор', 'суперэкспедитор'].includes(user.role)){
-            await RouteAzyk.deleteMany({_id: _id})
+            await RouteAzyk.deleteOne({_id: _id})
             await InvoiceAzyk.updateMany({_id: {$in: selectedOrders}}, {distributed: false})
         }
         return {data: 'OK'}

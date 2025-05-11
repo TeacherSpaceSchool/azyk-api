@@ -23,6 +23,7 @@ const { checkAdss } = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
 const uuidv1 = require('uuid/v1.js');
 const ModelsErrorAzyk = require('../models/errorAzyk');
+const {calculateStock} = require('../module/stockAzyk');
 
 const type = `
   type Order {
@@ -1008,7 +1009,7 @@ const setOrder = async ({orders, invoice, user}) => {
         let returnedPrice = 0
         let consignmentPrice = 0
         for(let i=0; i<orders.length;i++){
-            await OrderAzyk.updateMany(
+            await OrderAzyk.updateOne(
                 {_id: orders[i]._id},
                 {
                     count: orders[i].count,
@@ -1033,6 +1034,7 @@ const setOrder = async ({orders, invoice, user}) => {
         object.returnedPrice = checkFloat(returnedPrice)
         await object.save();
     }
+    //обновленый заказ
     let resInvoice = await InvoiceAzyk.findOne({_id: invoice})
         .populate({
             path: 'orders',
@@ -1052,6 +1054,11 @@ const setOrder = async ({orders, invoice, user}) => {
         .populate({path: 'adss'})
         .populate({path: 'forwarder'})
         .populate({path: 'organization'})
+    //подсчет остатков
+    if (resInvoice.organization.calculateStock) {
+        await calculateStock(resInvoice.orders.map(order => order._id))
+    }
+    //история
     if(user.role==='admin'){
         editor = 'админ'
     }
@@ -1077,7 +1084,7 @@ const setOrder = async ({orders, invoice, user}) => {
         editor: editor,
     });
     await HistoryOrderAzyk.create(objectHistoryOrder);
-
+    //отправка в 1С
     let dateDelivery = new Date()
     dateDelivery.setDate(dateDelivery.getDate() - 7)
     if((resInvoice.guid||resInvoice.dateDelivery>dateDelivery)) {
@@ -1108,7 +1115,7 @@ const setOrder = async ({orders, invoice, user}) => {
         });
         await ModelsErrorAzyk.create(_object)
     }
-
+    //ws
     let superDistrict = await DistrictAzyk.findOne({
         organization: null,
         client: resInvoice.client._id

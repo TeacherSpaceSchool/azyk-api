@@ -49,6 +49,7 @@ const type = `
     autoAcceptNight: Boolean
     divideBySubBrand: Boolean
     clientDuplicate: Boolean
+    calculateStock: Boolean
     cities: [String]
     del: String
     priotiry: Int
@@ -66,8 +67,8 @@ const query = `
 `;
 
 const mutation = `
-    addOrganization(cities: [String]!, autoIntegrate: Boolean!, catalog: Upload, pass: String, warehouse: String!, miniInfo: String!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload!, name: String!, address: [String]!, email: [String]!, phone: [String]!, info: String!, accessToClient: Boolean!, consignation: Boolean!, refusal: Boolean!, addedClient: Boolean!, agentSubBrand: Boolean!, unite: Boolean!, superagent: Boolean!, onlyDistrict: Boolean!, dateDelivery: Boolean!, onlyIntegrate: Boolean!, autoAcceptAgent: Boolean!, autoAcceptNight: Boolean!, clientDuplicate: Boolean!, divideBySubBrand: Boolean!): Data
-    setOrganization(cities: [String], pass: String, autoIntegrate: Boolean, catalog: Upload, warehouse: String, miniInfo: String, _id: ID!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload, name: String, address: [String], email: [String], phone: [String], info: String, accessToClient: Boolean, consignation: Boolean, refusal: Boolean, addedClient: Boolean, agentSubBrand: Boolean, unite: Boolean, superagent: Boolean, onlyDistrict: Boolean, dateDelivery: Boolean, onlyIntegrate: Boolean, autoAcceptAgent: Boolean, autoAcceptNight: Boolean, clientDuplicate: Boolean, divideBySubBrand: Boolean): Data
+    addOrganization(cities: [String]!, autoIntegrate: Boolean!, catalog: Upload, pass: String, warehouse: String!, miniInfo: String!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload!, name: String!, address: [String]!, email: [String]!, phone: [String]!, info: String!, accessToClient: Boolean!, consignation: Boolean!, refusal: Boolean!, addedClient: Boolean!, agentSubBrand: Boolean!, unite: Boolean!, superagent: Boolean!, onlyDistrict: Boolean!, dateDelivery: Boolean!, onlyIntegrate: Boolean!, autoAcceptAgent: Boolean!, autoAcceptNight: Boolean!, clientDuplicate: Boolean!, calculateStock: Boolean!, divideBySubBrand: Boolean!): Data
+    setOrganization(cities: [String], pass: String, autoIntegrate: Boolean, catalog: Upload, warehouse: String, miniInfo: String, _id: ID!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload, name: String, address: [String], email: [String], phone: [String], info: String, accessToClient: Boolean, consignation: Boolean, refusal: Boolean, addedClient: Boolean, agentSubBrand: Boolean, unite: Boolean, superagent: Boolean, onlyDistrict: Boolean, dateDelivery: Boolean, onlyIntegrate: Boolean, autoAcceptAgent: Boolean, autoAcceptNight: Boolean, clientDuplicate: Boolean, calculateStock: Boolean, divideBySubBrand: Boolean): Data
     restoreOrganization(_id: [ID]!): Data
     deleteOrganization(_id: [ID]!): Data
     onoffOrganization(_id: [ID]!): Data
@@ -229,7 +230,7 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addOrganization: async(parent, {cities, autoIntegrate, catalog, addedClient, agentSubBrand, autoAcceptAgent, autoAcceptNight, clientDuplicate, divideBySubBrand, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, accessToClient, consignation, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
+    addOrganization: async(parent, {cities, autoIntegrate, catalog, addedClient, agentSubBrand, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, accessToClient, consignation, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
         if(user.role==='admin'){
             let { stream, filename } = await image;
             filename = await saveImage(stream, filename)
@@ -257,6 +258,7 @@ const resolversMutation = {
                 autoAcceptAgent,
                 autoAcceptNight,
                 clientDuplicate,
+                calculateStock,
                 divideBySubBrand,
                 dateDelivery,
                 addedClient,
@@ -274,7 +276,7 @@ const resolversMutation = {
         }
         return {data: 'OK'};
     },
-    setOrganization: async(parent, {catalog, cities, addedClient, agentSubBrand, autoIntegrate, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, _id, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, accessToClient, refusal, consignation, onlyDistrict, onlyIntegrate}, {user}) => {
+    setOrganization: async(parent, {catalog, cities, addedClient, agentSubBrand, autoIntegrate, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, _id, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, accessToClient, refusal, consignation, onlyDistrict, onlyIntegrate}, {user}) => {
         if(user.role==='admin'||(['суперорганизация', 'организация'].includes(user.role)&&user.organization.toString()===_id.toString())) {
             let object = await OrganizationAzyk.findById(_id)
             if (image) {
@@ -302,6 +304,7 @@ const resolversMutation = {
             if(onlyDistrict!=undefined) object.onlyDistrict = onlyDistrict
             if(autoAcceptAgent!=undefined) object.autoAcceptAgent = autoAcceptAgent
             if(clientDuplicate!=undefined) object.clientDuplicate = clientDuplicate
+            if(calculateStock!=undefined) object.calculateStock = calculateStock
             if(autoAcceptNight!=undefined) {
                 let _object = new ModelsErrorAzyk({
                     err: `autoAcceptNight: ${object.autoAcceptNight} => ${autoAcceptNight}`,
@@ -360,7 +363,7 @@ const resolversMutation = {
                 }
                 await AutoAzyk.deleteMany({organization: _id[i]})
                 await RepairEquipmentAzyk.deleteMany({organization: _id[i]})
-                await OrganizationAzyk.updateMany({_id: _id[i]}, {del: 'deleted', status: 'deactive'})
+                await OrganizationAzyk.updateOne({_id: _id[i]}, {del: 'deleted', status: 'deactive'})
                 await AdsAzyk.updateMany({organization: _id[i]}, {del: 'deleted'})
                 await PlanAzyk.deleteMany({organization: _id[i]})
                 await DeliveryDateAzyk.deleteMany({organization: _id[i]})

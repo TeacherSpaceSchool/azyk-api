@@ -270,7 +270,7 @@ const resolversMutation = {
                 ...user.organization?{organization: user.organization}:{}
             }).select('_id').lean()
             for(let i=0; i<objects.length; i++){
-                await DistrictAzyk.deleteMany({_id: objects[i]._id})
+                await DistrictAzyk.deleteOne({_id: objects[i]._id})
                 await AgentRouteAzyk.deleteMany({district: objects[i]._id})
                 await OutXMLAdsShoroAzyk.deleteMany({district: objects[i]._id})
             }

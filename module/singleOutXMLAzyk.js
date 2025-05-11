@@ -34,7 +34,7 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
         }
         outXMLReturnedAzyk.markModified('data');
         await outXMLReturnedAzyk.save()
-        await ReturnedAzyk.updateMany({_id: returned._id}, {sync: 1})
+        await ReturnedAzyk.updateOne({_id: returned._id}, {sync: 1})
     }
     else {
         let guidClient = await Integrate1CAzyk
@@ -85,7 +85,7 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
                             })
                     }
                     await SingleOutXMLReturnedAzyk.create(newOutXMLReturnedAzyk);
-                    await ReturnedAzyk.updateMany({_id: returned._id}, {sync: 1})
+                    await ReturnedAzyk.updateOne({_id: returned._id}, {sync: 1})
                 }
             }
         }
@@ -120,7 +120,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice, update) => {
             }
             outXMLAzyk.markModified('data');
             await outXMLAzyk.save()
-            await InvoiceAzyk.updateMany({_id: invoice._id}, {sync: 1})
+            await InvoiceAzyk.updateOne({_id: invoice._id}, {sync: 1})
             return 1
         }
         else {
@@ -308,7 +308,7 @@ module.exports.checkSingleOutXMLAzyk = async(pass, guid, exc) => {
         outXMLAzyk.status =  exc?'error':'check'
         outXMLAzyk.exc =  exc?exc:null
         await outXMLAzyk.save()
-        await InvoiceAzyk.updateMany({_id: outXMLAzyk.invoice}, !exc?{sync: 2}:{})
+        await InvoiceAzyk.updateOne({_id: outXMLAzyk.invoice}, !exc?{sync: 2}:{})
     }
 }
 
@@ -319,7 +319,7 @@ module.exports.checkSingleOutXMLReturnedAzyk = async(pass, guid, exc) => {
         outXMLReturnedAzyk.status = exc?'error':'check'
         outXMLReturnedAzyk.exc =  exc?exc:null
         await outXMLReturnedAzyk.save()
-        await ReturnedAzyk.updateMany({_id: outXMLReturnedAzyk.returned}, !exc?{sync: 2}:{})
+        await ReturnedAzyk.updateOne({_id: outXMLReturnedAzyk.returned}, !exc?{sync: 2}:{})
     }
 }
 

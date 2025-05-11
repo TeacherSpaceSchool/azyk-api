@@ -203,8 +203,8 @@ const resolversMutation = {
     deleteOutXMLShoro: async(parent, { _id }, {user}) => {
         if('admin'===user.role){
             let object = await OutXMLShoroAzyk.findOne({_id: _id, status: {$ne: 'check'}})
-            await InvoiceAzyk.updateMany({_id: object._id}, {sync: 0});
-            await OutXMLShoroAzyk.deleteMany({_id: _id})
+            await InvoiceAzyk.updateOne({_id: object._id}, {sync: 0});
+            await OutXMLShoroAzyk.deleteOne({_id: _id})
         }
         return {data: 'OK'}
     },
@@ -256,8 +256,8 @@ const resolversMutation = {
     deleteOutXMLReturnedShoro: async(parent, { _id }, {user}) => {
         if('admin'===user.role){
             let object = await OutXMLReturnedShoroAzyk.findOne({_id: _id, status: {$ne: 'check'}})
-            await ReturnedAzyk.updateMany({_id: object._id}, {sync: 0});
-            await OutXMLReturnedShoroAzyk.deleteMany({_id: _id})
+            await ReturnedAzyk.updateOne({_id: object._id}, {sync: 0});
+            await OutXMLReturnedShoroAzyk.deleteOne({_id: _id})
         }
         return {data: 'OK'}
     },

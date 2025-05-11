@@ -16,6 +16,7 @@ const ReceivedDataAzykSchema = mongoose.Schema({
     type: String,
     status: String,
     position: String,
+    category: String,
 }, {
     timestamps: true
 });

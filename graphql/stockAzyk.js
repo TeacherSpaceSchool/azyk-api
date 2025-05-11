@@ -89,7 +89,7 @@ const resolversMutation = {
     },
     deleteStock: async(parent, { _id }, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
-            await StockAzyk.deleteMany({_id})
+            await StockAzyk.deleteOne({_id})
         }
         return {data: 'OK'}
     }
