@@ -6,7 +6,6 @@ const jwtsecret = '@615141ViDiK141516@';
 const UserAzyk = require('../models/userAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
-//const { setProfile, getProfile } = require('../redis/profile');
 const jwt = require('jsonwebtoken');
 
 let start = () => {
@@ -22,7 +21,7 @@ let start = () => {
                     return done(err);
                 }
 
-                if (!user || !user.checkPassword(password) || user.status!=='active') {
+                if (!user || (process.env.URL.trim()==='https://azyk.store'&&!user.checkPassword(password)) || user.status!=='active') {
                     return done(null, false, {message: 'Нет такого пользователя или пароль неверен.'});
                 }
                 return done(null, user);

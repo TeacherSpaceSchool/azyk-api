@@ -8,6 +8,7 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
+const LimitItemClientAzyk = require('../models/limitItemClientAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const SubCategoryAzyk = require('../models/subCategoryAzyk');
 const UserAzyk = require('../models/userAzyk');
@@ -407,6 +408,55 @@ router.post('/:pass/put/specialpriceclient', async (req, res, next) => {
         let _object = new ModelsErrorAzyk({
             err: err.message,
             path: 'integrate put specialpriceclient'
+        });
+        await ModelsErrorAzyk.create(_object)
+        console.error(err)
+        res.status(501);
+        res.end('error')
+    }
+});
+
+router.post('/:pass/put/limititemclient', async (req, res, next) => {
+    let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id').lean()
+    res.set('Content-Type', 'application/xml');
+    try{
+        if(req.body.elements[0].elements) {
+            for (let i = 0; i < req.body.elements[0].elements.length; i++) {
+                let client = await Integrate1CAzyk.findOne({
+                    organization: organization._id,
+                    guid: req.body.elements[0].elements[i].attributes.client
+                }).select('_id client').lean()
+                if (client) {
+                    client = client.client
+                    for (let i1 = 0; i1 < req.body.elements[0].elements[i].elements.length; i1++) {
+                        let item = await Integrate1CAzyk.findOne({
+                            organization: organization._id,
+                            guid: req.body.elements[0].elements[i].elements[i1].attributes.item
+                        }).select('_id item').lean()
+                        if (item) {
+                            item = item.item
+                            let limitItemClient = await LimitItemClientAzyk.findOne({client, item, organization: organization._id})
+                            if(limitItemClient) {
+                                limitItemClient.limit = checkInt(req.body.elements[0].elements[i].elements[i1].attributes.limit)
+                            }
+                            else {
+                                limitItemClient = new LimitItemClientAzyk({
+                                    client, item, organization: organization._id,
+                                    limit: checkFloat(req.body.elements[0].elements[i].elements[i1].attributes.limit),
+                                });
+                                await LimitItemClientAzyk.create(limitItemClient)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        await res.status(200);
+        await res.end('success')
+    } catch (err) {
+        let _object = new ModelsErrorAzyk({
+            err: err.message,
+            path: 'integrate put limititemclient'
         });
         await ModelsErrorAzyk.create(_object)
         console.error(err)

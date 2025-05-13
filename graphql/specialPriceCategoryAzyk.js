@@ -1,6 +1,5 @@
 const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 const Item = require('../models/itemAzyk');
-const Category = require('../models/categoryAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 
@@ -75,7 +74,7 @@ const resolvers = {
 
 const resolversMutation = {
     addSpecialPriceCategory: async(parent, {category, organization, price, item}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)&&!(await SpecialPriceCategory.findOne({item, category}).select('_id').lean())) {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)&&!(await SpecialPriceCategory.findOne({item, category}).select('_id').lean())) {
             let _object = new SpecialPriceCategory({
                 item,
                 price,
@@ -97,7 +96,7 @@ const resolversMutation = {
         }
     },
     setSpecialPriceCategory: async(parent, {_id, price}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)){
             let object = await SpecialPriceCategory.findById(_id)
             object.price = price
             await object.save();
@@ -105,7 +104,7 @@ const resolversMutation = {
         return {data: 'OK'};
     },
     deleteSpecialPriceCategory: async(parent, { _id }, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)){
             await SpecialPriceCategory.deleteOne({_id})
         }
         return {data: 'OK'}

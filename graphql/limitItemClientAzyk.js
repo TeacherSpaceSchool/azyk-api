@@ -1,32 +1,32 @@
-const SpecialPriceClient = require('../models/specialPriceClientAzyk');
+const LimitItemClient = require('../models/limitItemClientAzyk');
 const Item = require('../models/itemAzyk');
 const Client = require('../models/clientAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 
 const type = `
-  type SpecialPriceClient {
+  type LimitItemClient {
     _id: ID
     createdAt: Date
     client: Client
-    price: Float
+    limit: Int
     organization: Organization
     item: Item
   }
 `;
 
 const query = `
-    specialPriceClients(client: ID!, organization: ID): [SpecialPriceClient]
-    itemsForSpecialPriceClients(client: ID!, organization: ID): [Item]
+    limitItemClients(client: ID!, organization: ID): [LimitItemClient]
+    itemsForLimitItemClients(client: ID!, organization: ID): [Item]
 `;
 
 const mutation = `
-    addSpecialPriceClient(client: ID!, organization: ID!, price: Float!, item: ID!): SpecialPriceClient
-    setSpecialPriceClient(_id: ID!, price: Float!): Data
-    deleteSpecialPriceClient(_id: ID!): Data
+    addLimitItemClient(client: ID!, organization: ID!, limit: Int!, item: ID!): LimitItemClient
+    setLimitItemClient(_id: ID!, limit: Int!): Data
+    deleteLimitItemClient(_id: ID!): Data
 `;
 
 const resolvers = {
-    specialPriceClients: async(parent, {client, organization}, {user}) => {
+    limitItemClients: async(parent, {client, organization}, {user}) => {
         if(user.role) {
             if(organization) {
                 let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
@@ -34,7 +34,7 @@ const resolvers = {
                     organization = subBrand.organization
                 }
             }
-            return await SpecialPriceClient
+            return await LimitItemClient
                 .find({
                     client,
                     organization: user.organization?user.organization:organization
@@ -54,16 +54,15 @@ const resolvers = {
                 .lean()
         }
     },
-    itemsForSpecialPriceClients: async(parent, {client, organization}, {user}) => {
+    itemsForLimitItemClients: async(parent, {client, organization}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
-            let excludedItems = await SpecialPriceClient.find({
+            let excludedItems = await LimitItemClient.find({
                 client,
                 organization: user.organization?user.organization:organization
             })
                 .distinct('item')
                 .lean()
             let city = (await Client.findOne({_id: client}).select('city').lean()).city
-
             return await Item.find({_id: {$nin: excludedItems}, organization: user.organization?user.organization:organization, city})
                 .select('_id name')
                 .lean()
@@ -72,16 +71,16 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addSpecialPriceClient: async(parent, {client, organization, price, item}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)&&!(await SpecialPriceClient.findOne({item, client}).select('_id').lean())) {
-            let _object = new SpecialPriceClient({
+    addLimitItemClient: async(parent, {client, organization, limit, item}, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)&&!(await LimitItemClient.findOne({item, client}).select('_id').lean())) {
+            let _object = new LimitItemClient({
                 item,
-                price,
+                limit,
                 client,
                 organization
             });
-            _object = await SpecialPriceClient.create(_object)
-            return await SpecialPriceClient
+            _object = await LimitItemClient.create(_object)
+            return await LimitItemClient
                 .findById(_object._id)
                 .populate({
                     path: 'organization',
@@ -98,17 +97,17 @@ const resolversMutation = {
                 .lean()
         }
     },
-    setSpecialPriceClient: async(parent, {_id, price}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)){
-            let object = await SpecialPriceClient.findById(_id)
-            object.price = price
+    setLimitItemClient: async(parent, {_id, limit}, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
+            let object = await LimitItemClient.findById(_id)
+            object.limit = limit
             await object.save();
         }
         return {data: 'OK'};
     },
-    deleteSpecialPriceClient: async(parent, { _id }, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)){
-            await SpecialPriceClient.deleteOne({_id})
+    deleteLimitItemClient: async(parent, { _id }, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
+            await LimitItemClient.deleteOne({_id})
         }
         return {data: 'OK'}
     }
