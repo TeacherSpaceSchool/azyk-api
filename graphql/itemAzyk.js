@@ -8,6 +8,9 @@ const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
 const { saveImage, deleteFile, urlMain, reductionSearch} = require('../module/const');
 
+// OLD
+// stock: Float
+
 const type = `
   type Item {
     _id: ID
@@ -33,6 +36,8 @@ const type = `
     del: String
     city: String
     costPrice: Float
+    
+    stock: Float
   }
   input InputItemCostPrice {
     _id: ID
