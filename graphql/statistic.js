@@ -18,7 +18,7 @@ const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const UserAzyk = require('../models/userAzyk');
 const AdsAzyk = require('../models/adsAzyk');
-const {pdDDMMYYYY, statsCollection, reductionSearch} = require('../module/const');
+const {pdDDMMYYYY, statsCollection, reductionSearch, chunkArray} = require('../module/const');
 const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const app = require('../app');
@@ -69,7 +69,7 @@ const query = `
     statisticClientActivity(organization: ID, online: Boolean, city: String): Statistic
     statisticItemActivity(organization: ID, online: Boolean, city: String): Statistic
     statisticOrganizationActivity(organization: ID, online: Boolean, city: String): Statistic
-    statisticItem(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
+    statisticItem(company: String, dateStart: Date, dateEnd: Date, online: Boolean, city: String): Statistic
     statisticAdss(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticOrder(company: String, dateStart: Date, dateType: String, online: Boolean, city: String): Statistic
     statisticOrdersOffRoute(type: String, company: String, dateStart: Date, dateType: String, online: Boolean, city: String, district: ID): Statistic
@@ -1383,11 +1383,10 @@ const resolvers = {
             };
         }
     },
-    statisticItem: async(parent, { company, dateStart, dateType, online, city }, {user}) => {
+    statisticItem: async(parent, { company, dateStart, dateEnd, online, city }, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)){
             //console.time('get BD')
             company = user.organization?user.organization:company
-            let dateEnd
             if(!dateStart)
                 dateStart = new Date()
             else {
@@ -1396,32 +1395,28 @@ const resolvers = {
                     dateStart = new Date()
             }
             dateStart.setHours(3, 0, 0, 0)
-            dateEnd = new Date(dateStart)
-
-            if(dateType==='day')
+            if(dateEnd) {
+                dateEnd = new Date(dateEnd)
+                dateEnd.setHours(3, 0, 0, 0)
+            }
+            else {
+                dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
-            else if(dateType==='week')
-                dateEnd.setDate(dateEnd.getDate() + 7)
-            else
-                dateEnd.setMonth(dateEnd.getMonth() + 1)
-
+            }
             let statistic = {}
             let excludedAgents = []
             let profitAll = 0
-            let returnedAll = 0
-            let consignmentPriceAll = 0
-            let completAll = []
 
             if(online){
                 excludedAgents = await UserAzyk.find({$or: [{role: 'агент'}, {role: 'менеджер'}, {role: 'организация'}, {role: 'суперорганизация'}]}).distinct('_id').lean()
                 excludedAgents = await EmploymentAzyk.find({user: {$in: excludedAgents}}).distinct('_id').lean()
             }
-            let data = await InvoiceAzyk.find(
+            const invoices = await InvoiceAzyk.find(
                 {
-                    $and: [
-                        dateStart?{createdAt: {$gte: dateStart}}:{},
-                        dateEnd?{createdAt: {$lt: dateEnd}}:{}
-                    ],
+                    ...dateStart&&dateEnd?{$and: [
+                            ...dateStart?[{createdAt: {$gte: dateStart}}]:[],
+                            ...dateEnd?[{createdAt: {$lt: dateEnd}}]:[]
+                        ]}:{},
                     ...(company==='all'?{}:{ organization: company }),
                     del: {$ne: 'deleted'},
                     taken: true,
@@ -1429,60 +1424,61 @@ const resolvers = {
                     ...city?{city: city}:{},
                 }
             )
-                .select('orders item _id paymentConsignation')
-                .populate({
-                    path: 'orders',
-                    select: 'item createdAt _id allPrice count returned consignmentPrice',
-                    populate : [
-                        {
-                            path : 'item',
-                            select: 'name _id',
-                        }
-                    ]
-                })
+                .select('orders')
                 .lean()
-            for(let i=0; i<data.length; i++) {
-                for(let ii=0; ii<data[i].orders.length; ii++) {
-                    data[i].orders[ii].invoice = data[i]._id
-                    data[i].orders[ii].paymentConsignation = data[i].paymentConsignation
+            // eslint-disable-next-line no-undef
+            const orderIdSet = new Set();
+            for (const invoice of invoices) {
+                for (const orderId of invoice.orders) {
+                    orderIdSet.add(orderId.toString());
                 }
             }
-            data = data.reduce((acc, val) => acc.concat(val.orders), []);
-            for(let i=0; i<data.length; i++) {
-                if (!statistic[data[i].item._id]) statistic[data[i].item._id] = {
+            const orderIds = Array.from(orderIdSet);
+            const chunks = chunkArray(orderIds, 1000);
+            const promises = chunks.map(chunk =>
+                OrderAzyk.find({ _id: { $in: chunk } })
+                    .select('item createdAt _id allPrice count')
+                    .lean()
+            );
+            // eslint-disable-next-line no-undef
+            const ordersParts = await Promise.all(promises);
+            const orders = [].concat(...ordersParts);
+            // eslint-disable-next-line no-undef
+            const itemIdSet = new Set();
+            for (const order of orders) {
+                if (order.item) {
+                    itemIdSet.add(order.item.toString());
+                }
+            }
+            const itemIds = Array.from(itemIdSet);
+            const items = await ItemAzyk.find({ _id: {$in: itemIds} })
+                .select('name')
+                .lean();
+            const itemMap = {};
+            for(let i=0; i<items.length; i++) {
+                itemMap[items[i]._id] = items[i].name
+            }
+            for(let i=0; i<orders.length; i++) {
+                const order = orders[i]
+                const itemId = order.item.toString();
+                if (!statistic[itemId]) statistic[itemId] = {
                     profit: 0,
-                    returned: 0,
-                    consignmentPrice: 0,
-                    complet: [],
-                    item: data[i].item.name
+                    count: 0,
+                    item: itemMap[itemId]
                 }
-                if(data[i].returned!==data[i].count&&!statistic[data[i].item._id].complet.includes(data[i].invoice.toString())) {
-                    statistic[data[i].item._id].complet.push(data[i].invoice.toString())
-                }
-                if(data[i].returned!==data[i].count&&!completAll.includes(data[i].invoice.toString())) {
-                    completAll.push(data[i].invoice.toString())
-                }
-                statistic[data[i].item._id].profit += (data[i].allPrice - data[i].returned * (data[i].allPrice/data[i].count))
-                profitAll += (data[i].allPrice - data[i].returned * (data[i].allPrice/data[i].count))
-                statistic[data[i].item._id].returned += data[i].returned * (data[i].allPrice/data[i].count)
-                returnedAll += data[i].returned * (data[i].allPrice/data[i].count)
-                if (data[i].consignmentPrice && !data[i].paymentConsignation) {
-                    statistic[data[i].item._id].consignmentPrice += data[i].consignmentPrice
-                    consignmentPriceAll += data[i].consignmentPrice
-                }
+                statistic[itemId].count += order.count
+                statistic[itemId].profit += order.allPrice
+                profitAll += order.allPrice
             }
             const keys = Object.keys(statistic)
-            data = []
+            let data = []
             for(let i=0; i<keys.length; i++){
                 data.push({
                     _id: keys[i],
                     data: [
                         statistic[keys[i]].item,
                         checkFloat(statistic[keys[i]].profit),
-                        statistic[keys[i]].complet.length,
-                        checkFloat(statistic[keys[i]].returned),
-                        checkFloat(statistic[keys[i]].consignmentPrice),
-                        checkFloat(statistic[keys[i]].profit/statistic[keys[i]].complet.length),
+                        checkFloat(statistic[keys[i]].count),
                         checkFloat(statistic[keys[i]].profit*100/profitAll)
                     ]
                 })
@@ -1496,16 +1492,14 @@ const resolvers = {
                     data: [
                         data.length,
                         checkFloat(profitAll),
-                        completAll.length,
-                        checkFloat(returnedAll),
-                        checkFloat(consignmentPriceAll)
+                        invoices.length
                     ]
                 },
                 ...data
             ]
             //console.timeEnd('get BD')
             return {
-                columns: ['товар', 'выручка(сом)', 'выполнен(шт)', 'отказов(шт)', 'конс(сом)', 'средний чек(сом)', 'процент'],
+                columns: ['товар', 'выручка(сом)', 'количество(шт)', 'процент'],
                 row: data
             };
         }

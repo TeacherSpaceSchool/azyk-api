@@ -16,8 +16,10 @@ const randomstring = require('randomstring');
 const { checkFloat, checkInt } = require('../module/const');
 const DistrictAzyk = require('../models/districtAzyk');
 const StockAzyk = require('../models/stockAzyk');
+const WarehouseAzyk = require('../models/warehouseAzyk');
 const SpecialPriceClient = require('../models/specialPriceClientAzyk');
 const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
+const mongoose = require('mongoose');
 
 router.post('/:pass/put/item', async (req, res, next) => {
     let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id cities').lean()
@@ -106,10 +108,16 @@ router.post('/:pass/put/stock', async (req, res, next) => {
                 integrate1CAzyk = await Integrate1CAzyk.findOne({
                     organization: organization._id,
                     guid: req.body.elements[0].elements[i].attributes.guid
-                })
+                }).select('item').lean()
                 if(integrate1CAzyk) {
+                    let warehouse
+                    if(req.body.elements[0].elements[i].attributes.warehouse) {
+                        warehouse = await WarehouseAzyk.findOne({organization, guid: req.body.elements[0].elements[i].attributes.warehouse}).select('_id').lean()
+                        if(warehouse) warehouse = warehouse._id
+                    }
                     stock = await StockAzyk.findOne({
                         item: integrate1CAzyk.item,
+                        warehouse,
                         organization: organization._id
                     })
                     count = checkFloat(req.body.elements[0].elements[i].attributes.count)
@@ -117,6 +125,7 @@ router.post('/:pass/put/stock', async (req, res, next) => {
                         stock = new StockAzyk({
                             item: integrate1CAzyk.item,
                             count,
+                            warehouse,
                             organization: organization._id
                         });
                         await StockAzyk.create(stock)
@@ -133,6 +142,62 @@ router.post('/:pass/put/stock', async (req, res, next) => {
         let _object = new ModelsErrorAzyk({
             err: err.message,
             path: 'integrate put stock'
+        });
+        await ModelsErrorAzyk.create(_object)
+        console.error(err)
+        res.status(501);
+        res.end('error')
+    }
+});
+
+router.post('/:pass/put/warehouse', async (req, res, next) => {
+    let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id').lean()
+    res.set('Content-Type', 'application/xml');
+    try{
+        if(req.body.elements[0].elements) {
+            let warehouse, integrate1CAzyk
+            for (let i = 0; i < req.body.elements[0].elements.length; i++) {
+                warehouse = await WarehouseAzyk.findOne({
+                    organization: organization._id,
+                    guid: req.body.elements[0].elements[i].attributes.guid
+                })
+                if (!warehouse) {
+                    warehouse = new WarehouseAzyk({
+                        organization: organization._id,
+                        name: req.body.elements[0].elements[i].attributes.name,
+                        guid: req.body.elements[0].elements[i].attributes.guid
+                    });
+                    await WarehouseAzyk.create(warehouse)
+                }
+                else {
+                    warehouse.name = req.body.elements[0].elements[i].attributes.name
+                    await warehouse.save();
+                }
+                const districts = []
+                for (let i1 = 0; i1 < req.body.elements[0].elements[i].elements.length; i1++) {
+                    req.body.elements[0].elements[i].elements[i1].attributes.guid
+                    integrate1CAzyk = await Integrate1CAzyk.findOne({
+                        organization: organization._id,
+                        guid: req.body.elements[0].elements[i].elements[i1].attributes.guid
+                    }).select('agent').lean()
+                    if(integrate1CAzyk) {
+                        const district = await DistrictAzyk.findOne({agent: integrate1CAzyk.agent}).select('_id').lean()
+                        if(district) {
+                            districts.push(district._id)
+                        }
+                    }
+                }
+                if(districts.length) {
+                    await DistrictAzyk.updateMany({_id: {$in: districts}}, {warehouse: warehouse._id})
+                }
+            }
+        }
+        await res.status(200);
+        await res.end('success')
+    } catch (err) {
+        let _object = new ModelsErrorAzyk({
+            err: err.message,
+            path: 'integrate put warehouse'
         });
         await ModelsErrorAzyk.create(_object)
         console.error(err)

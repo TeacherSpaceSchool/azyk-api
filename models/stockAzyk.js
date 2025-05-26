@@ -9,6 +9,10 @@ const StockAzykSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ItemAzyk'
     },
+    warehouse: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'WarehouseAzyk'
+    },
     count: Number
 }, {
     timestamps: true

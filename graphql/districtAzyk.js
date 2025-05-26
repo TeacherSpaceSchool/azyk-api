@@ -21,6 +21,7 @@ const type = `
       agent: Employment
       ecspeditor: Employment
       manager: Employment
+      warehouse: Warehouse
   }
 `;
 
@@ -33,13 +34,13 @@ const query = `
 `;
 
 const mutation = `
-    addDistrict(organization: ID, client: [ID]!, name: String!, agent: ID, manager: ID, ecspeditor: ID, city: String): Data
-    setDistrict(_id: ID!, client: [ID], name: String, agent: ID, manager: ID, ecspeditor: ID): Data
+    addDistrict(organization: ID, client: [ID]!, name: String!, agent: ID, manager: ID, ecspeditor: ID, warehouse: ID, city: String): Data
+    setDistrict(_id: ID!, client: [ID], name: String, agent: ID, manager: ID, ecspeditor: ID, warehouse: ID): Data
     deleteDistrict(_id: [ID]!): Data
 `;
 
 const resolvers = {
-    districts: async(parent, {organization, search, sort}, {user}) => {
+    districts: async(parent, {organization, search}, {user}) => {
         if(['суперорганизация', 'организация', 'admin', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             let _organizations;
             let _clients;
@@ -181,6 +182,10 @@ const resolvers = {
                     path: 'manager',
                     select: 'name _id'
                 })
+                .populate({
+                    path: 'warehouse',
+                    select: 'name _id'
+                })
                 .lean()
         }
     },
@@ -221,21 +226,22 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addDistrict: async(parent, {organization, client, name, agent, ecspeditor, manager}, {user}) => {
+    addDistrict: async(parent, {organization, client, name, agent, ecspeditor, manager, warehouse}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
             let _object = new DistrictAzyk({
-                name: name,
-                client: client,
-                agent: agent,
-                ecspeditor: ecspeditor,
+                name,
+                client,
+                agent,
+                ecspeditor,
+                warehouse,
                 organization: user.organization?user.organization:organization!=='super'?organization:undefined,
-                manager: manager,
+                manager,
             });
             await DistrictAzyk.create(_object)
         }
         return {data: 'OK'};
     },
-    setDistrict: async(parent, {_id, client, ecspeditor, name, agent, manager}, {user}) => {
+    setDistrict: async(parent, {_id, client, ecspeditor, name, agent, manager, warehouse}, {user}) => {
         let object = await DistrictAzyk.findById(_id)
         if(object&&['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)){
             if(name)object.name = name
@@ -256,6 +262,7 @@ const resolversMutation = {
                 object.client = client
                 object.markModified('client');
             }
+            if(warehouse)object.warehouse = warehouse
             if(agent)object.agent = agent
             if(ecspeditor)object.ecspeditor = ecspeditor
             if(manager)object.manager = manager

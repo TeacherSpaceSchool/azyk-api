@@ -1,11 +1,13 @@
 const StockAzyk = require('../models/stockAzyk');
 const HistoryStockAzyk = require('../models/historyStockAzyk');
 const OrderAzyk = require('../models/orderAzyk');
+const DistrictAzyk = require('../models/districtAzyk');
 
-module.exports.calculateStock = async(orders) => {
+module.exports.calculateStock = async(orders, organization, client) => {
+    const warehouse = (await DistrictAzyk.findOne({organization, client}).select('warehouse').lean()).warehouse
     orders = await OrderAzyk.find({_id: {$in: orders}}).select('_id item count status').lean()
     for(let i=0; i<orders.length; i++) {
-        const stockAzyk = await StockAzyk.findOne({item: orders[i].item})
+        const stockAzyk = await StockAzyk.findOne({item: orders[i].item, warehouse})
         if(stockAzyk) {
             //старый
             const historyStockAzyk = await HistoryStockAzyk.findOne({order: orders[i]._id, item: orders[i].item}).lean()

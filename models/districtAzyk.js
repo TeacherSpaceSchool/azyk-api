@@ -14,6 +14,10 @@ const DistrictAzykSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'EmploymentAzyk'
     },
+    warehouse: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'WarehouseAzyk'
+    },
     ecspeditor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'EmploymentAzyk'

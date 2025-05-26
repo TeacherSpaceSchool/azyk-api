@@ -184,6 +184,18 @@ module.exports.getDateRange = (date) => {
     return {dateStart, dateEnd}
 }
 
+module.exports.isNotEmpty = (value) => {
+    return value !== undefined && value !== null;
+}
+
+module.exports.chunkArray = (array, size) => {
+    const result = [];
+    for(let i = 0; i < array.length; i += size) {
+        result.push(array.slice(i, i + size));
+    }
+    return result;
+}
+
 module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Боконбаева', 'Жалал-Абад', 'Кара-Балта', 'Каракол', 'Казарман', 'Кочкор', 'Кызыл-Кия', 'Нарын', 'Ош', 'Раззаков', 'Талас', 'Токмок', 'Чолпон-Ата', 'Москва'];
 
 module.exports.statsCollection = statsCollection;

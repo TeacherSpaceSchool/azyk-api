@@ -1056,7 +1056,7 @@ const setOrder = async ({orders, invoice, user}) => {
         .populate({path: 'organization'})
     //подсчет остатков
     if (resInvoice.organization.calculateStock) {
-        await calculateStock(resInvoice.orders.map(order => order._id))
+        await calculateStock(resInvoice.orders.map(order => order._id), resInvoice.organization._id, resInvoice.client._id)
     }
     //история
     if(user.role==='admin'){

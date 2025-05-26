@@ -1,8 +1,10 @@
 const StockAzyk = require('../models/stockAzyk');
 const {reductionSearch} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
+const DistrictAzyk = require('../models/districtAzyk');
 const Item = require('../models/itemAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
+const mongoose = require('mongoose');
 
 const type = `
   type Stock {
@@ -10,38 +12,40 @@ const type = `
     createdAt: Date
     item: Item
     organization: Organization
+    warehouse: Warehouse
     count: Float
   }
 `;
 
 const query = `
-    itemsForStocks(organization: ID!): [Item]
-    stocks(search: String!, organization: ID!): [Stock]
+    itemsForStocks(organization: ID!, warehouse: ID): [Item]
+    stocks(search: String!, client: ID, organization: ID!): [Stock]
 `;
 
 const mutation = `
-    addStock(item: ID!, organization: ID!, count: Float!): Stock
+    addStock(item: ID!, organization: ID!, count: Float!, warehouse: ID): Stock
     setStock(_id: ID!, count: Float!): Data
     deleteStock(_id: ID!): Data
 `;
 
 const resolvers = {
-    itemsForStocks: async(parent, {organization}, {user}) => {
+    itemsForStocks: async(parent, {organization/*, warehouse*/}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
-            let excludedItems = await StockAzyk.find({
-                organization: user.organization?user.organization:organization
+            /*let excludedItems = await StockAzyk.find({
+                organization: user.organization?user.organization:organization,
+                warehouse
             })
                 .distinct('item')
-                .lean()
+                .lean()*/
             return await Item.find({
-                _id: {$nin: excludedItems},
+                ///_id: {$nin: excludedItems},
                 organization: user.organization?user.organization:organization
             })
                 .select('_id name')
                 .lean()
         }
     },
-    stocks: async(parent, {organization, search}, {user}) => {
+    stocks: async(parent, {organization, client, search}, {user}) => {
         if(user.role) {
             let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization _id').lean()
             if(subBrand){
@@ -53,13 +57,28 @@ const resolvers = {
                     name: {'$regex': reductionSearch(search), '$options': 'i'}
                 }).distinct('_id').lean()
             }
+            if(user.role==='клиент') {
+                client = user.client
+            }
+            if(user.organization) {
+                organization = user.organization
+            }
+            let warehouse
+            if(client) {
+                warehouse = (await DistrictAzyk.findOne({organization, client}).select('warehouse').lean()).warehouse
+            }
             return await StockAzyk.find({
-                organization: user.organization ? user.organization : organization,
+                organization,
+                ...client?{warehouse}:{},
                 ...searchedItems ? {item: {$in: searchedItems}} : {}
             })
                 .sort('-createdAt')
                 .populate({
                     path: 'item',
+                    select: '_id name'
+                })
+                .populate({
+                    path: 'warehouse',
                     select: '_id name'
                 })
                 .lean()
@@ -68,12 +87,12 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addStock: async(parent, {item, organization, count}, {user}) => {
+    addStock: async(parent, {item, organization, count, warehouse}, {user}) => {
         if(
             ['admin', 'суперорганизация', 'организация'].includes(user.role)&&
-            !(await StockAzyk.countDocuments({item, organization}).lean())
+            !(await StockAzyk.countDocuments({item, organization, warehouse}).lean())
         ){
-            let _object = new StockAzyk({item, count, organization: user.organization?user.organization:organization});
+            let _object = new StockAzyk({item, count, warehouse, organization: user.organization?user.organization:organization});
             _object = await StockAzyk.create(_object)
             _object.item = await ItemAzyk.findById(item).select('_id name')
             return _object
