@@ -13,7 +13,7 @@ const ItemAzyk = require('../models/itemAzyk');
 const SubCategoryAzyk = require('../models/subCategoryAzyk');
 const UserAzyk = require('../models/userAzyk');
 const randomstring = require('randomstring');
-const { checkFloat, checkInt } = require('../module/const');
+const { checkFloat, checkInt, isNotEmpty} = require('../module/const');
 const DistrictAzyk = require('../models/districtAzyk');
 const StockAzyk = require('../models/stockAzyk');
 const WarehouseAzyk = require('../models/warehouseAzyk');
@@ -48,8 +48,8 @@ router.post('/:pass/put/item', async (req, res, next) => {
                         latest: false,
                         status: 'active',
                         weight: checkFloat(req.body.elements[0].elements[i].attributes.weight),
+                        priotiry: checkInt(req.body.elements[0].elements[i].attributes.priority),
                         size: 0,
-                        priotiry: 0,
                         unit: 'шт',
                         city: organization.cities[0],
                         apiece: req.body.elements[0].elements[i].attributes.apiece=='1',
@@ -76,6 +76,8 @@ router.post('/:pass/put/item', async (req, res, next) => {
                         item.packaging = checkInt(req.body.elements[0].elements[i].attributes.package)
                     if(req.body.elements[0].elements[i].attributes.weight)
                         item.weight = checkFloat(req.body.elements[0].elements[i].attributes.weight)
+                    if(isNotEmpty(req.body.elements[0].elements[i].attributes.priority))
+                        item.priotiry = checkInt(req.body.elements[0].elements[i].attributes.priority)
                     if(req.body.elements[0].elements[i].attributes.apiece)
                         item.apiece = req.body.elements[0].elements[i].attributes.apiece=='1'
                     if(req.body.elements[0].elements[i].attributes.status)

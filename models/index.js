@@ -7,6 +7,7 @@ let connect = function() {
                 reconnectTries: Number.MAX_VALUE,
                 reconnectInterval: 1000,
                 connectTimeoutMS: 30000,
+                socketTimeoutMS: 45000,
                 //allowDiskUse: true
             },
         function (err) {

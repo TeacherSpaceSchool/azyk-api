@@ -6,7 +6,7 @@ const OutXMLShoroAzyk = require('../models/integrate/shoro/outXMLShoroAzyk');
 const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 
 module.exports.reductionOldestDB = async() => {
-    let date = new Date('2023-01-01T03:00:00.000Z')
+    let date = new Date('2024-01-01T03:00:00.000Z')
     console.log('reductionOldestDB start')
 
     console.log('OrderAzyk delete:', await OrderAzyk.deleteMany({createdAt: {$lte: date}}))
