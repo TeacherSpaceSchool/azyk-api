@@ -25,6 +25,7 @@ const type = `
     city: String
     address: [[String]]
     phone: [String]
+    inn: String
     info: String
     reiting: Int
     user: Status
@@ -50,8 +51,8 @@ const query = `
 
 const mutation = `
     clearClientsSync(organization: ID!): Data
-    addClient(category: String!, image: Upload, name: String!, email: String, city: String!, address: [[String]]!, phone: [String]!, info: String, password: String!, login: String!): Data
-    setClient(category: String, _id: ID!, device: String, image: Upload, name: String, city: String, phone: [String], login: String, email: String, address: [[String]], info: String, newPass: String): Data
+    addClient(category: String!, image: Upload, name: String!, email: String, city: String!, address: [[String]]!, phone: [String]!, info: String, inn: String, password: String!, login: String!): Data
+    setClient(category: String, _id: ID!, device: String, image: Upload, name: String, city: String, phone: [String], login: String, email: String, address: [[String]], info: String, inn: String, newPass: String): Data
     deleteClient(_id: [ID]!): Data
     restoreClient(_id: [ID]!): Data
     onoffClient(_id: [ID]!): Data
@@ -71,6 +72,7 @@ const resolvers = {
                                     {name: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {email: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {inn: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}},
                                 ]
                             }
@@ -124,6 +126,7 @@ const resolvers = {
                                     {name: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {email: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {inn: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                                 ]
                             }
@@ -174,6 +177,7 @@ const resolvers = {
                                     {name: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {email: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {inn: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                                 ]
                             }
@@ -210,6 +214,7 @@ const resolvers = {
                     {name: {'$regex': reductionSearch(search), '$options': 'i'}},
                     {email: {'$regex': reductionSearch(search), '$options': 'i'}},
                     {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                    {inn: {'$regex': reductionSearch(search), '$options': 'i'}},
                     {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                 ]
             })
@@ -231,6 +236,7 @@ const resolvers = {
                                     {name: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {email: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {inn: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                                 ]
                             }
@@ -321,6 +327,7 @@ const resolvers = {
                                     {name: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {email: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {info: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                    {inn: {'$regex': reductionSearch(search), '$options': 'i'}},
                                     {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
                                 ]
                             }
@@ -463,7 +470,7 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addClient: async(parent, {image, name, email, city, address, phone, info, login, password, category}, {user}) => {
+    addClient: async(parent, {image, name, email, city, address, phone, info, inn, login, password, category}, {user}) => {
         if(user.role==='admin'||(user.addedClient&&['суперорганизация', 'организация', 'агент'].includes(user.role))) {
             let newUser = new UserAzyk({
                 login: login.trim(),
@@ -480,6 +487,7 @@ const resolversMutation = {
             if(address)client.address = address
             if(phone)client.phone = phone
             if(info)client.info = info
+            if(inn)client.inn = inn
             if (image) {
                 let {stream, filename} = await image;
                 filename = await saveImage(stream, filename)
@@ -506,7 +514,7 @@ const resolversMutation = {
         }
         return {data: 'OK'}
     },
-    setClient: async(parent, {_id, image, name, email, address, info, newPass, phone, login, city, device, category}, {user, res}) => {
+    setClient: async(parent, {_id, image, name, email, address, info, inn, newPass, phone, login, city, device, category}, {user, res}) => {
         let object = await ClientAzyk.findOne({_id: _id})
         if(
             ['суперорганизация', 'организация', 'агент', 'admin', 'суперагент', 'экспедитор'].includes(user.role)
@@ -522,6 +530,7 @@ const resolversMutation = {
             if(email) object.email = email
             if(address) object.address = address
             if(info) object.info = info
+            if(inn) object.inn = inn
             if(city) object.city = city
             if(phone) object.phone = phone
             if(device) object.device = device

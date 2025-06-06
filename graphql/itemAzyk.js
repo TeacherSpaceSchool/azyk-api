@@ -3,6 +3,7 @@ const AdsAzyk = require('../models/adsAzyk');
 const DistributerAzyk = require('../models/distributerAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
+const OrganizationAzyk = require('../models/organizationAzyk');
 const BasketAzyk = require('../models/basketAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
@@ -168,15 +169,19 @@ const resolvers = {
         return itemsRes
     },
     brands: async(parent, {organization, search, sort, city}, {user}) => {
-        if(user.organization) organization = user.organization
         if(mongoose.Types.ObjectId.isValid(organization)) {
             let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization _id').lean()
             if(subBrand){
                 organization = subBrand.organization
                 subBrand = subBrand._id
             }
+            if(user.organization) organization = user.organization
+            let clientSubBrand
+            if(user.role === 'client') {
+                clientSubBrand = (await OrganizationAzyk.findById(organization).select('clientSubBrand').lean()).clientSubBrand
+            }
             const items = await ItemAzyk.find({
-                ...user.role==='client'||subBrand?{subBrand}:{},
+                ...subBrand?{subBrand}:clientSubBrand?{subBrand: null}:{},
                 ...user.role === 'admin' ? {} : {status: 'active'},
                 organization: organization,
                 del: {$ne: 'deleted'},

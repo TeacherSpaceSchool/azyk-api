@@ -74,6 +74,10 @@ const OrganizationAzykSchema = mongoose.Schema({
         type: Boolean,
         default: false
     },
+    clientSubBrand: {
+        type: Boolean,
+        default: false
+    },
     pass: {
         type: String,
         default: ''

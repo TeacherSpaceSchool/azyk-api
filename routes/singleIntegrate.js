@@ -19,7 +19,6 @@ const StockAzyk = require('../models/stockAzyk');
 const WarehouseAzyk = require('../models/warehouseAzyk');
 const SpecialPriceClient = require('../models/specialPriceClientAzyk');
 const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
-const mongoose = require('mongoose');
 
 router.post('/:pass/put/item', async (req, res, next) => {
     let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id cities').lean()
@@ -243,6 +242,7 @@ router.post('/:pass/put/client', async (req, res, next) => {
                         _client = new ClientAzyk({
                             name: req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : 'Новый',
                             phone: req.body.elements[0].elements[i].attributes.tel,
+                            inn: req.body.elements[0].elements[i].attributes.inn,
                             city: organization.cities[0],
                             address: [[
                                 req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : '',
@@ -281,6 +281,8 @@ router.post('/:pass/put/client', async (req, res, next) => {
                         let _client = await ClientAzyk.findOne({_id: integrate1CAzyk.client});
                         if(req.body.elements[0].elements[i].attributes.name)
                             _client.name = req.body.elements[0].elements[i].attributes.name
+                        if(req.body.elements[0].elements[i].attributes.inn)
+                            _client.name = req.body.elements[0].elements[i].attributes.inn
                         if(req.body.elements[0].elements[i].attributes.category)
                             _client.category = req.body.elements[0].elements[i].attributes.category
                         if(req.body.elements[0].elements[i].attributes.tel) {
