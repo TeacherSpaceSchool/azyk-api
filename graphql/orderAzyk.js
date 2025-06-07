@@ -1211,17 +1211,17 @@ const resolversMutation = {
         return {data: 'OK'};
     },
     addOrders: async(parent, {priority, dateDelivery, info, paymentMethod, organization, client, inv, unite}, {user}) => {
-        if(user.client)
-            client = user.client
+        // Привязка клиента, если заказ делает клиент
+        if(user.client) client = user.client
         client = await ClientAzyk.findOne({_id: client}).select('address id city').lean()
+        // Получаем организацию от SubBrand, если задано
         let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
-        if(subBrand)
-            organization = subBrand.organization
+        if(subBrand) organization = subBrand.organization
+        // Проверка деления по суббрендам
         const divideBySubBrand = (await OrganizationAzyk.findById(organization).select('divideBySubBrand').lean()).divideBySubBrand
+        // Получаем корзины пользователя (агента или клиента)
         let baskets = await BasketAzyk.find(
-            user.client?
-                {client: user.client}:
-                {agent: user.employment}
+            user.client? {client: user.client} : {agent: user.employment}
         )
             .select('item count consignment _id')
             .populate({
@@ -1230,6 +1230,7 @@ const resolversMutation = {
                 match: {organization: organization}
             })
             .lean();
+        // Группируем корзины по суббрендам, если включено деление
         let basketsBySubBrand = {}
         if(divideBySubBrand) {
             for(let i=0; i<baskets.length; i++) {
@@ -1244,6 +1245,7 @@ const resolversMutation = {
         else {
             basketsBySubBrand = [baskets]
         }
+        // Обрабатываем каждую группу корзин
         for(let i=0; i<basketsBySubBrand.length; i++) {
             let guid = await uuidv1()
             baskets = basketsBySubBrand[i]
@@ -1255,16 +1257,12 @@ const resolversMutation = {
                 dateStart.setHours(3, 0, 0, 0)
                 let dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
-                let superDistrict = await DistrictAzyk.findOne({
-                    organization: null,
-                    client: client._id
-                }).select('agent').lean()
-                let district = await DistrictAzyk.findOne({
-                    organization: organization,
-                    client: client._id
-                })
-                    .select('agent manager organization')
-                    .lean()
+                // Получаем агентов
+                // eslint-disable-next-line no-undef
+                let [superDistrict, district] = await Promise.all([
+                    DistrictAzyk.findOne({organization: null, client: client._id}).select('agent').lean(),
+                    DistrictAzyk.findOne({organization, client: client._id}).select('agent manager organization').lean()
+                ]);
 
                 let objectInvoice;
                 if(unite&&!inv) {
@@ -1318,33 +1316,32 @@ const resolversMutation = {
                 let discount = await DiscountClient.findOne({client: client._id, organization: organization}).lean()
                 discount = discount?discount.discount:0
                 if(!objectInvoice){
-                    let orders = [];
-                    for(let ii=0; ii<baskets.length;ii++){
+                    // Нет счета — создаём заказы
+                    // eslint-disable-next-line no-undef
+                    const orders = await Promise.all(baskets.map(async basket => {
                         let price = await SpecialPriceClientAzyk.findOne({
-                            item: baskets[ii].item._id,
+                            item: basket.item._id,
                             client: client._id
                         }).select('price').lean()
-                        price = price?price.price:baskets[ii].item.price
+                        price = price?price.price:basket.item.price
                         price = !discount?
                             price
                             :
                             checkFloat(price-price/100*discount)
-                        let objectOrder = new OrderAzyk({
-                            item: baskets[ii].item._id,
+                        return await OrderAzyk.create({
+                            item: basket.item._id,
                             client: client._id,
-                            count: baskets[ii].count,
-                            consignment: baskets[ii].consignment,
-                            consignmentPrice: checkFloat(baskets[ii].consignment*price),
-                            allTonnage: checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0)),
-                            allSize: checkFloat(baskets[ii].count*(baskets[ii].item.size?baskets[ii].item.size:0)),
-                            allPrice: checkFloat(price*baskets[ii].count),
-                            costPrice: baskets[ii].item.costPrice?baskets[ii].item.costPrice:0,
+                            count: basket.count,
+                            consignment: basket.consignment,
+                            consignmentPrice: checkFloat(basket.consignment*price),
+                            allTonnage: checkFloat(basket.count*(basket.item.weight?basket.item.weight:0)),
+                            allSize: checkFloat(basket.count*(basket.item.size?basket.item.size:0)),
+                            allPrice: checkFloat(price*basket.count),
+                            costPrice: basket.item.costPrice?basket.item.costPrice:0,
                             status: 'обработка',
                             agent: user.employment,
                         });
-                        objectOrder = await OrderAzyk.create(objectOrder);
-                        orders.push(objectOrder);
-                    }
+                    }));
                     let number = randomstring.generate({length: 12, charset: 'numeric'});
                     while (await InvoiceAzyk.findOne({number: number}).select('_id').lean())
                         number = randomstring.generate({length: 12, charset: 'numeric'});
@@ -1386,6 +1383,7 @@ const resolversMutation = {
                         objectInvoice.inv = 1
                     objectInvoice = await InvoiceAzyk.create(objectInvoice);
                 }
+                // Счет найден — обновляем существующие заказы
                 else {
                     for(let ii=0; ii<baskets.length;ii++){
                         let price
@@ -1463,10 +1461,12 @@ const resolversMutation = {
                     });
                     await HistoryOrderAzyk.create(objectHistoryOrder);
                 }
+                // Автопринятие заказов агентом, если разрешено
                 if(user.employment&&(await OrganizationAzyk.findOne({_id: organization}).select('autoAcceptAgent').lean()).autoAcceptAgent) {
                     await setInvoice({taken: true, invoice: objectInvoice._id, user})
                     await setOrder({orders: [], invoice: objectInvoice._id, user})
                 }
+                // Получаем финальный счёт для публикации
                 let newInvoice = await InvoiceAzyk.findOne({_id: objectInvoice._id})
                     .select(' _id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
                     .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
@@ -1484,6 +1484,7 @@ const resolversMutation = {
                         manager: district?district.manager:undefined,
                         type: 'ADD'
                     } });
+                // Удаляем использованные корзины
                 await BasketAzyk.deleteMany({_id: {$in: baskets.map(element=>element._id)}})
             }
         }
