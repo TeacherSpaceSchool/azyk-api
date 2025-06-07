@@ -91,21 +91,6 @@ const InvoiceAzykSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrganizationAzyk'
     },
-    distributer: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'OrganizationAzyk',
-        default: null
-    },
-    provider: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'OrganizationAzyk',
-        default: null
-    },
-    sale: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'OrganizationAzyk',
-        default: null
-    },
     who: mongoose.Schema.Types.ObjectId
 }, {
     timestamps: true
@@ -126,9 +111,6 @@ InvoiceAzykSchema.index({dateDelivery: 1})
 InvoiceAzykSchema.index({del: 1})
 InvoiceAzykSchema.index({agent: 1})
 InvoiceAzykSchema.index({organization: 1})
-InvoiceAzykSchema.index({distributer: 1})
-InvoiceAzykSchema.index({provider: 1})
-InvoiceAzykSchema.index({sale: 1});
 
 const InvoiceAzyk = mongoose.model('InvoiceAzyk', InvoiceAzykSchema);
 

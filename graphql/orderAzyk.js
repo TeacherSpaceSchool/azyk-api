@@ -2,7 +2,6 @@ const OrderAzyk = require('../models/orderAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
-const DistributerAzyk = require('../models/distributerAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const RouteAzyk = require('../models/routeAzyk');
 const BasketAzyk = require('../models/basketAzyk');
@@ -69,8 +68,6 @@ const type = `
     allTonnage: Float
     allSize: Float
     editor: String
-    provider: Organization
-    sale: Organization
     organization: Organization
     del: String
     city: String
@@ -98,7 +95,6 @@ const type = `
     superagent: ID
     manager: ID
     organization: ID
-    distributer: ID
     invoice: Invoice
     type: String
   }
@@ -236,8 +232,6 @@ const resolvers = {
                     ...user.organization ? {
                         $or: [
                             {organization: user.organization},
-                            {provider: user.organization},
-                            {sale: user.organization},
                         ],
                     } : {},
                     ...(filter === 'консигнации' ? {consignmentPrice: {$gt: 0}} : {}),
@@ -366,8 +360,6 @@ const resolvers = {
                             ...user.organization ? {
                                 $or: [
                                     {organization: user.organization},
-                                    {sale: user.organization},
-                                    {provider: user.organization},
                                 ],
                             } : {},
                             ...search.length > 0 ? {
@@ -433,40 +425,6 @@ const resolvers = {
                         $unwind: {
                             preserveNullAndEmptyArrays: true,
                             path: '$forwarder'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {provider: '$provider'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$provider', '$_id']}}},
-                                ],
-                                as: 'provider'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$provider'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {sale: '$sale'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$sale', '$_id']}}},
-                                ],
-                                as: 'sale'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$sale'
                         }
                     },
                     {
@@ -588,40 +546,6 @@ const resolvers = {
                     {
                         $lookup:
                             {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {provider: '$provider'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$provider', '$_id']}}},
-                                ],
-                                as: 'provider'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$provider'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {sale: '$sale'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$sale', '$_id']}}},
-                                ],
-                                as: 'sale'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$sale'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
                                 from: AdsAzyk.collection.collectionName,
                                 let: {adss: '$adss'},
                                 pipeline: [
@@ -704,12 +628,10 @@ const resolvers = {
                     ...clients.length>0?{client: {$in: clients}}:{},
                 ...dateDelivery?{$and: [{dateDelivery: {$gte: dateStart}}, {dateDelivery: {$lt: dateEnd}}]}:{$and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}]}
             })
-                .select('_id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder  sale provider organization cancelForwarder paymentConsignation taken sync dateDelivery')
+                .select('_id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync dateDelivery')
                 .populate({path: 'client', select: '_id name'})
                 .populate({path: 'agent', select: '_id name'})
                 .populate({path: 'forwarder', select: '_id name'})
-                .populate({path: 'provider', select: '_id name'})
-                .populate({path: 'sale', select: '_id name'})
                 .populate({path: 'adss', select: '_id title'})
                 .populate({path: 'organization', select: '_id name'})
                 .sort('createdAt')
@@ -727,8 +649,6 @@ const resolvers = {
                     {
                         $or: [
                             {organization: user.organization},
-                            {sale: user.organization},
-                            {provider: user.organization},
                         ],
                     } : {},
             })
@@ -749,12 +669,6 @@ const resolvers = {
                 })
                 .populate({
                     path: 'forwarder',
-                })
-                .populate({
-                    path: 'provider',
-                })
-                .populate({
-                    path: 'sale',
                 })
                 .populate({
                     path: 'organization',
@@ -872,8 +786,6 @@ const resolvers = {
                             client: {$in: _clients},
                             $or: [
                                 {organization: user.organization ? user.organization : new mongoose.Types.ObjectId(organization)},
-                                {provider: user.organization ? user.organization : new mongoose.Types.ObjectId(organization)},
-                                {sale: user.organization ? user.organization : new mongoose.Types.ObjectId(organization)},
                             ]
                         }
                     },
@@ -927,40 +839,6 @@ const resolvers = {
                         $unwind: {
                             preserveNullAndEmptyArrays: true,
                             path: '$forwarder'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {sale: '$sale'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$sale', '$_id']}}},
-                                ],
-                                as: 'sale'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$sale'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {provider: '$provider'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$provider', '$_id']}}},
-                                ],
-                                as: 'provider'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$provider'
                         }
                     },
                     {
@@ -1049,8 +927,6 @@ const setOrder = async ({orders, invoice, user}) => {
             ]
         })
         .populate({path: 'agent'})
-        .populate({path: 'provider'})
-        .populate({path: 'sales'})
         .populate({path: 'adss'})
         .populate({path: 'forwarder'})
         .populate({path: 'organization'})
@@ -1122,32 +998,12 @@ const setOrder = async ({orders, invoice, user}) => {
     })
         .select('agent')
         .lean();
-    let district = null;
-    let distributers = await DistributerAzyk.find({
-        sales: resInvoice.organization._id
+    let district = await DistrictAzyk.findOne({
+        organization: resInvoice.organization._id,
+        client: resInvoice.client._id
     })
-        .select('distributer')
+        .select('organization manager agent')
         .lean()
-    if(distributers.length>0){
-        for(let i=0; i<distributers.length; i++){
-            if(distributers[i].distributer){
-                district = await DistrictAzyk.findOne({
-                    organization: distributers[i].distributer,
-                    client: resInvoice.client._id
-                })
-                    .select('organization manager agent')
-                    .lean()
-            }
-        }
-    }
-    if(!district) {
-        district = await DistrictAzyk.findOne({
-            organization: resInvoice.organization._id,
-            client: resInvoice.client._id
-        })
-            .select('organization manager agent')
-            .lean()
-    }
 
     pubsub.publish(RELOAD_ORDER, { reloadOrder: {
         who: user.role==='admin'?null:user._id,
@@ -1155,7 +1011,6 @@ const setOrder = async ({orders, invoice, user}) => {
         agent: district?district.agent:undefined,
         superagent: superDistrict?superDistrict.agent:undefined,
         organization: resInvoice.organization._id,
-        distributer: district&&district.organization.toString()!==resInvoice.organization._id.toString()?district.organization:undefined,
         invoice: resInvoice,
         manager: district?district.manager:undefined,
         type: 'SET'
@@ -1168,7 +1023,7 @@ const setInvoice = async ({adss, taken, invoice, confirmationClient, confirmatio
     let admin = ['admin', 'суперагент', 'суперэкспедитор'].includes(user.role)
     let client = 'client'===user.role&&user.client.toString()===object.client._id.toString()
     let undefinedClient = ['менеджер', 'суперорганизация', 'организация', 'экспедитор', 'агент'].includes(user.role)&&!object.client.user
-    let employment = ['менеджер', 'суперорганизация', 'организация', 'агент', 'экспедитор'].includes(user.role)&&[object.organization.toString(), object.sale?object.sale.toString():'lol', object.provider?object.provider.toString():'lol'].includes(user.organization.toString());
+    let employment = ['менеджер', 'суперорганизация', 'организация', 'агент', 'экспедитор'].includes(user.role)&&[object.organization.toString()].includes(user.organization.toString());
     if(adss!=undefined&&(admin||undefinedClient||employment)) {
         object.adss = adss
     }
@@ -1299,8 +1154,6 @@ const resolversMutation = {
                     }
                 })
                 .populate({path: 'agent'})
-                .populate({path: 'provider'})
-                .populate({path: 'sale'})
                 .populate({path: 'forwarder'})
             for(let i = 0; i<invoices.length;i++) {
                 invoices[i].taken = true
@@ -1349,7 +1202,6 @@ const resolversMutation = {
                     agent: invoices[i].agent?invoices[i].agent._id:undefined,
                     superagent: undefined,
                     organization: invoices[i].organization._id,
-                    distributer: undefined,
                     invoice: invoices[i],
                     manager: undefined,
                     type: 'SET'
@@ -1407,40 +1259,12 @@ const resolversMutation = {
                     organization: null,
                     client: client._id
                 }).select('agent').lean()
-                let distributers = await DistributerAzyk.find({
-                    $or: [
-                        {sales: organization},
-                        {provider: organization}
-                    ]
-                }).select('distributer sales provider').lean()
-                let districtSales = null;
-                let districtProvider = null;
-                if(distributers.length>0){
-                    for(let i1=0; i1<distributers.length; i1++){
-                        let findDistrict = await DistrictAzyk.findOne({
-                            organization: distributers[i1].distributer,
-                            client: client._id
-                        })
-                            .select('agent manager organization')
-                            .lean()
-                        if(findDistrict&&distributers[i1].sales.toString().includes(organization))
-                            districtSales = findDistrict
-                        if(findDistrict&&distributers[i1].provider.toString().includes(organization))
-                            districtProvider = findDistrict
-                    }
-                }
-                if(!districtSales||!districtProvider) {
-                    let findDistrict = await DistrictAzyk.findOne({
-                        organization: organization,
-                        client: client._id
-                    })
-                        .select('agent manager organization')
-                        .lean()
-                    if(!districtSales)
-                        districtSales = findDistrict
-                    if(!districtProvider)
-                        districtProvider = findDistrict
-                }
+                let district = await DistrictAzyk.findOne({
+                    organization: organization,
+                    client: client._id
+                })
+                    .select('agent manager organization')
+                    .lean()
 
                 let objectInvoice;
                 if(unite&&!inv) {
@@ -1555,10 +1379,7 @@ const resolversMutation = {
                         adss: [],
                         track: 1,
                         dateDelivery: dateDelivery,
-                        forwarder: districtProvider?districtProvider.ecspeditor:null,
-                        district:  districtSales?districtSales.name:null,
-                        sale: districtSales&&districtSales.organization.toString()!==organization.toString()?districtSales.organization:null,
-                        provider: districtProvider?districtProvider.organization:null,
+                        district:  district?district.name:null,
                         who: user._id
                     });
                     if(inv)
@@ -1647,23 +1468,20 @@ const resolversMutation = {
                     await setOrder({orders: [], invoice: objectInvoice._id, user})
                 }
                 let newInvoice = await InvoiceAzyk.findOne({_id: objectInvoice._id})
-                    .select(' _id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder sale provider organization cancelForwarder paymentConsignation taken sync city dateDelivery')
+                    .select(' _id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
                     .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
                     .populate({path: 'agent', select: '_id name'})
-                    .populate({path: 'sale', select: '_id name'})
-                    .populate({path: 'provider', select: '_id name'})
                     .populate({path: 'organization', select: '_id name'})
                     .populate({path: 'forwarder', select: '_id name'})
                     .lean()
                 pubsub.publish(RELOAD_ORDER, { reloadOrder: {
                         who: user.role==='admin'?null:user._id,
-                        agent: districtSales?districtSales.agent:undefined,
+                        agent: district?district.agent:undefined,
                         superagent: superDistrict?superDistrict.agent:undefined,
                         client: client._id,
                         organization: organization,
                         invoice: newInvoice,
-                        distributer: districtSales&&districtSales.organization.toString()!==organization.toString()?districtSales.organization:undefined,
-                        manager: districtSales?districtSales.manager:undefined,
+                        manager: district?district.manager:undefined,
                         type: 'ADD'
                     } });
                 await BasketAzyk.deleteMany({_id: {$in: baskets.map(element=>element._id)}})
@@ -1683,32 +1501,12 @@ const resolversMutation = {
                 })
                     .select('agent')
                     .lean();
-                let district = null;
-                let distributers = await DistributerAzyk.find({
-                    sales: objects[i].organization
+                let district = await DistrictAzyk.findOne({
+                    organization: objects[i].organization,
+                    client: objects[i].client
                 })
-                    .select('distributer')
-                    .lean()
-                if(distributers.length>0){
-                    for(let i=0; i<distributers.length; i++){
-                        if(distributers[i].distributer){
-                            district = await DistrictAzyk.findOne({
-                                organization: distributers[i].distributer,
-                                client: objects[i].client
-                            })
-                                .select('organization manager agent')
-                                .lean()
-                        }
-                    }
-                }
-                if(!district) {
-                    district = await DistrictAzyk.findOne({
-                        organization: objects[i].organization,
-                        client: objects[i].client
-                    })
-                        .select('organization manager agent')
-                        .lean()
-                }
+                    .select('organization manager agent')
+                    .lean();
                 pubsub.publish(RELOAD_ORDER, { reloadOrder: {
                     who: user.role==='admin'?null:user._id,
                     client: objects[i].client,
@@ -1716,7 +1514,6 @@ const resolversMutation = {
                     superagent: superDistrict?superDistrict.agent:undefined,
                     organization: objects[i].organization,
                     invoice: {_id: objects[i]._id},
-                    distributer: district&&district.organization.toString()!==objects[i].organization.toString()?district.organization:undefined,
                     manager: district?district.manager:undefined,
                     type: 'DELETE'
                 } });
@@ -1738,11 +1535,9 @@ const resolversMutation = {
         await setSingleOutXMLAzykLogic(invoices, forwarder, track)
 
         let resInvoices = await InvoiceAzyk.find({_id: {$in: invoices}})
-            .select(' _id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder sale provider organization cancelForwarder paymentConsignation taken sync city dateDelivery')
+            .select(' _id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
             .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
             .populate({path: 'agent', select: '_id name'})
-            .populate({path: 'sale', select: '_id name'})
-            .populate({path: 'provider', select: '_id name'})
             .populate({path: 'organization', select: '_id name'})
             .populate({path: 'forwarder', select: '_id name'})
             .lean()
@@ -1753,32 +1548,12 @@ const resolversMutation = {
             })
                 .select('agent')
                 .lean();
-            let district = null;
-            let distributers = await DistributerAzyk.find({
-                sales: resInvoices[0].organization._id
+            let district = await DistrictAzyk.findOne({
+                organization: resInvoices[0].organization._id,
+                client: resInvoices[0].client._id
             })
-                .select('distributer')
+                .select('organization manager agent')
                 .lean()
-            if(distributers.length>0){
-                for(let i=0; i<distributers.length; i++){
-                    if(distributers[i].distributer){
-                        district = await DistrictAzyk.findOne({
-                            organization: distributers[i].distributer,
-                            client: resInvoices[0].client._id
-                        })
-                            .select('organization manager agent')
-                            .lean()
-                    }
-                }
-            }
-            if(!district) {
-                district = await DistrictAzyk.findOne({
-                    organization: resInvoices[0].organization._id,
-                    client: resInvoices[0].client._id
-                })
-                    .select('organization manager agent')
-                    .lean()
-            }
             for(let i=0; i<resInvoices.length; i++){
                 pubsub.publish(RELOAD_ORDER, { reloadOrder: {
                     who: user.role==='admin'?null:user._id,
@@ -1786,7 +1561,6 @@ const resolversMutation = {
                     agent: district?district.agent:undefined,
                     superagent: superDistrict?superDistrict.agent:undefined,
                     organization: resInvoices[i].organization._id,
-                    distributer: district&&district.organization.toString()!==resInvoices[i].organization._id.toString()?district.organization:undefined,
                     invoice: resInvoices[i],
                     manager: district?district.manager:undefined,
                     type: 'SET'
@@ -1817,7 +1591,6 @@ const resolversSubscription = {
                         (user.employment&&payload.reloadOrder.superagent&&payload.reloadOrder.superagent.toString()===user.employment.toString())||
                         (user.employment&&payload.reloadOrder.agent&&payload.reloadOrder.agent.toString()===user.employment.toString())||
                         (user.employment&&payload.reloadOrder.manager&&payload.reloadOrder.manager.toString()===user.employment.toString())||
-                        (user.organization&&payload.reloadOrder.distributer&&['суперорганизация', 'организация'].includes(user.role)&&payload.reloadOrder.distributer.toString()===user.organization.toString())||
                         (user.organization&&payload.reloadOrder.organization&&['суперорганизация', 'организация'].includes(user.role)&&payload.reloadOrder.organization.toString()===user.organization.toString())
                     )
                 )

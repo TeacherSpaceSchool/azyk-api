@@ -5,7 +5,6 @@ const RepairEquipmentAzyk = require('../models/repairEquipmentAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const DeliveryDateAzyk = require('../models/deliveryDateAzyk');
-const DistributerAzyk = require('../models/distributerAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
@@ -133,24 +132,14 @@ const resolvers = {
                 organizationsSet.add(orgId);
             }
 
-            // Для клиента отдельно собираем суббренды, исключая организации без суббрендов
+            // Отдельно собираем суббренды, исключая организации без суббрендов
             if ((!isClient || !organizationsWithoutSubBrandClientSet.has(orgId)) && item.subBrand) {
                 subBrandsSet.add(item.subBrand.toString());
             }
         });
 
-        // Если у пользователя есть привязанная организация, получаем связанные организации через дистрибьютора
-        if (user.organization) {
-            const distributerSales = await DistributerAzyk.findOne({ distributer: user.organization })
-                .distinct('sales')
-                .lean();
-
-            distributerSales.forEach(id => organizationsSet.add(id.toString()));
-            organizationsSet.add(user.organization.toString());
-        }
-
-        // Формируем фильтр для запроса организаций с учетом поискового запроса, фильтров, города, статуса, удаления и роли пользователя
-        const orgFilter = {
+        // Запрашиваем организации с фильтрами и сортируем по приоритету
+        const organizations = organizationsSet.size>0?await OrganizationAzyk.find({
             _id: { $in: Array.from(organizationsSet) },
             name: { $regex: reductionSearch(search), $options: 'i' },
             status:
@@ -162,10 +151,7 @@ const resolvers = {
             ...(cityFilter ? { cities: cityFilter } : {}),
             del: { $ne: 'deleted' },
             ...(isSuperAgent ? { superagent: true } : {}),
-        };
-
-        // Запрашиваем организации с фильтрами и сортируем по приоритету
-        const organizations = organizationsSet.size>0?await OrganizationAzyk.find(orgFilter)
+        })
             .select('name autoAcceptAgent _id image miniInfo unite onlyIntegrate onlyDistrict priotiry catalog')
             .sort('-priotiry')
             .lean():[];
@@ -186,7 +172,7 @@ const resolvers = {
         })
             .populate({
                 path: 'organization',
-                select: 'onlyIntegrate onlyDistrict _id unite autoAcceptAgent'
+                select: 'autoAcceptAgent _id unite onlyIntegrate onlyDistrict'
             })
             .sort('-priotiry')
             .lean():[];
@@ -194,8 +180,10 @@ const resolvers = {
         // Добавляем в каждый суббренд дополнительные поля из организации и тип для отличия
         subBrands.forEach(subBrand => {
             subBrand.type = 'subBrand';
-            subBrand.unite = subBrand.organization.unite;
             subBrand.autoAcceptAgent = subBrand.organization.autoAcceptAgent;
+            subBrand.unite = subBrand.organization.unite;
+            subBrand.onlyIntegrate = subBrand.organization.onlyIntegrate;
+            subBrand.onlyDistrict = subBrand.organization.onlyDistrict;
         });
 
         // Объединяем суббренды и организации в один массив и сортируем по приоритету
@@ -420,18 +408,6 @@ const resolversMutation = {
                 await Integrate1CAzyk.deleteMany({organization: _id[i]})
                 await AgentRouteAzyk.deleteMany({organization: _id[i]})
                 await DistrictAzyk.deleteMany({organization: _id[i]})
-                await DistributerAzyk.deleteMany({distributer: _id[i]})
-                let distributers = await DistributerAzyk.find({
-                    $or: [
-                        {sales: _id[i]},
-                        {provider: _id[i]}
-                    ]
-                })
-                for(let i=0; i<distributers.length; i++){
-                        distributers[i].sales.splice(_id[i], 1)
-                        distributers[i].provider.splice(_id[i], 1)
-                    await distributers[i].save()
-                }
                 await AutoAzyk.deleteMany({organization: _id[i]})
                 await RepairEquipmentAzyk.deleteMany({organization: _id[i]})
                 await OrganizationAzyk.updateOne({_id: _id[i]}, {del: 'deleted', status: 'deactive'})

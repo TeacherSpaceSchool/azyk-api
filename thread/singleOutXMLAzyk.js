@@ -77,8 +77,6 @@ if(!isMainThread) {
                     }
                 })
                 .populate({path: 'agent'})
-                .populate({path: 'provider'})
-                .populate({path: 'sale'})
                 .populate({path: 'forwarder'})
             for(let i = 0; i<invoices.length;i++) {
                 invoices[i].taken = true
@@ -117,7 +115,6 @@ if(!isMainThread) {
                         agent: invoices[i].agent ? invoices[i].agent._id : undefined,
                         superagent: undefined,
                         organization: invoices[i].organization._id,
-                        distributer: undefined,
                         invoice: invoices[i],
                         manager: undefined,
                         type: 'SET'

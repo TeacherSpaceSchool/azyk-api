@@ -688,13 +688,11 @@ const resolvers = {
                 })
                 .populate({
                     path: 'selectedOrders',
-                    select: '_id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder  sale provider organization cancelForwarder paymentConsignation taken sync dateDelivery',
+                    select: '_id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync dateDelivery',
                     populate:  [
                         {path: 'client', select: '_id name'},
                         {path: 'agent', select: '_id name'},
                         {path: 'forwarder', select: '_id name'},
-                        {path: 'provider', select: '_id name'},
-                        {path: 'sale', select: '_id name'},
                         {path: 'adss', select: '_id title'},
                         {path: 'organization', select: '_id name'}
                     ]

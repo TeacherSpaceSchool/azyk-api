@@ -1,7 +1,6 @@
 const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
-const DistributerAzyk = require('../models/distributerAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const { saveImage, deleteFile, urlMain, isNotTestUser, reductionSearch} = require('../module/const');
 
@@ -260,27 +259,10 @@ const resolvers = {
     adsOrganizations: async(parent, ctx, {user}) => {
         if(user.role) {
             if (user.organization) {
-                let distributer = await DistributerAzyk.findOne({distributer: user.organization})
-                    .select('distributer sales')
-                    .populate({
-                        path: 'sales',
-                        select: 'image name miniInfo _id'
-                    })
-                    .populate({
-                        path: 'distributer',
-                        select: 'image name miniInfo _id'
-                    })
+                return await OrganizationAzyk
+                    .find({_id: user.organization})
+                    .select('image name miniInfo _id')
                     .lean()
-                if (distributer) {
-                    return [distributer.distributer, ...distributer.sales]
-                }
-                else {
-                    distributer = await OrganizationAzyk
-                        .find({_id: user.organization})
-                        .select('image name miniInfo _id')
-                        .lean()
-                    return distributer
-                }
             }
             else {
                 let organizations = await AdsAzyk.find({del: {$ne: 'deleted'}}).distinct('organization').lean()

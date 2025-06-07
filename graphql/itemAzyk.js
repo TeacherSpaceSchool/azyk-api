@@ -1,6 +1,5 @@
 const ItemAzyk = require('../models/itemAzyk');
 const AdsAzyk = require('../models/adsAzyk');
-const DistributerAzyk = require('../models/distributerAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
@@ -86,19 +85,12 @@ const resolvers = {
     },
     items: async(parent, {organization, subCategory, search, sort}, {user}) => {
         if(['admin', 'суперагент', 'экспедитор', 'суперорганизация', 'организация', 'менеджер', 'агент', 'client'].includes(user.role)){
-            let organizations
-            if(user.organization)
-                organizations = [user.organization, ...(await DistributerAzyk.findOne({
-                    distributer: user.organization
-                })
-                    .distinct('sales')
-                    .lean())]
             return await ItemAzyk.find({
                 del: {$ne: 'deleted'},
                 name: {'$regex': reductionSearch(search), '$options': 'i'},
                 ...organization?{organization}:{},
                 ...subCategory!=='all'?{subCategory: subCategory}:{},
-                ...user.organization?{organization: {$in: organizations}}:{},
+                ...user.organization?{organization: user.organization}:{},
                 ...user.city ? {city: user.city} : {},
                 ...user.role==='client'?{status: 'active', categorys: user.category}:{}
             })

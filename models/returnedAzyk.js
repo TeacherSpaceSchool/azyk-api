@@ -41,16 +41,6 @@ const ReturnedAzykSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrganizationAzyk'
     },
-    sale: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'OrganizationAzyk',
-        default: null
-    },
-    provider: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'OrganizationAzyk',
-        default: null
-    },
     agent: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'EmploymentAzyk'

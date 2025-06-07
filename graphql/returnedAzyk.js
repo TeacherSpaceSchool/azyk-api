@@ -1,7 +1,6 @@
 const ReturnedAzyk = require('../models/returnedAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
-const DistributerAzyk = require('../models/distributerAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
@@ -44,8 +43,6 @@ const type = `
     allTonnage: Float
     allSize: Float
     editor: String
-    sale: Organization
-    provider: Organization
     organization: Organization
     agent: Employment 
     del: String
@@ -131,8 +128,6 @@ const resolvers = {
                                 {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {client: {$in: _clients}},
                                 {organization: {$in: _organizations}},
-                                {sale: {$in: _organizations}},
-                                {provider: {$in: _organizations}},
                             ]
                         }
                         :{})
@@ -169,8 +164,6 @@ const resolvers = {
                                         {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {client: {$in: _clients}},
                                         {organization: {$in: _organizations}},
-                                        {sale: {$in: _organizations}},
-                                        {provider: {$in: _organizations}},
                                     ]
                                 }
                                 :{})
@@ -193,38 +186,6 @@ const resolvers = {
                         $unwind:{
                             preserveNullAndEmptyArrays : false,
                             path : '$client'
-                        }
-                    },
-                    { $lookup:
-                        {
-                            from: OrganizationAzyk.collection.collectionName,
-                            let: { sale: '$sale' },
-                            pipeline: [
-                                { $match: {$expr:{$eq:['$$sale', '$_id']}} },
-                            ],
-                            as: 'sale'
-                        }
-                    },
-                    {
-                        $unwind:{
-                            preserveNullAndEmptyArrays : true,
-                            path : '$sale'
-                        }
-                    },
-                    { $lookup:
-                        {
-                            from: OrganizationAzyk.collection.collectionName,
-                            let: { provider: '$provider' },
-                            pipeline: [
-                                { $match: {$expr:{$eq:['$$provider', '$_id']}} },
-                            ],
-                            as: 'provider'
-                        }
-                    },
-                    {
-                        $unwind:{
-                            preserveNullAndEmptyArrays : true,
-                            path : '$provider'
                         }
                     },
                     { $lookup:
@@ -343,15 +304,11 @@ const resolvers = {
                             {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                             {client: {$in: _clients}},
                             {organization: {$in: _organizations}},
-                            {sale: {$in: _organizations}},
-                            {provider: {$in: _organizations}}
                         ]
                     }:{},
                 ...user.organization ? {
                     $or: [
                         {organization: user.organization},
-                        {sale: user.organization},
-                        {provider: user.organization},
                     ]
                 }:{},
                 ...['суперагент', 'агент'].includes(user.role)&&clients.length||'менеджер'===user.role?{client: {$in: clients}}:['суперагент', 'агент'].includes(user.role) ? {agent: user.employment} : {},
@@ -413,8 +370,6 @@ const resolvers = {
                             client: {$in: clients},
                             $or: [
                                 {organization: user.organization ? user.organization : new mongoose.Types.ObjectId(organization)},
-                                {sale: user.organization ? user.organization : new mongoose.Types.ObjectId(organization)},
-                                {provider: user.organization ? user.organization : new mongoose.Types.ObjectId(organization)},
                             ]
                         }
                     },
@@ -468,40 +423,6 @@ const resolvers = {
                         $unwind: {
                             preserveNullAndEmptyArrays: true,
                             path: '$forwarder'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {sale: '$sale'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$sale', '$_id']}}},
-                                ],
-                                as: 'sale'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$sale'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {provider: '$provider'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$provider', '$_id']}}},
-                                ],
-                                as: 'provider'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$provider'
                         }
                     },
                     {
@@ -605,8 +526,6 @@ const resolvers = {
                                         {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {client: {$in: _clients}},
                                         {organization: {$in: _organizations}},
-                                        {sale: {$in: _organizations}},
-                                        {provider: {$in: _organizations}},
                                     ]
                                 }
                                 : {}),
@@ -614,8 +533,6 @@ const resolvers = {
                                 {
                                     $or: [
                                         {organization: user.organization},
-                                        {sale: user.organization},
-                                        {provider: user.organization},
                                     ],
                                 }:{},
                         }
@@ -678,40 +595,6 @@ const resolvers = {
                         $lookup:
                             {
                                 from: OrganizationAzyk.collection.collectionName,
-                                let: {sale: '$sale'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$sale', '$_id']}}},
-                                ],
-                                as: 'sale'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$sale'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {provider: '$provider'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$provider', '$_id']}}},
-                                ],
-                                as: 'provider'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$provider'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
                                 let: {organization: '$organization'},
                                 pipeline: [
                                     {$match: {$expr: {$eq: ['$$organization', '$_id']}}},
@@ -758,30 +641,13 @@ const setReturned = async ({items, returned, confirmationForwarder, cancelForwar
             path: 'client'
         })
         .populate({path: 'organization'})
-        .populate({path: 'sale'})
-        .populate({path: 'provider'});
     let district = null;
-    let distributers = await DistributerAzyk.find({
-        sales: object.organization._id
-    }).select('distributer').lean()
-    if(distributers.length>0){
-        for(let i=0; i<distributers.length; i++){
-            let findDistrict = await DistrictAzyk.findOne({
-                organization: distributers[i].distributer,
-                client: object.client._id
-            }).select('agent manager').lean()
-            if(findDistrict)
-                district = findDistrict
-        }
-    }
-    if(!district) {
-        let findDistrict = await DistrictAzyk.findOne({
-            organization: object.organization._id,
-            client: object.client._id
-        }).select('agent manager').lean()
-        if(findDistrict)
-            district = findDistrict
-    }
+    let findDistrict = await DistrictAzyk.findOne({
+        organization: object.organization._id,
+        client: object.client._id
+    }).select('agent manager').lean()
+    if(findDistrict)
+        district = findDistrict
     let editor;
     if(items.length>0&&(['менеджер', 'admin', 'агент', 'суперагент', 'суперорганизация', 'организация'].includes(user.role))){
         let allPrice = 0
@@ -862,38 +728,12 @@ const resolversMutation = {
         dateStart.setHours(3, 0, 0, 0)
         let dateEnd = new Date(dateStart)
         dateEnd.setDate(dateEnd.getDate() + 1)
-        let distributers = await DistributerAzyk.find({
-            $or: [
-                {sales: organization},
-                {provider: organization}
-            ]
-        }).select('distributer sales provider').lean()
-        let districtSales = null;
-        let districtProvider = null;
         let city = (await ClientAzyk.findById(client).select('city').lean()).city
-        if(distributers.length>0){
-            for(let i=0; i<distributers.length; i++){
-                let findDistrict = await DistrictAzyk.findOne({
-                    organization: distributers[i].distributer,
-                    client: client
-                }).select('agent manager organization').lean()
-                if(findDistrict&&distributers[i].sales.toString().includes(organization))
-                    districtSales = findDistrict
-                if(findDistrict&&distributers[i].provider.toString().includes(organization))
-                    districtProvider = findDistrict
-            }
-        }
-        if(!districtSales||!districtProvider) {
-            let findDistrict = await DistrictAzyk.findOne({
-                organization: organization,
-                client: client
-            })
-                .select('agent manager organization').lean()
-            if(!districtSales)
-                districtSales = findDistrict
-            if(!districtProvider)
-                districtProvider = findDistrict
-        }
+        let district = await DistrictAzyk.findOne({
+            organization: organization,
+            client: client
+        })
+            .select('agent manager organization').lean()
         let objectReturned
         if(unite&&!inv)
             objectReturned = await ReturnedAzyk.findOne({
@@ -929,11 +769,8 @@ const resolversMutation = {
                 info: info,
                 address: address,
                 organization: organization,
-                district:  districtSales?districtSales.name:null,
+                district:  district?district.name:null,
                 track: 1,
-                forwarder: districtProvider?districtProvider.ecspeditor:null,
-                sale: districtSales&&districtSales.organization.toString()!==organization.toString()?districtSales.organization:null,
-                provider: districtProvider?districtProvider.organization:null,
                 city: city
             });
             if(user.employment)
@@ -967,11 +804,11 @@ const resolversMutation = {
         else
             pubsub.publish(RELOAD_RETURNED, { reloadReturned: {
                 who: user.role==='admin'?null:user._id,
-                agent: districtSales?districtSales.agent:null,
+                agent: district?district.agent:null,
                 client: client,
                 organization: organization,
                 returned: objectReturned,
-                manager: districtSales?districtSales.manager:undefined,
+                manager: district?district.manager:undefined,
                 type: 'ADD'
             } });
         return {data: 'OK'};
