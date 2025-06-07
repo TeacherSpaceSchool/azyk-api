@@ -8,7 +8,7 @@ const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const ReturnedAzyk = require('../models/returnedAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const { pdDDMMYYYY, checkInt } = require('./const');
+const { pdDDMMYYYY, checkInt, sendPushToAdmin} = require('./const');
 const uuidv1 = require('uuid/v1.js');
 const builder = require('xmlbuilder');
 const paymentMethod = {'Наличные': 0, 'Перечисление': 1, 'Консигнация': 5}
@@ -193,6 +193,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice, update) => {
                                     path: 'setSingleOutXMLAzyk'
                                 });
                                 await ModelsErrorAzyk.create(_object)
+                                await sendPushToAdmin({message: `${invoice.number} Отсутствует guidItem`})
                             }
                         }
                         await SingleOutXMLAzyk.create(newOutXMLAzyk);
@@ -206,6 +207,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice, update) => {
                             path: 'setSingleOutXMLAzyk'
                         });
                         await ModelsErrorAzyk.create(_object)
+                        await sendPushToAdmin({message: `${invoice.number} Отсутствует guidAgent-${!guidAgent} guidEcspeditor-${!guidEcspeditor}`})
                     }
                 }
                 ///заглушка
@@ -215,6 +217,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice, update) => {
                         path: 'setSingleOutXMLAzyk'
                     });
                     await ModelsErrorAzyk.create(_object)
+                    await sendPushToAdmin({message: `${invoice.number} Отсутствует district`})
                 }
             }
             ///заглушка
@@ -224,6 +227,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice, update) => {
                     path: 'setSingleOutXMLAzyk'
                 });
                 await ModelsErrorAzyk.create(_object)
+                await sendPushToAdmin({message: `${invoice.number} Отсутствует guidClient`})
             }
         }
     }

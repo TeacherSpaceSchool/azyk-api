@@ -3,6 +3,8 @@ const randomstring = require('randomstring');
 const app = require('../app');
 const fs = require('fs');
 const path = require('path');
+const UserAzyk = require('../models/userAzyk');
+const {sendWebPush} = require('./webPush');
 const urlMain = `${process.env.URL.trim()}:3000`,
     adminLogin = 'admin',
     skip = 1,
@@ -194,6 +196,13 @@ module.exports.chunkArray = (array, size) => {
         result.push(array.slice(i, i + size));
     }
     return result;
+}
+
+module.exports.sendPushToAdmin = async ({title, message}) => {
+    let user = await UserAzyk.findOne({role: 'admin'}).select('_id').lean()
+    if(user){
+        await sendWebPush({title: title?title:'AZYK.STORE', message, user: user._id})
+    }
 }
 
 module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Боконбаева', 'Жалал-Абад', 'Кара-Балта', 'Каракол', 'Казарман', 'Кочкор', 'Кызыл-Кия', 'Нарын', 'Ош', 'Раззаков', 'Талас', 'Токмок', 'Чолпон-Ата', 'Москва'];
