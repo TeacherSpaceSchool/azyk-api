@@ -3,6 +3,7 @@ const ClientAzyk = require('../models/clientAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const mongoose = require('mongoose');
+const {sendPushToAdmin} = require('../module/const');
 
 const type = `
   type Review {
@@ -118,6 +119,7 @@ const resolversMutation = {
                 text: text
             });
             await ReviewAzyk.create(_object)
+            await sendPushToAdmin({message: 'Добавлен отзыв'})
             return await ReviewAzyk.findById({_id: _object._id}).lean()
         }
     },
