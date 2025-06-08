@@ -241,7 +241,7 @@ router.post('/:pass/put/client', async (req, res, next) => {
                         _client = await UserAzyk.create(_client);
                         _client = new ClientAzyk({
                             name: req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : 'Новый',
-                            phone: req.body.elements[0].elements[i].attributes.tel,
+                            phone: req.body.elements[0].elements[i].attributes.tel?[req.body.elements[0].elements[i].attributes.tel]:[],
                             inn: req.body.elements[0].elements[i].attributes.inn,
                             city: organization.cities[0],
                             address: [[
