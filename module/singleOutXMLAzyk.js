@@ -141,6 +141,12 @@ module.exports.setSingleOutXMLAzyk = async(invoice, update) => {
                         organization: invoice.organization._id,
                     }).select('agent ecspeditor').lean()
                 }
+                if(!district&&invoice.agent) {
+                    district = await DistrictAzyk.findOne({
+                        organization: invoice.organization._id,
+                        agent: invoice.agent._id
+                    }).select('agent ecspeditor').lean()
+                }
                 if (district) {
                     let guidAgent = await Integrate1CAzyk
                         .findOne({
