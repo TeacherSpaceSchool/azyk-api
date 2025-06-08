@@ -40,17 +40,30 @@ const run = (app)=>{
                 return {req: ctx.req, res: ctx.res, user: user};
             }
         },
-        formatError: (err) => {
-            console.error(err)
-
-            let _object = new ModelsErrorAzyk({
-                err: `gql: ${err.message}`,
-                path: JSON.stringify(err.path)
-            });
-            ModelsErrorAzyk.create(_object)
-
-            return err;
-        }
+        plugins: [{
+            requestDidStart: () => ({
+                async didEncounterErrors(ctx) {
+                    try {
+                        const { request, errors, context } = ctx;
+                        const user = context && context.user ? context.user : {};
+                        for (const err of errors) {
+                            console.error(err)
+                            let fieldName = '';
+                            if (request&&request.query) {
+                                const match = request.query.match(/\{\s*([_A-Za-z][_0-9A-Za-z]*)/);
+                                fieldName = match ? match[1] : null;
+                            }
+                            const path = `path: ${fieldName}${user.role?`, role: ${user.role}`:''}${user.login?`, login: ${user.login}`:''}${user.name?`, name: ${user.name}`:''}`
+                            let _object = new ModelsErrorAzyk({
+                                err: `gql: ${err.message}`,
+                                path: path.toString()
+                            });
+                            await ModelsErrorAzyk.create(_object)
+                        }
+                    } catch (e) {/**/}
+                }
+            })
+        }]
     })
     server.applyMiddleware({ app, path : '/graphql', cors: false })
     return server
