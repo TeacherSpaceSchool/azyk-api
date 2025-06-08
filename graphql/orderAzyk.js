@@ -69,6 +69,8 @@ const type = `
     allSize: Float
     editor: String
     organization: Organization
+    sale: Organization
+    provider: Organization
     del: String
     city: String
     adss: [Ads]
