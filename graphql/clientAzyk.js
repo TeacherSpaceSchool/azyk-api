@@ -281,6 +281,15 @@ const resolvers = {
                 .find({$or: [{manager: user.employment}, {ecspeditor: user.employment}, {agent: user.employment}]})
                 .distinct('client')
                 .lean()
+            if(user.onlyIntegrate&&catalog) {
+                clients = await Integrate1CAzyk
+                    .find({
+                        client: {$in: clients},
+                        organization: user.organization
+                    })
+                    .distinct('client')
+                    .lean()
+            }
         }
         else if(['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)) {
             accessToClient = (await OrganizationAzyk.findOne({_id: user.organization}).select('accessToClient').lean()).accessToClient
@@ -288,24 +297,27 @@ const resolvers = {
                 let items = await ItemAzyk.find({organization: user.organization}).distinct('_id').lean()
                 clients = await OrderAzyk.find({item: {$in: items}}).distinct('client').lean()
             }
-            if(user.onlyDistrict&&catalog){
-                clients = await DistrictAzyk
+            // eslint-disable-next-line no-undef
+            let [districtClients, integrateClients] = await Promise.all([
+                user.onlyDistrict&&catalog?DistrictAzyk
                     .find({
                         ...clients.length? {client: {$in: clients}}:{},
                         organization: user.organization
                     })
                     .distinct('client')
-                    .lean()
-            }
-        }
-        if(user.onlyIntegrate&&catalog){
-            clients = await Integrate1CAzyk
-                .find({
-                    ...clients.length? {client: {$in: clients}}:{},
-                    organization: user.organization
-                })
-                .distinct('client')
-                .lean()
+                    // eslint-disable-next-line no-undef
+                    .lean():Promise.resolve(null),
+                user.onlyIntegrate&&catalog?Integrate1CAzyk
+                    .find({
+                        ...clients.length? {client: {$in: clients}}:{},
+                        organization: user.organization
+                    })
+                    .distinct('client')
+                    // eslint-disable-next-line no-undef
+                    .lean():Promise.resolve(null),
+            ]);
+            if(districtClients||integrateClients) clients = [...districtClients?districtClients:[], ...integrateClients?integrateClients:[]]
+
         }
         if(skip != undefined||search.length>2) {
             return await ClientAzyk
@@ -321,7 +333,8 @@ const resolvers = {
                                 ...user.cities?{city: {$in: user.cities}}:{},
                                 ...['менеджер', 'экспедитор', 'агент'].includes(user.role)
                                 ||user.role==='суперагент'&&(clients.length||search.length<3)
-                                ||['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)&&(!accessToClient||clients.length) ? {_id: {$in: clients}} : {},
+                                ||['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)&&(!accessToClient||clients.length) ?
+                                    {_id: {$in: clients}} : {},
                                 del: {$ne: 'deleted'},
                                 $or: [
                                     {name: {'$regex': reductionSearch(search), '$options': 'i'}},
