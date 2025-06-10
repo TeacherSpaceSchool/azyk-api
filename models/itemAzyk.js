@@ -8,22 +8,13 @@ const ItemAzykSchema = mongoose.Schema({
     name: String,
     image: String,
     price: Number,
-    costPrice: {
-        type: Number,
-        default: 0
-    },
     packaging:  {
         type: Number,
         default: 1
     },
-    reiting: Number,
     apiece: {
         type: Boolean,
         default: false
-    },
-    subCategory: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'SubCategoryAzyk'
     },
     subBrand: {
         type: mongoose.Schema.Types.ObjectId,
@@ -37,7 +28,6 @@ const ItemAzykSchema = mongoose.Schema({
     latest: Boolean,
     del: String,
     status: String,
-    info: String,
     categorys: [String],
     city: String,
     weight: {
@@ -45,10 +35,6 @@ const ItemAzykSchema = mongoose.Schema({
         default: 0
     },
     priotiry: {
-        type: Number,
-        default: 0
-    },
-    size: {
         type: Number,
         default: 0
     }

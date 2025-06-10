@@ -27,7 +27,6 @@ const { urlMain, saveFile, deleteFile, weekDay, pdDDMMYYHHMM, pdHHMM, checkFloat
 const readXlsxFile = require('read-excel-file/node');
 const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 const AutoAzyk = require('../models/autoAzyk');
-const SubCategoryAzyk = require('../models/subCategoryAzyk');
 const mongoose = require('mongoose');
 const os = require('os');
 
@@ -872,7 +871,6 @@ const resolvers = {
                 {name: 'Транспорт', collection: '../models/autoAzyk'},
                 {name: 'Корзина', collection: '../models/basketAzyk'},
                 {name: 'Блог', collection: '../models/blogAzyk'},
-                {name: 'Категории', collection: '../models/categoryAzyk'},
                 {name: 'Клиенты', collection: '../models/clientAzyk'},
                 {name: 'Контакты', collection: '../models/contactAzyk'},
                 {name: 'Дни доставки', collection: '../models/deliveryDateAzyk'},
@@ -881,14 +879,11 @@ const resolvers = {
                 {name: 'Сотрудники', collection: '../models/employmentAzyk'},
                 {name: 'Ошибка', collection: '../models/errorAzyk'},
                 {name: 'FAQ', collection: '../models/faqAzyk'},
-                {name: 'Формы', collection: '../models/form/formAzyk'},
-                {name: 'Шаблоны форм', collection: '../models/form/templateFormAzyk'},
                 {name: 'История заказов', collection: '../models/historyOrderAzyk'},
                 {name: 'История возратов', collection: '../models/historyReturnedAzyk'},
                 {name: 'Интеграция 1С', collection: '../models/integrate1CAzyk'},
                 {name: 'Накладные', collection: '../models/invoiceAzyk'},
                 {name: 'Товары', collection: '../models/itemAzyk'},
-                {name: 'Лотерея', collection: '../models/lotteryAzyk'},
                 {name: 'Мерчендайзинг', collection: '../models/merchandisingAzyk'},
                 {name: 'Уведомления', collection: '../models/notificationStatisticAzyk'},
                 {name: 'Заказы', collection: '../models/orderAzyk'},
@@ -901,7 +896,6 @@ const resolvers = {
                 {name: 'Акционая интеграция', collection: '../models/singleOutXMLAdsAzyk'},
                 {name: 'Выгрузка заказов', collection: '../models/singleOutXMLAzyk'},
                 {name: 'Выгрузка вощвратов', collection: '../models/singleOutXMLReturnedAzyk'},
-                {name: 'Подкатегории', collection: '../models/subCategoryAzyk'},
                 {name: 'Подписчики', collection: '../models/subscriberAzyk'},
                 {name: 'Пользователи', collection: '../models/userAzyk'}
             ]
@@ -1907,7 +1901,7 @@ const resolvers = {
                 _id: {$in: data},
                 item: {$in: items},
             })
-                .select('_id item allPrice costPrice returned consignmentPrice count')
+                .select('_id item allPrice returned consignmentPrice count')
                 .lean()
             let subBrand
             for(let i=0; i<data.length; i++) {
@@ -2111,8 +2105,6 @@ const resolvers = {
             let dateEnd
             let statistic = {}, data = []
             let priceAll = 0
-            let profitAll = 0
-            let profit = 0
             let consignmentPriceAll = 0
             let completAll = 0
             let returnedPriceAll = 0
@@ -2165,7 +2157,7 @@ const resolvers = {
                 })
                 .populate({
                     path : 'orders',
-                    select: 'allPrice count returned costPrice'
+                    select: 'allPrice count returned'
                 })
                 .lean()
             if(filter==='район'||company){
@@ -2186,21 +2178,12 @@ const resolvers = {
                 for(let i=0; i<data.length; i++) {
                     if (!statistic[data[i].district._id]) statistic[data[i].district._id] = {
                         price: 0,
-                        profit: 0,
                         complet: 0,
                         consignmentPrice: 0,
                         returnedPrice: 0,
                         organization: data[i].district.name,
                         clients: {}
                     }
-                    profit = 0
-                    for(let i1=0; i1<data[i].orders.length; i1++) {
-                        if(data[i].orders[i1].costPrice){
-                            profit += ((data[i].orders[i1].allPrice/data[i].orders[i1].count)*(data[i].orders[i1].count-data[i].orders[i1].returned)) - (data[i].orders[i1].costPrice*(data[i].orders[i1].count-data[i].orders[i1].returned))
-                        }
-                    }
-                    statistic[data[i].district._id].profit += profit
-                    profitAll += profit
                     if (!statistic[data[i].district._id].clients[data[i].client]) {
                         statistic[data[i].district._id].clients[data[i].client] = 1
                     }
@@ -2223,21 +2206,12 @@ const resolvers = {
                 for(let i=0; i<data.length; i++) {
                     if (!statistic[data[i].organization._id]) statistic[data[i].organization._id] = {
                         price: 0,
-                        profit: 0,
                         complet: 0,
                         consignmentPrice: 0,
                         returnedPrice: 0,
                         organization: data[i].organization.name,
                         clients: {}
                     }
-                    profit = 0
-                    for(let i1=0; i1<data[i].orders.length; i1++) {
-                        if(data[i].orders[i1].costPrice){
-                            profit += ((data[i].orders[i1].allPrice/data[i].orders[i1].count)*(data[i].orders[i1].count-data[i].orders[i1].returned)) - (data[i].orders[i1].costPrice*(data[i].orders[i1].count-data[i].orders[i1].returned))
-                        }
-                    }
-                    statistic[data[i].organization._id].profit += profit
-                    profitAll += profit
                     if (!statistic[data[i].organization._id].clients[data[i].client]) {
                         statistic[data[i].organization._id].clients[data[i].client] = 1
                     }
@@ -2270,7 +2244,6 @@ const resolvers = {
                         statistic[keys[i]].complet,
                         checkFloat(statistic[keys[i]].returnedPrice),
                         checkFloat(statistic[keys[i]].consignmentPrice),
-                        checkFloat(statistic[keys[i]].profit),
                         checkFloat(statistic[keys[i]].price/statistic[keys[i]].complet),
                         Object.keys(statistic[keys[i]].clients).length,
                         checkFloat(statistic[keys[i]].price*100/priceAll)
@@ -2288,14 +2261,13 @@ const resolvers = {
                         checkFloat(priceAll),
                         completAll,
                         checkFloat(returnedPriceAll),
-                        checkFloat(consignmentPriceAll),
-                        checkFloat(profitAll),
+                        checkFloat(consignmentPriceAll)
                     ]
                 },
                 ...data
             ]
             return {
-                columns: ['район', 'выручка(сом)', 'выполнен(шт)', 'отказы(сом)', 'конс(сом)', 'прибыль(сом)', 'средний чек(сом)', 'клиенты', 'процент'],
+                columns: ['район', 'выручка(сом)', 'выполнен(шт)', 'отказы(сом)', 'конс(сом)', 'средний чек(сом)', 'клиенты', 'процент'],
                 row: data
             };
         }
@@ -2920,8 +2892,6 @@ const resolvers = {
             let returnedAll = 0
             let consignmentPriceAll = 0
             let completAll = 0
-            let profitAll = 0
-            let profit = 0
 
             let organizations
             let agents = await EmploymentAzyk.find({organization: null})
@@ -2963,7 +2933,7 @@ const resolvers = {
                 })
                 .populate({
                     path : 'orders',
-                    select: 'allPrice count returned costPrice'
+                    select: 'allPrice count returned'
                 })
                 .lean()
             if(!company) {
@@ -3001,14 +2971,6 @@ const resolvers = {
                         statistic[id].consignmentPrice += data[i].consignmentPrice
                         consignmentPriceAll += data[i].consignmentPrice
                     }
-                    profit = 0
-                    for(let i1=0; i1<data[i].orders.length; i1++) {
-                        if(data[i].orders[i1].costPrice){
-                            profit += ((data[i].orders[i1].allPrice/data[i].orders[i1].count)*(data[i].orders[i1].count-data[i].orders[i1].returned)) - (data[i].orders[i1].costPrice*(data[i].orders[i1].count-data[i].orders[i1].returned))
-                        }
-                    }
-                    statistic[id].profit += profit
-                    profitAll += profit
 
 
                 }
@@ -3038,14 +3000,6 @@ const resolvers = {
                         statistic[id].consignmentPrice += data[i].consignmentPrice
                         consignmentPriceAll += data[i].consignmentPrice
                     }
-                    profit = 0
-                    for(let i1=0; i1<data[i].orders.length; i1++) {
-                        if(data[i].orders[i1].costPrice){
-                            profit += ((data[i].orders[i1].allPrice/data[i].orders[i1].count)*(data[i].orders[i1].count-data[i].orders[i1].returned)) - (data[i].orders[i1].costPrice*(data[i].orders[i1].count-data[i].orders[i1].returned))
-                        }
-                    }
-                    statistic[id].profit += profit
-                    profitAll += profit
 
 
                 }
@@ -3063,7 +3017,6 @@ const resolvers = {
                         statistic[keys[i]].complet,
                         checkFloat(statistic[keys[i]].returned),
                         checkFloat(statistic[keys[i]].consignmentPrice),
-                        checkFloat(statistic[keys[i]].profit),
                         checkFloat(statistic[keys[i]].price/statistic[keys[i]].complet),
                         checkFloat(statistic[keys[i]].price*100/priceAll)
 
@@ -3081,14 +3034,13 @@ const resolvers = {
                         checkFloat(priceAll),
                         completAll,
                         checkFloat(returnedAll),
-                        checkFloat(consignmentPriceAll),
-                        checkFloat(profitAll)
+                        checkFloat(consignmentPriceAll)
                     ]
                 },
                 ...data
             ]
             return {
-                columns: ['агент', 'выручка(сом)', 'выполнен(шт)', 'отказов(сом)', 'конс(сом)', 'прибыль(сом)', 'средний чек(сом)', 'процент'],
+                columns: ['агент', 'выручка(сом)', 'выполнен(шт)', 'отказов(сом)', 'конс(сом)', 'средний чек(сом)', 'процент'],
                 row: data
             };
         }
@@ -3221,8 +3173,6 @@ const resolvers = {
                     dateEnd.setMonth(dateEnd.getMonth() + 1)
             }
             let statistic = {}, data = []
-            let profitAll = 0
-            let profit = 0
             let priceAll = 0
             let returnedAll = 0
             let consignmentPriceAll = 0
@@ -3246,7 +3196,7 @@ const resolvers = {
                     })
                     .populate({
                         path : 'orders',
-                        select: 'allPrice count returned costPrice'
+                        select: 'allPrice count returned'
                     })
                     .lean()
                 for(let i=0; i<data.length; i++) {
@@ -3255,17 +3205,8 @@ const resolvers = {
                         returned: 0,
                         complet: 0,
                         consignmentPrice: 0,
-                        organization: data[i].organization.name,
-                        profit: 0
+                        organization: data[i].organization.name
                     }
-                    profit = 0
-                    for(let i1=0; i1<data[i].orders.length; i1++) {
-                        if(data[i].orders[i1].costPrice){
-                            profit += ((data[i].orders[i1].allPrice/data[i].orders[i1].count)*(data[i].orders[i1].count-data[i].orders[i1].returned)) - (data[i].orders[i1].costPrice*(data[i].orders[i1].count-data[i].orders[i1].returned))
-                        }
-                    }
-                    statistic[data[i].organization._id].profit += profit
-                    profitAll += profit
                     if(data[i].allPrice!==data[i].returnedPrice) {
                         statistic[data[i].organization._id].complet += 1
                         completAll += 1
@@ -3295,7 +3236,6 @@ const resolvers = {
                         statistic[keys[i]].complet,
                         checkFloat(statistic[keys[i]].returned),
                         checkFloat(statistic[keys[i]].consignmentPrice),
-                        checkFloat(statistic[keys[i]].profit),
                         checkFloat(statistic[keys[i]].price/statistic[keys[i]].complet),
                         checkFloat(statistic[keys[i]].price*100/priceAll)
 
@@ -3313,14 +3253,13 @@ const resolvers = {
                         checkFloat(priceAll),
                         completAll,
                         checkFloat(returnedAll),
-                        checkFloat(consignmentPriceAll),
-                        checkFloat(profitAll)
+                        checkFloat(consignmentPriceAll)
                     ]
                 },
                 ...data
             ]
             return {
-                columns: ['организация', 'выручка(сом)', 'выполнен(шт)', 'отказов(сом)', 'конс(сом)', 'прибыль(сом)', 'средний чек(сом)', 'процент'],
+                columns: ['организация', 'выручка(сом)', 'выполнен(шт)', 'отказов(сом)', 'конс(сом)', 'средний чек(сом)', 'процент'],
                 row: data
             };
         }
@@ -3809,7 +3748,6 @@ const resolvers = {
             let allCount = 0
             let allPrice = 0
             let allTonnage = 0
-            let allSize = 0
             for(let i = 0; i<data.length;i++){
                 for(let i1 = 0; i1<data[i].orders.length;i1++) {
                     if(!items[data[i].orders[i1].item._id])
@@ -3819,16 +3757,13 @@ const resolvers = {
                             allPrice: 0,
                             packaging: data[i].orders[i1].item.packaging,
                             allTonnage: 0,
-                            allSize: 0
                         }
                     items[data[i].orders[i1].item._id].count += data[i].orders[i1].count
                     items[data[i].orders[i1].item._id].allPrice += data[i].orders[i1].allPrice
                     items[data[i].orders[i1].item._id].allTonnage += data[i].orders[i1].allTonnage
-                    items[data[i].orders[i1].item._id].allSize += data[i].orders[i1].allSize
                     allCount += data[i].orders[i1].count
                     allPrice += data[i].orders[i1].allPrice
                     allTonnage += data[i].orders[i1].allTonnage
-                    allSize += data[i].orders[i1].allSize
                 }
             }
             worksheet = await workbook.addWorksheet('Лист загрузки');
@@ -3855,11 +3790,6 @@ const resolvers = {
                 worksheet.getCell(`E${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
                 worksheet.getCell(`E${row}`).value = 'Тоннаж:';
             }
-            if(allSize){
-                worksheet.getCell(`${allTonnage?'F':'E'}${row}`).font = {bold: true};
-                worksheet.getCell(`${allTonnage?'F':'E'}${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                worksheet.getCell(`${allTonnage?'F':'E'}${row}`).value = 'Кубатура:';
-            }
             const keys = Object.keys(items)
             for(let i=0; i<keys.length; i++){
                 row += 1;
@@ -3876,10 +3806,6 @@ const resolvers = {
                     worksheet.getCell(`E${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
                     worksheet.getCell(`E${row}`).value = `${items[keys[i]].allTonnage} кг`;
                 }
-                if(allSize){
-                    worksheet.getCell(`${allTonnage?'F':'E'}${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                    worksheet.getCell(`${allTonnage?'F':'E'}${row}`).value = `${items[keys[i]].allSize} см³`
-                }
             }
             row += 1;
             worksheet.getCell(`A${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
@@ -3895,10 +3821,6 @@ const resolvers = {
             if(allTonnage){
                 worksheet.getCell(`E${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
                 worksheet.getCell(`E${row}`).value = `${allTonnage} кг`;
-            }
-            if(allSize){
-                worksheet.getCell(`${allTonnage?'F':'E'}${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                worksheet.getCell(`${allTonnage?'F':'E'}${row}`).value = `${allSize} см³`
             }
 
 
@@ -4522,7 +4444,6 @@ const resolversMutation = {
             filename = await saveFile(stream, filename);
             let xlsxpath = path.join(app.dirname, 'public', filename);
             let rows = await readXlsxFile(xlsxpath)
-            let subCategory = (await SubCategoryAzyk.findOne({name: 'Не задано'}).select('_id').lean())._id
             for (let i = 0; i < rows.length; i++) {
                 integrate1CAzyk = await Integrate1CAzyk.findOne({
                     organization: organization,
@@ -4534,8 +4455,6 @@ const resolversMutation = {
                         image: process.env.URL.trim()+'/static/add.png',
                         info: '',
                         price: checkFloat(rows[i][2]),
-                        reiting: 0,
-                        subCategory: subCategory,
                         organization: organization,
                         hit: false,
                         categorys: ['A','B','C','D','Horeca'],
@@ -4543,12 +4462,10 @@ const resolversMutation = {
                         latest: false,
                         status: 'active',
                         weight: checkFloat(rows[i][4]),
-                        size: 0,
                         priotiry: 0,
                         unit: 'шт',
                         city,
-                        apiece: rows[i][5]==='1',
-                        costPrice: 0
+                        apiece: rows[i][5]==='1'
                     });
                     item = await ItemAzyk.create(item);
                     integrate1CAzyk = new Integrate1CAzyk({

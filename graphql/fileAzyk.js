@@ -7,7 +7,6 @@ const { deleteFile, urlMain } = require('../module/const');
 const ClientAzyk = require('../models/clientAzyk');
 const BlogAzyk = require('../models/blogAzyk');
 const ContactAzyk = require('../models/contactAzyk');
-const CategoryAzyk = require('../models/categoryAzyk');
 const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const ItemAzyk = require('../models/itemAzyk');
@@ -55,7 +54,6 @@ const resolvers = {
                 ...(await ClientAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Клиент'}}),
                 ...(await BlogAzyk.find({image: {$in: filesUrl}}).select('title image').lean()).map(element=>{return {...element, name: element.title, type: 'Блог'}}),
                 ...(await ContactAzyk.find({image: {$in: filesUrl}}).select('image').lean()).map(element=>{return {...element, name: 'Azyk.Store', type: 'Контакты'}}),
-                ...(await CategoryAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Категория'}}),
                 ...(await AdsAzyk.find({image: {$in: filesUrl}}).select('title image').lean()).map(element=>{return {...element, name: element.title, type: 'Акция'}}),
                 ...(await OrganizationAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Организация'}}),
                 ...(await ItemAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Товар'}}),
@@ -118,7 +116,6 @@ const resolversMutation = {
                 ...(await ClientAzyk.find({image: {$in: data}}).distinct('image').lean()),
                 ...(await BlogAzyk.find({image: {$in: data}}).distinct('image').lean()),
                 ...(await ContactAzyk.find({image: {$in: data}}).distinct('image').lean()),
-                ...(await CategoryAzyk.find({image: {$in: data}}).distinct('image').lean()),
                 ...(await AdsAzyk.find({image: {$in: data}}).distinct('image').lean()),
                 ...(await OrganizationAzyk.find({image: {$in: data}}).distinct('image').lean()),
                 ...(await ItemAzyk.find({image: {$in: data}}).distinct('image').lean()),

@@ -27,7 +27,6 @@ const type = `
     info: String
     miniInfo: String
     catalog: String
-    reiting: Int
     agentHistory: Int
     status: String
     type: String
@@ -55,6 +54,8 @@ const type = `
     priotiry: Int
     pass: String
     autoIntegrate: Boolean
+    
+    reiting: Int
   }
 `;
 
@@ -300,7 +301,6 @@ const resolversMutation = {
                 phone: phone,
                 info: info,
                 minimumOrder: minimumOrder,
-                reiting: 0,
                 accessToClient: accessToClient,
                 consignation: consignation,
                 refusal: refusal,

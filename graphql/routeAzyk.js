@@ -105,7 +105,6 @@ const resolvers = {
             let allCount = {}
             let allPrice = {}
             let allTonnage = {}
-            let allSize = {}
             let consignation
             let consigmentOrder
             for(let i = 0; i<data.length;i++){
@@ -118,23 +117,19 @@ const resolvers = {
                             count: 0,
                             allPrice: 0,
                             packaging: data[i].orders[i1].item.packaging,
-                            allTonnage: 0,
-                            allSize: 0
+                            allTonnage: 0
                         }
                     items[`${data[i].organization._id}|||${data[i].organization.name}`][data[i].orders[i1].item._id].count += data[i].orders[i1].count
                     items[`${data[i].organization._id}|||${data[i].organization.name}`][data[i].orders[i1].item._id].allPrice += data[i].orders[i1].allPrice
                     items[`${data[i].organization._id}|||${data[i].organization.name}`][data[i].orders[i1].item._id].allTonnage += data[i].orders[i1].allTonnage
-                    items[`${data[i].organization._id}|||${data[i].organization.name}`][data[i].orders[i1].item._id].allSize += data[i].orders[i1].allSize
                     if(allCount[`${data[i].organization._id}|||${data[i].organization.name}`]===undefined){
                         allCount[`${data[i].organization._id}|||${data[i].organization.name}`] = 0
                         allPrice[`${data[i].organization._id}|||${data[i].organization.name}`] = 0
                         allTonnage[`${data[i].organization._id}|||${data[i].organization.name}`] = 0
-                        allSize[`${data[i].organization._id}|||${data[i].organization.name}`] = 0 
                     }
                     allCount[`${data[i].organization._id}|||${data[i].organization.name}`] += data[i].orders[i1].count
                     allPrice[`${data[i].organization._id}|||${data[i].organization.name}`] += data[i].orders[i1].allPrice
                     allTonnage[`${data[i].organization._id}|||${data[i].organization.name}`] += data[i].orders[i1].allTonnage
-                    allSize[`${data[i].organization._id}|||${data[i].organization.name}`] += data[i].orders[i1].allSize
                 }
                 if(data[i].adss) {
                     for (let i1 = 0; i1 < data[i].adss.length; i1++) {
@@ -198,14 +193,11 @@ const resolvers = {
                                     allPrice: 0,
                                     packaging: data[i].adss[i1].item.packaging,
                                     allTonnage: 0,
-                                    allSize: 0
                                 }
                             items[`${data[i].organization._id}|||${data[i].organization.name}`][data[i].adss[i1].item._id].count += count
                             items[`${data[i].organization._id}|||${data[i].organization.name}`][data[i].adss[i1].item._id].allTonnage += data[i].adss[i1].item.weight*count
-                            items[`${data[i].organization._id}|||${data[i].organization.name}`][data[i].adss[i1].item._id].allSize += data[i].adss[i1].item.size*count
-                            allCount[`${data[i].organization._id}|||${data[i].organization.name}`] += count
+                             allCount[`${data[i].organization._id}|||${data[i].organization.name}`] += count
                             allTonnage[`${data[i].organization._id}|||${data[i].organization.name}`] += data[i].adss[i1].item.weight*count
-                            allSize[`${data[i].organization._id}|||${data[i].organization.name}`] += data[i].adss[i1].item.size*count
                         }
                     }
                 }
@@ -238,11 +230,6 @@ const resolvers = {
                     worksheet.getCell(`E${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
                     worksheet.getCell(`E${row}`).value = 'Тоннаж:';
                 }
-                if(allSize[keysOrganization[i]]){
-                    worksheet.getCell(`${allTonnage?'F':'E'}${row}`).font = {bold: true};
-                    worksheet.getCell(`${allTonnage?'F':'E'}${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                    worksheet.getCell(`${allTonnage?'F':'E'}${row}`).value = 'Кубатура:';
-                }
                 const keys = Object.keys(items[keysOrganization[i]])
                 for(let i1=0; i1<keys.length; i1++){
                     row += 1;
@@ -259,10 +246,6 @@ const resolvers = {
                         worksheet.getCell(`E${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
                         worksheet.getCell(`E${row}`).value = `${checkInt(items[keysOrganization[i]][keys[i1]].allTonnage)} кг`;
                     }
-                    if(allSize){
-                        worksheet.getCell(`${allTonnage?'F':'E'}${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                        worksheet.getCell(`${allTonnage?'F':'E'}${row}`).value = `${checkInt(items[keysOrganization[i]][keys[i1]].allSize)} см³`
-                    }
                 }
                 row += 1;
                 worksheet.getCell(`A${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
@@ -278,10 +261,6 @@ const resolvers = {
                 if(allTonnage){
                     worksheet.getCell(`E${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
                     worksheet.getCell(`E${row}`).value = `${checkInt(allTonnage[keysOrganization[i]])} кг`;
-                }
-                if(allSize){
-                    worksheet.getCell(`${allTonnage?'F':'E'}${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                    worksheet.getCell(`${allTonnage?'F':'E'}${row}`).value = `${checkInt(allSize[keysOrganization[i]])} см³`
                 }
             }
 
@@ -688,7 +667,7 @@ const resolvers = {
                 })
                 .populate({
                     path: 'selectedOrders',
-                    select: '_id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync dateDelivery',
+                    select: '_id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync dateDelivery',
                     populate:  [
                         {path: 'client', select: '_id name'},
                         {path: 'agent', select: '_id name'},

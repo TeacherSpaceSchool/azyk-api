@@ -50,7 +50,8 @@ const resolvers = {
 
 const resolversMutation = {
     addSubBrand: async(parent, {minimumOrder, image, miniInfo, priotiry, organization, cities, name}, {user}) => {
-        if('admin'===user.role){
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
+            if(user.organization) organization = user.organization
             let { stream, filename } = await image;
             filename = await saveImage(stream, filename)
             let _object = new SubBrandAzyk({
@@ -69,9 +70,10 @@ const resolversMutation = {
         return {data: 'OK'};
     },
     setSubBrand: async(parent, {_id, image, minimumOrder, miniInfo, priotiry, cities, name}, {user}) => {
-        if('admin'===user.role){
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
             let object = await SubBrandAzyk.findOne({
-                _id: _id
+                _id: _id,
+                ...user.organization?{organization: user.organization}:{}
             })
             if (image) {
                 let {stream, filename} = await image;
@@ -89,8 +91,11 @@ const resolversMutation = {
         return {data: 'OK'}
     },
     onoffSubBrand: async(parent, { _id }, {user}) => {
-        if('admin'===user.role) {
-            let objects = await SubBrandAzyk.find({_id: {$in: _id}})
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
+            let objects = await SubBrandAzyk.find({
+                _id: {$in: _id},
+                ...user.organization?{organization: user.organization}:{}
+            })
             for (let i = 0; i < objects.length; i++) {
                 objects[i].status = objects[i].status === 'active' ? 'deactive' : 'active'
                 await objects[i].save()
@@ -99,9 +104,15 @@ const resolversMutation = {
         return {data: 'OK'}
     },
     deleteSubBrand: async(parent, { _id }, {user}) => {
-        if('admin'===user.role){
-            await SubBrandAzyk.updateMany({_id: {$in: _id}}, {del: 'deleted'})
-            await ItemAzyk.updateMany({subBrand: {$in: _id}}, {subBrand: undefined})
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
+            await SubBrandAzyk.updateMany({
+                _id: {$in: _id},
+                ...user.organization?{organization: user.organization}:{}
+            }, {del: 'deleted'})
+            await ItemAzyk.updateMany({
+                subBrand: {$in: _id},
+                ...user.organization?{organization: user.organization}:{}
+            }, {subBrand: undefined})
         }
         return {data: 'OK'}
     }

@@ -35,10 +35,11 @@ const type = `
     allPrice: Float
     status: String
     allTonnage: Float
-    allSize: Float
     consignment: Int
     returned: Int
     consignmentPrice: Float
+    
+    allSize: Float
  }
   type Invoice {
     _id: ID
@@ -66,17 +67,18 @@ const type = `
     dateDelivery: Date
     agent: Employment
     allTonnage: Float
-    allSize: Float
     editor: String
     organization: Organization
-    sale: Organization
-    provider: Organization
     del: String
     city: String
     adss: [Ads]
     priority: Int
     track: Int
     forwarder: Employment
+     
+    provider: Organization
+    sale: Organization
+    allSize: Float
   }
   type HistoryOrder {
     createdAt: Date
@@ -105,7 +107,6 @@ const type = `
     count: Int
     allPrice: Float
     allTonnage: Float
-    allSize: Float
     name: String
     status: String
     consignment: Int
@@ -255,10 +256,9 @@ const resolvers = {
                         : {})
                 }
             )
-                .select('returnedPrice allPrice orders allSize allTonnage consignmentPrice paymentConsignation')
+                .select('returnedPrice allPrice orders allTonnage consignmentPrice paymentConsignation')
                 .lean()
             let tonnage = 0;
-            let size = 0;
             let price = 0;
             let consignment = 0;
             let consignmentPayment = 0;
@@ -267,8 +267,6 @@ const resolvers = {
                 if (invoices[i].allPrice) {
                     price += invoices[i].allPrice - invoices[i].returnedPrice
                 }
-                if (invoices[i].allSize)
-                    size += invoices[i].allSize
                 lengthList += 1
                 if (invoices[i].allTonnage)
                     tonnage += invoices[i].allTonnage
@@ -277,7 +275,7 @@ const resolvers = {
                 if (invoices[i].paymentConsignation)
                     consignmentPayment += invoices[i].consignmentPrice
             }
-            return [lengthList.toString(), checkFloat(price).toString(), checkFloat(consignment).toString(), checkFloat(consignmentPayment).toString(), checkFloat(tonnage).toString(), checkFloat(size).toString()]
+            return [lengthList.toString(), checkFloat(price).toString(), checkFloat(consignment).toString(), checkFloat(consignmentPayment).toString(), checkFloat(tonnage).toString()]
         }
     },
     invoices: async(parent, {search, sort, filter, date, skip, organization, city}, {user}) =>  {
@@ -630,7 +628,7 @@ const resolvers = {
                     ...clients.length>0?{client: {$in: clients}}:{},
                 ...dateDelivery?{$and: [{dateDelivery: {$gte: dateStart}}, {dateDelivery: {$lt: dateEnd}}]}:{$and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}]}
             })
-                .select('_id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync dateDelivery')
+                .select('_id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync dateDelivery')
                 .populate({path: 'client', select: '_id name'})
                 .populate({path: 'agent', select: '_id name'})
                 .populate({path: 'forwarder', select: '_id name'})
@@ -698,10 +696,6 @@ const resolvers = {
             {
                 name: 'Сумма',
                 field: 'allPrice'
-            },
-            {
-                name: 'Кубатура',
-                field: 'allSize'
             },
             {
                 name: 'Тоннаж',
@@ -885,7 +879,6 @@ const setOrder = async ({orders, invoice, user}) => {
     if(orders.length>0&&(['экспедитор', 'суперэкспедитор', 'менеджер', 'организация', 'суперорганизация', 'admin', 'client', 'агент', 'суперагент'].includes(user.role))){
         let allPrice = 0
         let allTonnage = 0
-        let allSize = 0
         let returnedPrice = 0
         let consignmentPrice = 0
         for(let i=0; i<orders.length;i++){
@@ -897,19 +890,16 @@ const setOrder = async ({orders, invoice, user}) => {
                     consignmentPrice: checkFloat(orders[i].consignmentPrice),
                     returned: orders[i].returned,
                     consignment: orders[i].consignment,
-                    allSize: checkFloat(orders[i].allSize),
                     allTonnage: checkFloat(orders[i].allTonnage)
                 });
             returnedPrice += checkFloat(orders[i].returned * (orders[i].allPrice / orders[i].count))
             allPrice += orders[i].allPrice
             allTonnage += orders[i].allTonnage
-            allSize += orders[i].allSize
             consignmentPrice += orders[i].consignmentPrice
         }
         object.allPrice = checkFloat(allPrice)
         object.allTonnage = checkFloat(allTonnage)
         object.consignmentPrice = checkFloat(consignmentPrice)
-        object.allSize = checkFloat(allSize)
         object.orders = orders.map(order=>order._id)
         object.returnedPrice = checkFloat(returnedPrice)
         await object.save();
@@ -1228,7 +1218,7 @@ const resolversMutation = {
             .select('item count consignment _id')
             .populate({
                 path: 'item',
-                select: 'price _id weight size costPrice ',
+                select: 'price _id weight',
                 match: {organization: organization}
             })
             .lean();
@@ -1337,9 +1327,7 @@ const resolversMutation = {
                             consignment: basket.consignment,
                             consignmentPrice: checkFloat(basket.consignment*price),
                             allTonnage: checkFloat(basket.count*(basket.item.weight?basket.item.weight:0)),
-                            allSize: checkFloat(basket.count*(basket.item.size?basket.item.size:0)),
                             allPrice: checkFloat(price*basket.count),
-                            costPrice: basket.item.costPrice?basket.item.costPrice:0,
                             status: 'обработка',
                             agent: user.employment,
                         });
@@ -1349,13 +1337,11 @@ const resolversMutation = {
                         number = randomstring.generate({length: 12, charset: 'numeric'});
                     let allPrice = 0
                     let allTonnage = 0
-                    let allSize = 0
                     let consignmentPrice = 0
                     for(let iii=0; iii<orders.length;iii++) {
                         allPrice += orders[iii].allPrice
                         consignmentPrice += orders[iii].consignmentPrice
                         allTonnage += orders[iii].allTonnage
-                        allSize += orders[iii].allSize
                         orders[iii] = orders[iii]._id
                     }
                     objectInvoice = new InvoiceAzyk({
@@ -1368,7 +1354,6 @@ const resolversMutation = {
                         allPrice: checkFloat(allPrice),
                         consignmentPrice: checkFloat(consignmentPrice),
                         allTonnage: checkFloat(allTonnage),
-                        allSize: checkFloat(allSize),
                         info: info,
                         address: client.address[0],
                         paymentMethod: paymentMethod,
@@ -1399,7 +1384,6 @@ const resolversMutation = {
                             objectOrder.consignment+=baskets[ii].consignment
                             objectOrder.consignmentPrice+=checkFloat(baskets[ii].consignment*price)
                             objectOrder.allTonnage+=checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0))
-                            objectOrder.allSize+=checkFloat(baskets[ii].count*(baskets[ii].item.size?baskets[ii].item.size:0))
                             objectOrder.allPrice+=checkFloat(price*baskets[ii].count)
                             await objectOrder.save()
                         }
@@ -1420,9 +1404,7 @@ const resolversMutation = {
                                 consignment: baskets[ii].consignment,
                                 consignmentPrice: checkFloat(baskets[ii].consignment*price),
                                 allTonnage: checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0)),
-                                allSize: checkFloat(baskets[ii].count*(baskets[ii].item.size?baskets[ii].item.size:0)),
                                 allPrice: checkFloat(price*baskets[ii].count),
-                                costPrice: baskets[ii].item.costPrice?baskets[ii].item.costPrice:0,
                                 status: 'обработка',
                                 agent: user.employment,
                             });
@@ -1431,7 +1413,6 @@ const resolversMutation = {
                         }
                         objectInvoice.allPrice+=price*baskets[ii].count
                         objectInvoice.allTonnage+=checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0))
-                        objectInvoice.allSize+=checkFloat(baskets[ii].count*(baskets[ii].item.size?baskets[ii].item.size:0))
                         objectInvoice.consignmentPrice+=checkFloat(baskets[ii].consignment*price)
                     }
                     await OrderAzyk.updateMany({_id: {$in: objectInvoice.orders}}, {status: 'обработка', returned: 0})
@@ -1470,7 +1451,7 @@ const resolversMutation = {
                 }
                 // Получаем финальный счёт для публикации
                 let newInvoice = await InvoiceAzyk.findOne({_id: objectInvoice._id})
-                    .select(' _id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
+                    .select(' _id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
                     .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
                     .populate({path: 'agent', select: '_id name'})
                     .populate({path: 'organization', select: '_id name'})
@@ -1538,7 +1519,7 @@ const resolversMutation = {
         await setSingleOutXMLAzykLogic(invoices, forwarder, track)
 
         let resInvoices = await InvoiceAzyk.find({_id: {$in: invoices}})
-            .select(' _id agent createdAt updatedAt allTonnage allSize client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
+            .select(' _id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
             .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
             .populate({path: 'agent', select: '_id name'})
             .populate({path: 'organization', select: '_id name'})

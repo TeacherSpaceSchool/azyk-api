@@ -13,7 +13,6 @@ const OrganizationAzykSchema = mongoose.Schema({
     phone: [String],
     info: String,
     miniInfo: String,
-    reiting: Number,
     status: String,
     catalog: String,
     warehouse:  {

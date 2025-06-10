@@ -235,7 +235,6 @@ const signupuserGQL = async ({password, login}, res) => {
             email: '',
             address: [],
             info: '',
-            reiting: 0,
             image: '/static/add.png',
             user: user._id,
             phone: [],

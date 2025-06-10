@@ -6,10 +6,6 @@ const AutoAzykSchema = mongoose.Schema({
         type: Number,
         default: 0
     },
-    size: {
-        type: Number,
-        default: 0
-    },
     employment: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'EmploymentAzyk'

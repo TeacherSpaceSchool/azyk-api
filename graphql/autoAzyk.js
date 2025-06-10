@@ -7,7 +7,6 @@ const type = `
     _id: ID
     number: String
     tonnage: Float
-    size: Float
     employment: Employment
     organization: Organization
     createdAt: Date
@@ -23,8 +22,8 @@ const query = `
 `;
 
 const mutation = `
-    addAuto(number: String!, tonnage: Float!, size: Float!, employment: ID, organization: ID): Auto
-    setAuto(_id: ID!, number: String, tonnage: Float, size: Float, employment: ID): Data
+    addAuto(number: String!, tonnage: Float!, employment: ID, organization: ID): Auto
+    setAuto(_id: ID!, number: String, tonnage: Float, employment: ID): Data
     deleteAuto(_id: [ID]!): Data
 `;
 
@@ -80,21 +79,16 @@ const resolvers = {
                 name: 'Тоннаж',
                 field: 'tonnage'
             },
-            {
-                name: 'Кубатура',
-                field: 'size'
-            },
         ]
     },
 };
 
 const resolversMutation = {
-    addAuto: async(parent, {number, tonnage, size, organization, employment}, {user}) => {
+    addAuto: async(parent, {number, tonnage, organization, employment}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
             let _object = new AutoAzyk({
                 number: number,
                 tonnage: Math.round(tonnage),
-                size: Math.round(size),
                 organization: user.organization?user.organization:organization==='super'?null:organization,
                 employment: employment
             });
@@ -102,12 +96,11 @@ const resolversMutation = {
             return _object
         }
     },
-    setAuto: async(parent, {_id, number, tonnage, size, employment}, {user}) => {
+    setAuto: async(parent, {_id, number, tonnage, employment}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
             let object = await AutoAzyk.findById(_id)
             if(number)object.number = number
             if(tonnage)object.tonnage = tonnage
-            if(size)object.size = size
             if(employment)object.employment = employment
             await object.save();
         }

@@ -10,7 +10,6 @@ const ClientAzyk = require('../models/clientAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const LimitItemClientAzyk = require('../models/limitItemClientAzyk');
 const ItemAzyk = require('../models/itemAzyk');
-const SubCategoryAzyk = require('../models/subCategoryAzyk');
 const UserAzyk = require('../models/userAzyk');
 const randomstring = require('randomstring');
 const { checkFloat, checkInt, isNotEmpty} = require('../module/const');
@@ -23,7 +22,6 @@ const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 router.post('/:pass/put/item', async (req, res, next) => {
     let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id cities').lean()
     res.set('Content-Type', 'application/xml');
-    let subCategory = (await SubCategoryAzyk.findOne({name: 'Не задано'}).select('_id').lean())._id
     try{
         if(req.body.elements[0].elements) {
             let item, integrate1CAzyk
@@ -38,8 +36,6 @@ router.post('/:pass/put/item', async (req, res, next) => {
                         image: process.env.URL.trim()+'/static/add.png',
                         info: '',
                         price: checkFloat(req.body.elements[0].elements[i].attributes.price),
-                        reiting: 0,
-                        subCategory: subCategory,
                         organization: organization._id,
                         hit: false,
                         categorys: ['A','B','C','D','Horeca'],
@@ -48,11 +44,9 @@ router.post('/:pass/put/item', async (req, res, next) => {
                         status: 'active',
                         weight: checkFloat(req.body.elements[0].elements[i].attributes.weight),
                         priotiry: checkInt(req.body.elements[0].elements[i].attributes.priority),
-                        size: 0,
                         unit: 'шт',
                         city: organization.cities[0],
                         apiece: req.body.elements[0].elements[i].attributes.apiece=='1',
-                        costPrice: 0
                     });
                     item = await ItemAzyk.create(item);
                     integrate1CAzyk = new Integrate1CAzyk({

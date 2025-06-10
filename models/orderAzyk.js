@@ -22,16 +22,8 @@ const OrderAzykSchema = mongoose.Schema({
         type: Number,
         default: 0
     },
-    costPrice: {
-        type: Number,
-        default: 0
-    },
     allPrice: Number,
     allTonnage: {
-        type: Number,
-        default: 0
-    },
-    allSize: {
         type: Number,
         default: 0
     },

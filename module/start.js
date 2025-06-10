@@ -1,35 +1,5 @@
-const { reductionCategoryAzyk } = require('../module/categoryAzyk');
-const { reductionSubCategoryAzyk } = require('../module/subCategoryAzyk');
-const { reductionSubBrands } = require('../module/subBrandAzyk');
-const { reductionToRoute } = require('../module/routeAzyk');
-const { reductionToAgentRoute } = require('../module/agentRouteAzyk');
-const { reductionSingleOutXMLAzyk } = require('../module/reductionSingleOutXMLAzyk');
-const { reductionReviews } = require('../module/reviewAzyk');
-const { reductionOutAdsXMLAzyk } = require('../module/singleOutXMLAzyk');
-const { reductionToOrganization } = require('../module/organizationAzyk');
-const { reductionToEmployment } = require('../module/employmentAzyk');
-const { reductionToClient } = require('../module/clientAzyk');
-const { reductionToAds } = require('../module/adsAzyk');
-const { reductionToItem } = require('../module/itemAzyk');
-const { reductionInvoices } = require('../module/invoiceAzyk');
-const { reductionReturneds } = require('../module/returnedAzyk');
-const { reductionToDeliveryDate } = require('../module/deliveryDateAzyk');
-const { reductionMerchandising } = require('../module/merchandisingAzyk');
-const { reductionRepairEquipment } = require('../module/repairEquipmentAzyk');
-const { startClientRedis } = require('../module/redis');
-const { reductionToUser, createAdmin } = require('../module/user');
+const { createAdmin } = require('../module/user');
 const { Worker, isMainThread } = require('worker_threads');
-const OrganizationAzyk = require('../models/organizationAzyk');
-const DistrictAzyk = require('../models/districtAzyk');
-const InvoiceAzyk = require('../models/invoiceAzyk');
-const OrderAzyk = require('../models/orderAzyk');
-const { setSingleOutXMLAzyk } = require('../module/singleOutXMLAzyk');
-const { checkAdss } = require('../graphql/adsAzyk');
-const { pubsub } = require('../graphql/index');
-const MerchandisingAzyk = require('../models/merchandisingAzyk');
-const {reductionOldestDB} = require('./db');
-const {reductionEquipment} = require('./equipmentAzyk');
-const {getTypeDefs} = require('../graphql/schema');
 
 let startDeleteBD = async () => {
     if(isMainThread) {

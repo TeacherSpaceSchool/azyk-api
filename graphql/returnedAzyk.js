@@ -20,10 +20,11 @@ const type = `
     count: Int
     allPrice: Float
     allTonnage: Float
-    allSize: Float
     weight: Float
-    size: Float
     price: Float
+    
+    size: Float
+    allSize: Float
   }
   type Returned {
     _id: ID
@@ -34,14 +35,12 @@ const type = `
     items: [ReturnedItems]
     client: Client
     allPrice: Float 
-    info: String,
     address: [String]
     number: String
     confirmationForwarder: Boolean
     sync: Int
     cancelForwarder: Boolean
     allTonnage: Float
-    allSize: Float
     editor: String
     organization: Organization
     agent: Employment 
@@ -50,6 +49,11 @@ const type = `
     district: String
     track: Int
     forwarder: Employment
+    
+    provider: Organization
+    sale: Organization
+    info: String,
+    allSize: Float
   }
   type HistoryReturned {
     createdAt: Date
@@ -71,11 +75,12 @@ const type = `
     count: Int
     allPrice: Float
     allTonnage: Float
-    allSize: Float
     name: String
     weight: Float
-    size: Float
     price: Float
+    
+    size: Float
+    allSize: Float
   }
 `;
 
@@ -91,7 +96,7 @@ const query = `
 
 const mutation = `
      setReturnedLogic(track: Int, forwarder: ID, returneds: [ID]!): Data
-    addReturned(info: String, unite: Boolean, inv: Boolean, dateDelivery: Date!, address: [[String]], organization: ID!, items: [ReturnedItemsInput], client: ID!): Data
+    addReturned(unite: Boolean, inv: Boolean, dateDelivery: Date!, address: [[String]], organization: ID!, items: [ReturnedItemsInput], client: ID!): Data
     setReturned(items: [ReturnedItemsInput], returned: ID, confirmationForwarder: Boolean, cancelForwarder: Boolean): Returned
     deleteReturneds(_id: [ID]!): Data
     restoreReturneds(_id: [ID]!): Data
@@ -124,7 +129,6 @@ const resolvers = {
                     ...(search.length>0?{
                             $or: [
                                 {number: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                {info: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {client: {$in: _clients}},
                                 {organization: {$in: _organizations}},
@@ -160,7 +164,6 @@ const resolvers = {
                             ...(search.length>0?{
                                     $or: [
                                         {number: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                        {info: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {client: {$in: _clients}},
                                         {organization: {$in: _organizations}},
@@ -300,7 +303,6 @@ const resolvers = {
                 ...search.length > 0 ? {
                         $or: [
                             {number: {'$regex': reductionSearch(search), '$options': 'i'}},
-                            {info: {'$regex': reductionSearch(search), '$options': 'i'}},
                             {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                             {client: {$in: _clients}},
                             {organization: {$in: _organizations}},
@@ -314,20 +316,17 @@ const resolvers = {
                 ...['суперагент', 'агент'].includes(user.role)&&clients.length||'менеджер'===user.role?{client: {$in: clients}}:['суперагент', 'агент'].includes(user.role) ? {agent: user.employment} : {},
             }).lean()
             let tonnage = 0;
-            let size = 0;
             let price = 0;
             let lengthList = 0;
             for (let i = 0; i < returneds.length; i++) {
                 if (!returneds[i].cancelForwarder) {
                     price += returneds[i].allPrice
-                    if (returneds[i].allSize)
-                        size += returneds[i].allSize
                     lengthList += 1
                     if (returneds[i].allTonnage)
                         tonnage += returneds[i].allTonnage
                 }
             }
-            return [lengthList.toString(), checkFloat(price).toString(), checkFloat(tonnage).toString(), checkFloat(size).toString()]
+            return [lengthList.toString(), checkFloat(price).toString(), checkFloat(tonnage).toString()]
         }
     },
     returnedsFromDistrict: async(parent, {organization, district, date}, {user}) =>  {
@@ -522,7 +521,6 @@ const resolvers = {
                             ...(search.length > 0 ? {
                                     $or: [
                                         {number: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                        {info: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {client: {$in: _clients}},
                                         {organization: {$in: _organizations}},
@@ -623,12 +621,8 @@ const resolvers = {
                 field: 'allPrice'
             },
             {
-                name: 'Кубатура',
-                field: 'allTonnage'
-            },
-            {
                 name: 'Тоннаж',
-                field: 'allSize'
+                field: 'allTonnage'
             }
         ]
         return sort
@@ -652,16 +646,13 @@ const setReturned = async ({items, returned, confirmationForwarder, cancelForwar
     if(items.length>0&&(['менеджер', 'admin', 'агент', 'суперагент', 'суперорганизация', 'организация'].includes(user.role))){
         let allPrice = 0
         let allTonnage = 0
-        let allSize = 0
         for(let i=0; i<items.length;i++){
             allPrice += items[i].allPrice
             allTonnage += items[i].allTonnage
-            allSize += items[i].allSize
         }
 
         object.allPrice = checkFloat(allPrice)
         object.allTonnage = allTonnage
-        object.allSize = allSize
         object.items = items
     }
     if(user.role==='admin'){
@@ -717,7 +708,7 @@ const setReturned = async ({items, returned, confirmationForwarder, cancelForwar
 }
 
 const resolversMutation = {
-    addReturned: async(parent, {info, dateDelivery, unite, address, organization, client, items, inv}, {user}) =>     {
+    addReturned: async(parent, {dateDelivery, unite, address, organization, client, items, inv}, {user}) =>     {
         let subbrand = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
         if(subbrand)
             organization = subbrand.organization
@@ -747,14 +738,12 @@ const resolversMutation = {
             }).sort('-createdAt').lean()
         let allPrice = 0
         let allTonnage = 0
-        let allSize = 0
         if(!objectReturned){
             let number = randomstring.generate({length: 12, charset: 'numeric'});
             while (await ReturnedAzyk.findOne({number: number}).select('_id').lean())
                 number = randomstring.generate({length: 12, charset: 'numeric'});
             for(let i = 0; i< items.length; i++){
                 allPrice+=items[i].allPrice
-                allSize+=items[i].allSize
                 allTonnage+=items[i].allTonnage
             }
             objectReturned = new ReturnedAzyk({
@@ -763,10 +752,8 @@ const resolversMutation = {
                 client: client,
                 allPrice: allPrice,
                 allTonnage: allTonnage,
-                allSize: allSize,
                 dateDelivery: dateDelivery,
                 number: number,
-                info: info,
                 address: address,
                 organization: organization,
                 district:  district?district.name:null,
@@ -787,17 +774,15 @@ const resolversMutation = {
                         objectReturned.items[i1].count+=items[i].count
                         objectReturned.items[i1].allPrice+=items[i].allPrice
                         objectReturned.items[i1].allTonnage+=items[i].allTonnage
-                        objectReturned.items[i1].allSize+=items[i].allSize
                         have = true
                     }
                 }
                 if(!have)
                     objectReturned.items.push(items[i])
                 objectReturned.allPrice+=items[i].allPrice
-                objectReturned.allSize+=items[i].allSize
                 objectReturned.allTonnage+=items[i].allTonnage
             }
-            await ReturnedAzyk.updateOne({_id: objectReturned._id}, {confirmationForwarder: null, items: objectReturned.items, allPrice: objectReturned.allPrice, allSize: objectReturned.allSize, allTonnage: objectReturned.allTonnage})
+            await ReturnedAzyk.updateOne({_id: objectReturned._id}, {confirmationForwarder: null, items: objectReturned.items, allPrice: objectReturned.allPrice, allTonnage: objectReturned.allTonnage})
         }
         if(user.employment&&(await OrganizationAzyk.findOne({_id: organization}).select('autoAcceptAgent').lean()).autoAcceptAgent)
             await setReturned({returned: objectReturned._id, items: [], confirmationForwarder: true, user})

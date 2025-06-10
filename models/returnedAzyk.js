@@ -16,12 +16,7 @@ const ReturnedAzykSchema = mongoose.Schema({
         type: Number,
         default: 0
     },
-    allSize: {
-        type: Number,
-        default: 0
-    },
     number: String,
-    info: String,
     address: [String],
     confirmationForwarder: {
         type: Boolean,

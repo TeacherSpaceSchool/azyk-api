@@ -4,7 +4,6 @@ const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const BasketAzyk = require('../models/basketAzyk');
-const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
 const { saveImage, deleteFile, urlMain, reductionSearch} = require('../module/const');
 
@@ -18,11 +17,8 @@ const type = `
     createdAt: Date
     name: String
     categorys: [String]
-    info: String
     image: String
     price: Float
-    reiting: Int
-    subCategory: SubCategory
     subBrand: SubBrand
     organization: Organization
     hit: Boolean
@@ -31,23 +27,20 @@ const type = `
     status: String
     packaging: Int
     weight: Float
-    size: Float
     priotiry: Int
     del: String
     city: String
-    costPrice: Float
     
-    stock: Float
-  }
-  input InputItemCostPrice {
-    _id: ID
+    info: String
+    size: Float
+    reiting: Int
     costPrice: Float
+    stock: Float
   }
 `;
 
 const query = `
-    items(organization: ID, subCategory: ID!, search: String!, sort: String!): [Item]
-    popularItems: [Item]
+    items(organization: ID, search: String!, sort: String!): [Item]
     itemsTrash(search: String!): [Item]
     brands(organization: ID!, search: String!, sort: String!, city: String): [Item]
     item(_id: ID!): Item
@@ -55,9 +48,8 @@ const query = `
 `;
 
 const mutation = `
-    addItem( subBrand: ID, categorys: [String]!, city: String!, costPrice: Float, unit: String, priotiry: Int, apiece: Boolean, packaging: Int!, weight: Float!, size: Float!, name: String!, info: String!, image: Upload, price: Float!, subCategory: ID!, organization: ID!, hit: Boolean!, latest: Boolean!): Data
-    setItem(_id: ID!, subBrand: ID, unit: String, city: String, costPrice: Float, categorys: [String], priotiry: Int, apiece: Boolean, packaging: Int, weight: Float, size: Float, name: String, info: String, image: Upload, price: Float, subCategory: ID, organization: ID, hit: Boolean, latest: Boolean): Data
-    setItemsCostPrice(itemsCostPrice: [InputItemCostPrice]!): Data
+    addItem( subBrand: ID, categorys: [String]!, city: String!, unit: String, priotiry: Int, apiece: Boolean, packaging: Int!, weight: Float!, name: String!, image: Upload, price: Float!, organization: ID!, hit: Boolean!, latest: Boolean!): Data
+    setItem(_id: ID!, subBrand: ID, unit: String, city: String, categorys: [String], priotiry: Int, apiece: Boolean, packaging: Int, weight: Float, name: String, image: Upload, price: Float, organization: ID, hit: Boolean, latest: Boolean): Data
     deleteItem(_id: [ID]!): Data
     restoreItem(_id: [ID]!): Data
     onoffItem(_id: [ID]!): Data
@@ -72,10 +64,6 @@ const resolvers = {
                     name: {'$regex': reductionSearch(search), '$options': 'i'}
                 })
                     .populate({
-                        path: 'subCategory',
-                        select: '_id name'
-                    })
-                    .populate({
                         path: 'organization',
                         select: '_id name consignation'
                     })
@@ -83,18 +71,17 @@ const resolvers = {
                     .lean()
         }
     },
-    items: async(parent, {organization, subCategory, search, sort}, {user}) => {
+    items: async(parent, {organization, search, sort}, {user}) => {
         if(['admin', 'суперагент', 'экспедитор', 'суперорганизация', 'организация', 'менеджер', 'агент', 'client'].includes(user.role)){
             return await ItemAzyk.find({
                 del: {$ne: 'deleted'},
                 name: {'$regex': reductionSearch(search), '$options': 'i'},
                 ...organization?{organization}:{},
-                ...subCategory!=='all'?{subCategory: subCategory}:{},
                 ...user.organization?{organization: user.organization}:{},
                 ...user.city ? {city: user.city} : {},
                 ...user.role==='client'?{status: 'active', categorys: user.category}:{}
             })
-                .set('hit latest apiece image info name price status del _id organization')
+                .set('hit latest apiece image name price status del _id organization')
                 .populate({
                     path: 'organization',
                     select: '_id'
@@ -102,63 +89,6 @@ const resolvers = {
                 .sort(sort)
                 .lean()
         }
-    },
-    popularItems: async(parent, ctx, {user}) => {
-        let approveOrganizations = {}
-        let itemsRes = []
-        let items =  await ItemAzyk.find({
-            status: 'active',
-            del: {$ne: 'deleted'},
-            city: user.city,
-            $or: [
-                {hit: true},
-                {latest:true}
-            ],
-            ...user.role==='client'?{categorys: user.category}:{}
-        })
-            .select('_id name image organization hit latest')
-            .populate({
-                path: 'organization',
-                select: '_id onlyIntegrate onlyDistrict'
-            })
-            .sort('-priotiry')
-            .lean()
-        for(let i=0; i<items.length; i++){
-            if (!approveOrganizations[items[i].organization._id]) {
-                if (items[i].organization.onlyIntegrate && items[i].organization.onlyDistrict) {
-                    let district = await DistrictAzyk.findOne({
-                        client: user.client,
-                        organization: items[i].organization._id
-                    }).select('_id').lean()
-                    let integrate = await Integrate1CAzyk.findOne({
-                        client: user.client,
-                        organization: items[i].organization._id
-                    }).select('_id').lean()
-                    approveOrganizations[items[i].organization._id] = integrate && district;
-                }
-                else if (items[i].organization.onlyDistrict) {
-                    let district = await DistrictAzyk.findOne({
-                        client: user.client,
-                        organization: items[i].organization._id
-                    }).select('_id').lean()
-                    approveOrganizations[items[i].organization._id] = district
-                }
-                else if (items[i].organization.onlyIntegrate) {
-                    let integrate = await Integrate1CAzyk.findOne({
-                        client: user.client,
-                        organization: items[i].organization._id
-                    }).select('_id').lean()
-                    approveOrganizations[items[i].organization._id] = integrate
-                }
-                else approveOrganizations[items[i].organization._id] = true
-            }
-            if(approveOrganizations[items[i].organization._id])
-                itemsRes.push(items[i])
-        }
-        itemsRes = itemsRes.sort( () => {
-            return Math.random() - 0.5;
-        });
-        return itemsRes
     },
     brands: async(parent, {organization, search, sort, city}, {user}) => {
         if(mongoose.Types.ObjectId.isValid(organization)) {
@@ -183,10 +113,6 @@ const resolvers = {
                 name: {'$regex': reductionSearch(search), '$options': 'i'},
             })
                 .populate({
-                    path: 'subCategory',
-                    select: '_id name'
-                })
-                .populate({
                     path: 'organization',
                     select: '_id name consignation'
                 })
@@ -202,14 +128,6 @@ const resolvers = {
             return await ItemAzyk.findOne({
                 _id: _id,
             })
-                .populate({
-                    path: 'subCategory',
-                    select: '_id name',
-                    populate: {
-                        path: 'category',
-                        select: 'name _id'
-                    }
-                })
                 .populate({
                     path: 'organization',
                     select: '_id name minimumOrder consignation'
@@ -233,17 +151,14 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addItem: async(parent, {subBrand, categorys, city, unit, apiece, costPrice, priotiry, name, image, info, price, subCategory, organization, hit, latest, packaging, weight, size}, {user}) => {
+    addItem: async(parent, {subBrand, categorys, city, unit, apiece, priotiry, name, image, price, organization, hit, latest, packaging, weight}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
             let { stream, filename } = await image;
             filename = await saveImage(stream, filename)
             let _object = new ItemAzyk({
                 name: name,
                 image: urlMain+filename,
-                info: info,
                 price: price,
-                reiting: 0,
-                subCategory: subCategory,
                 organization: user.organization?user.organization:organization,
                 hit: hit,
                 categorys: categorys,
@@ -252,18 +167,16 @@ const resolversMutation = {
                 subBrand,
                 status: 'active',
                 weight: weight,
-                size: size,
                 priotiry: priotiry,
                 unit: unit,
-                city: city,
-                costPrice: costPrice?costPrice:0
+                city: city
             });
             if(apiece!=undefined) _object.apiece = apiece
             await ItemAzyk.create(_object)
         }
         return {data: 'OK'};
     },
-    setItem: async(parent, {subBrand, city, unit, categorys, apiece, costPrice, _id, priotiry, weight, size, name, image, info, price, subCategory, organization, packaging, hit, latest}, {user}) => {
+    setItem: async(parent, {subBrand, city, unit, categorys, apiece, _id, priotiry, weight, name, image, price, organization, packaging, hit, latest}, {user}) => {
          if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
             let object = await ItemAzyk.findOne({
                 _id: _id,
@@ -278,14 +191,10 @@ const resolversMutation = {
             if(city)object.city = city
             if(name)object.name = name
             if(weight!=undefined)object.weight = weight
-            if(size!=undefined)object.size = size
              object.subBrand = subBrand
-            if(info)object.info = info
-            if(costPrice!=undefined)object.costPrice = costPrice
             if(price)object.price = price
             if(hit!=undefined)object.hit = hit
             if(latest!=undefined)object.latest = latest
-            if(subCategory)object.subCategory = subCategory
             if(unit)object.unit = unit
             if(packaging)object.packaging = packaging
             if(apiece!=undefined) object.apiece = apiece
@@ -295,17 +204,6 @@ const resolversMutation = {
                 object.organization = organization;
             }
             await object.save();
-        }
-        return {data: 'OK'}
-    },
-    setItemsCostPrice: async(parent, { itemsCostPrice }, {user}) => {
-        if(user.role==='admin') {
-            let object
-            for (let i = 0; i < itemsCostPrice.length; i++) {
-                object = await ItemAzyk.findOne({_id: itemsCostPrice[i]._id})
-                object.costPrice = itemsCostPrice[i].costPrice
-                await object.save()
-            }
         }
         return {data: 'OK'}
     },
