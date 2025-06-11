@@ -219,15 +219,12 @@ router.post('/:pass/put/client', async (req, res, next) => {
                 let _client
                 if(!integrate1CAzyk) {
                     _client = await ClientAzyk.findOne({
+                        del: {$ne: 'deleted'},
                         name: req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : 'Новый',
-                        phone: req.body.elements[0].elements[i].attributes.tel?[req.body.elements[0].elements[i].attributes.tel]:[],
                         inn: req.body.elements[0].elements[i].attributes.inn,
                         city: organization.cities[0],
-                        address: [[
-                            req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : '',
-                            '',
-                            req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : ''
-                        ]],
+                        'address.0.0': req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : '',
+                        'address.0.2': req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : '',
                     }).select('_id').lean()
                 }
                 //находим агента
@@ -239,7 +236,6 @@ router.post('/:pass/put/client', async (req, res, next) => {
                 if(organization.autoIntegrate) {
                     //новый клиент
                     if(!integrate1CAzyk){
-                        console.log(_client)
                         if(!_client) {
                             //создаем клиента
                             _client = new UserAzyk({
