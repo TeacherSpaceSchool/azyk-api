@@ -49,10 +49,10 @@ const type = `
     district: String
     track: Int
     forwarder: Employment
+    info: String
     
     provider: Organization
     sale: Organization
-    info: String,
     allSize: Float
   }
   type HistoryReturned {
@@ -96,7 +96,7 @@ const query = `
 
 const mutation = `
      setReturnedLogic(track: Int, forwarder: ID, returneds: [ID]!): Data
-    addReturned(unite: Boolean, inv: Boolean, dateDelivery: Date!, address: [[String]], organization: ID!, items: [ReturnedItemsInput], client: ID!): Data
+    addReturned(info: String, unite: Boolean, inv: Boolean, dateDelivery: Date!, address: [[String]], organization: ID!, items: [ReturnedItemsInput], client: ID!): Data
     setReturned(items: [ReturnedItemsInput], returned: ID, confirmationForwarder: Boolean, cancelForwarder: Boolean): Returned
     deleteReturneds(_id: [ID]!): Data
     restoreReturneds(_id: [ID]!): Data
@@ -129,6 +129,7 @@ const resolvers = {
                     ...(search.length>0?{
                             $or: [
                                 {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                {info: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                 {client: {$in: _clients}},
                                 {organization: {$in: _organizations}},
@@ -164,6 +165,7 @@ const resolvers = {
                             ...(search.length>0?{
                                     $or: [
                                         {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                        {info: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {client: {$in: _clients}},
                                         {organization: {$in: _organizations}},
@@ -521,6 +523,7 @@ const resolvers = {
                             ...(search.length > 0 ? {
                                     $or: [
                                         {number: {'$regex': reductionSearch(search), '$options': 'i'}},
+                                        {info: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {address: {'$regex': reductionSearch(search), '$options': 'i'}},
                                         {client: {$in: _clients}},
                                         {organization: {$in: _organizations}},
@@ -708,7 +711,7 @@ const setReturned = async ({items, returned, confirmationForwarder, cancelForwar
 }
 
 const resolversMutation = {
-    addReturned: async(parent, {dateDelivery, unite, address, organization, client, items, inv}, {user}) =>     {
+    addReturned: async(parent, {info, dateDelivery, unite, address, organization, client, items, inv}, {user}) =>     {
         let subbrand = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
         if(subbrand)
             organization = subbrand.organization
@@ -754,6 +757,7 @@ const resolversMutation = {
                 allTonnage: allTonnage,
                 dateDelivery: dateDelivery,
                 number: number,
+                info: info,
                 address: address,
                 organization: organization,
                 district:  district?district.name:null,

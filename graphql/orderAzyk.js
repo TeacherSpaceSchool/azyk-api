@@ -1451,7 +1451,7 @@ const resolversMutation = {
                 }
                 // Получаем финальный счёт для публикации
                 let newInvoice = await InvoiceAzyk.findOne({_id: objectInvoice._id})
-                    .select(' _id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
+                    .select(' _id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
                     .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
                     .populate({path: 'agent', select: '_id name'})
                     .populate({path: 'organization', select: '_id name'})
@@ -1519,7 +1519,7 @@ const resolversMutation = {
         await setSingleOutXMLAzykLogic(invoices, forwarder, track)
 
         let resInvoices = await InvoiceAzyk.find({_id: {$in: invoices}})
-            .select(' _id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
+            .select(' _id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
             .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
             .populate({path: 'agent', select: '_id name'})
             .populate({path: 'organization', select: '_id name'})

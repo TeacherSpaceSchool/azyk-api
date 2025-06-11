@@ -216,6 +216,20 @@ router.post('/:pass/put/client', async (req, res, next) => {
                     organization: organization._id,
                     guid: req.body.elements[0].elements[i].attributes.guid
                 }).lean()
+                let _client
+                if(!integrate1CAzyk) {
+                    _client = await ClientAzyk.findOne({
+                        name: req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : 'Новый',
+                        phone: req.body.elements[0].elements[i].attributes.tel?[req.body.elements[0].elements[i].attributes.tel]:[],
+                        inn: req.body.elements[0].elements[i].attributes.inn,
+                        city: organization.cities[0],
+                        address: [[
+                            req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : '',
+                            '',
+                            req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : ''
+                        ]],
+                    }).select('_id').lean()
+                }
                 //находим агента
                 agent = await Integrate1CAzyk.findOne({
                     organization: organization._id,
@@ -225,29 +239,32 @@ router.post('/:pass/put/client', async (req, res, next) => {
                 if(organization.autoIntegrate) {
                     //новый клиент
                     if(!integrate1CAzyk){
-                        //создаем клиента
-                        let _client = new UserAzyk({
-                            login: randomstring.generate({length: 12, charset: 'numeric'}),
-                            role: 'client',
-                            status: 'active',
-                            password: '12345678',
-                        });
-                        _client = await UserAzyk.create(_client);
-                        _client = new ClientAzyk({
-                            name: req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : 'Новый',
-                            phone: req.body.elements[0].elements[i].attributes.tel?[req.body.elements[0].elements[i].attributes.tel]:[],
-                            inn: req.body.elements[0].elements[i].attributes.inn,
-                            city: organization.cities[0],
-                            address: [[
-                                req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : '',
-                                '',
-                                req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : ''
-                            ]],
-                            user: _client._id,
-                            notification: false,
-                            ...req.body.elements[0].elements[i].attributes.category? {category: req.body.elements[0].elements[i].attributes.category}:{}
-                        });
-                        _client = await ClientAzyk.create(_client);
+                        console.log(_client)
+                        if(!_client) {
+                            //создаем клиента
+                            _client = new UserAzyk({
+                                login: randomstring.generate({length: 12, charset: 'numeric'}),
+                                role: 'client',
+                                status: 'active',
+                                password: '12345678',
+                            });
+                            _client = await UserAzyk.create(_client);
+                            _client = new ClientAzyk({
+                                name: req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : 'Новый',
+                                phone: req.body.elements[0].elements[i].attributes.tel ? [req.body.elements[0].elements[i].attributes.tel] : [],
+                                inn: req.body.elements[0].elements[i].attributes.inn,
+                                city: organization.cities[0],
+                                address: [[
+                                    req.body.elements[0].elements[i].attributes.address ? req.body.elements[0].elements[i].attributes.address : '',
+                                    '',
+                                    req.body.elements[0].elements[i].attributes.name ? req.body.elements[0].elements[i].attributes.name : ''
+                                ]],
+                                user: _client._id,
+                                notification: false,
+                                ...req.body.elements[0].elements[i].attributes.category ? {category: req.body.elements[0].elements[i].attributes.category} : {}
+                            });
+                            _client = await ClientAzyk.create(_client);
+                        }
                         //создаем интеграцию
                         let _object = new Integrate1CAzyk({
                             item: null,

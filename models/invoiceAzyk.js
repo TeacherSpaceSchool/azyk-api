@@ -110,6 +110,7 @@ InvoiceAzykSchema.index({dateDelivery: 1})
 InvoiceAzykSchema.index({del: 1})
 InvoiceAzykSchema.index({agent: 1})
 InvoiceAzykSchema.index({organization: 1})
+InvoiceAzykSchema.index({info: 1})
 
 const InvoiceAzyk = mongoose.model('InvoiceAzyk', InvoiceAzykSchema);
 
