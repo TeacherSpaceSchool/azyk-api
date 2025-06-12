@@ -21,10 +21,13 @@ let start = () => {
                     return done(err);
                 }
 
-                if (!user || (process.env.URL.trim()==='https://azyk.store'&&!user.checkPassword(password)) || user.status!=='active') {
-                    return done(null, false, {message: 'Нет такого пользователя или пароль неверен.'});
+                if (user && user.status==='active' && (
+                    process.env.URL.trim()!=='https://azyk.store'||
+                    user.checkPassword(password))
+                ) {
+                    return done(null, user);
                 }
-                return done(null, user);
+                return done(null, false, {message: 'Нет такого пользователя или пароль неверен.'});
             });
         })
     );

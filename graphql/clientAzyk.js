@@ -282,7 +282,7 @@ const resolvers = {
                 .find({$or: [{manager: user.employment}, {ecspeditor: user.employment}, {agent: user.employment}]})
                 .distinct('client')
                 .lean()
-            if(user.onlyIntegrate&&catalog) {
+            if(user.onlyIntegrate/*&&catalog*/) {
                 clients = await Integrate1CAzyk
                     .find({
                         client: {$in: clients},
