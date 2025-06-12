@@ -168,22 +168,24 @@ router.post('/:pass/put/warehouse', async (req, res, next) => {
                     warehouse.name = req.body.elements[0].elements[i].attributes.name
                     await warehouse.save();
                 }
-                const districts = []
-                for (let i1 = 0; i1 < req.body.elements[0].elements[i].elements.length; i1++) {
-                    req.body.elements[0].elements[i].elements[i1].attributes.guid
-                    integrate1CAzyk = await Integrate1CAzyk.findOne({
-                        organization: organization._id,
-                        guid: req.body.elements[0].elements[i].elements[i1].attributes.guid
-                    }).select('agent').lean()
-                    if(integrate1CAzyk) {
-                        const district = await DistrictAzyk.findOne({agent: integrate1CAzyk.agent}).select('_id').lean()
-                        if(district) {
-                            districts.push(district._id)
+                if(req.body.elements[0].elements[i].elements) {
+                    const districts = []
+                    for (let i1 = 0; i1 < req.body.elements[0].elements[i].elements.length; i1++) {
+                        req.body.elements[0].elements[i].elements[i1].attributes.guid
+                        integrate1CAzyk = await Integrate1CAzyk.findOne({
+                            organization: organization._id,
+                            guid: req.body.elements[0].elements[i].elements[i1].attributes.guid
+                        }).select('agent').lean()
+                        if (integrate1CAzyk) {
+                            const district = await DistrictAzyk.findOne({agent: integrate1CAzyk.agent}).select('_id').lean()
+                            if (district) {
+                                districts.push(district._id)
+                            }
                         }
                     }
-                }
-                if(districts.length) {
-                    await DistrictAzyk.updateMany({_id: {$in: districts}}, {warehouse: warehouse._id})
+                    if (districts.length) {
+                        await DistrictAzyk.updateMany({_id: {$in: districts}}, {warehouse: warehouse._id})
+                    }
                 }
             }
         }
