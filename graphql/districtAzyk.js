@@ -10,6 +10,7 @@ const UserAzyk = require('../models/userAzyk');
 const OutXMLAdsShoroAzyk = require('../models/integrate/shoro/outXMLAdsShoroAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const {reductionSearch} = require('../module/const');
+const Integrate1CAzyk = require('../models/integrate1CAzyk');
 
 const type = `
   type District {
@@ -108,6 +109,16 @@ const resolvers = {
                     ...organization.clientDuplicate ? {_id: district} : {}
                 }).distinct('client').lean()
             }
+            let integrateClients
+            if(user.onlyIntegrate) {
+                integrateClients = await Integrate1CAzyk
+                    .find({
+                        client: {$ne: null},
+                        organization: user.organization
+                    })
+                    .distinct('client')
+                    .lean()
+            }
             let clients
             if(!organization.accessToClient) {
                 let items = await ItemAzyk.find({organization: user.organization}).distinct('_id').lean()
@@ -126,6 +137,7 @@ const resolvers = {
                                 ],
                                 ...user.cities?{city: {$in: user.cities}}:{},
                                 ...city ? {city: city} : {},
+                                ...integrateClients ? {_id: {$in: integrateClients}} : {},
                                 del: {$ne: 'deleted'},
                                 address: {$elemMatch: {$elemMatch: {$ne: ''}}},
                             }
