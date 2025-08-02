@@ -1,6 +1,5 @@
 const SingleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const OrganizationAzyk = require('../models/organizationAzyk');
 const {reductionSearch} = require('../module/const');
 
 
@@ -11,7 +10,7 @@ const type = `
     guid: String
     organization: Organization
     district: District
-  }
+ }
 `;
 
 const query = `
@@ -21,70 +20,56 @@ const query = `
 
 const mutation = `
     addOutXMLAdsShoro(organization: ID!, district: ID!, guid: String!): OutXMLAdsShoro
-    setOutXMLAdsShoro(_id: ID!, district: ID, guid: String): Data
-    deleteOutXMLAdsShoro(_id: [ID]!): Data
+    setOutXMLAdsShoro(_id: ID!, guid: String): String
+    deleteOutXMLAdsShoro(_id: ID!): String
 `;
 
 const resolvers = {
     districtsOutXMLAdsShoros: async(parent, {organization}, {user}) => {
         if (user.role === 'admin') {
-            let districts = await SingleOutXMLAdsAzyk.find({}).distinct('district').lean()
-            districts = await DistrictAzyk.find({
-                organization: organization,
-                _id: {$nin: districts}
-            })
-                .lean()
-            return districts
-        }
-    },
+            let districts = await SingleOutXMLAdsAzyk.find({organization}).distinct('district')
+            return DistrictAzyk.find({organization, _id: {$nin: districts}}).lean()
+       }
+   },
     outXMLAdsShoros: async(parent, {organization, search}, {user}) => {
         if (user.role === 'admin') {
-            let _districts;
-            if (search.length > 0) {
-                _districts = await DistrictAzyk.find({
-                    name: {'$regex': reductionSearch(search), '$options': 'i'}
-                }).distinct('_id')
-                    .lean()
-            }
+            let searchedDistricts;
+            if (search) {
+                searchedDistricts = await DistrictAzyk.find({name: {$regex: reductionSearch(search), $options: 'i'}}).distinct('_id').lean()
+           }
             return await SingleOutXMLAdsAzyk.find({
-                organization: organization, ...(search.length > 0?{district: {'$in': _districts}}:{})
-            })
+                organization, ...search?{district: {'$in': searchedDistricts}}:{}
+           })
                 .populate('district')
-                .sort('-name')
+                .sort('-createdAt')
                 .lean()
-        }
-    }
+       }
+   }
 };
 
 const resolversMutation = {
     addOutXMLAdsShoro: async(parent, {organization, district, guid}, {user}) => {
-        organization = await OrganizationAzyk.findOne({_id: organization})
-        if(user.role==='admin'&&organization.pass){
-            let _object = new SingleOutXMLAdsAzyk({
-                guid: guid,
-                organization: organization._id,
-                pass: organization.pass,
-                district: district
-            });
-            _object = await SingleOutXMLAdsAzyk.create(_object)
-            return _object
-        }
-    },
-    setOutXMLAdsShoro: async(parent, {_id, district, guid}, {user}) => {
         if(user.role==='admin') {
-            let object = await SingleOutXMLAdsAzyk.findById(_id)
-            if(district)object.district = district
-            if(guid)object.guid = guid
-            await object.save();
-        }
-        return {data: 'OK'}
-    },
-    deleteOutXMLAdsShoro: async(parent, { _id }, {user}) => {
-        if(user.role==='admin'){
-            await SingleOutXMLAdsAzyk.deleteMany({_id: {$in: _id}})
-        }
-        return {data: 'OK'}
-    }
+            // eslint-disable-next-line no-undef
+            const [createdObject, districtData] = await Promise.all([
+                SingleOutXMLAdsAzyk.create({guid, organization, district}),
+                DistrictAzyk.findById(district).select('_id name').lean()
+            ]);
+            return {...createdObject.toObject(), district: districtData}
+       }
+   },
+    setOutXMLAdsShoro: async(parent, {_id, guid}, {user}) => {
+        if(user.role==='admin') {
+            await SingleOutXMLAdsAzyk.updateOne({_id}, {guid})
+       }
+        return 'OK'
+   },
+    deleteOutXMLAdsShoro: async(parent, {_id}, {user}) => {
+        if(user.role==='admin') {
+            await SingleOutXMLAdsAzyk.deleteOne({_id})
+       }
+        return 'OK'
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

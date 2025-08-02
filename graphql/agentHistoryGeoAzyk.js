@@ -2,7 +2,8 @@ const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const UserAzyk = require('../models/userAzyk');
-const {getGeoDistance, pdDDMMYYHHMM} = require('../module/const');
+const {getGeoDistance, pdDDMMYYHHMM, checkDate} = require('../module/const');
+const {parallelPromise} = require('../module/parallel');
 
 const type = `
   type AgentHistoryGeo {
@@ -11,7 +12,7 @@ const type = `
     geo: String
     client: Client
     agent: Employment
-  }
+ }
 `;
 
 const query = `
@@ -20,185 +21,188 @@ const query = `
 `;
 
 const mutation = `
-    addAgentHistoryGeo(client: ID!, geo: String!): Data
+    addAgentHistoryGeo(client: ID!, geo: String!): String
 `;
 
 const resolvers = {
     agentHistoryGeos: async(parent, {organization, agent, date}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin' ].includes(user.role)) {
-            let dateStart = date?new Date(date):new Date()
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+            if(user.organization) organization = user.organization
+            // Устанавливаем дату начала и конца (день с 3:00)
+            let dateStart = checkDate(date)
             dateStart.setHours(3, 0, 0, 0)
             let dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
             let data = []
             let agents = []
+            // Если агент не указан, получаем список агентов по организации
             if (!agent) {
                 if (organization !== 'super')
-                    agents = await EmploymentAzyk.find({organization: organization}).distinct('_id').lean()
+                    agents = await EmploymentAzyk.find({organization}).distinct('_id')
                 else {
-                    agents = await UserAzyk.find({role: 'суперагент'}).distinct('_id').lean()
-                    agents = await EmploymentAzyk.find({user: {$in: agents}}).distinct('_id').lean()
-                }
-            }
-
-            let agentHistoryGeoAzyks = await AgentHistoryGeoAzyk.find({
-                $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
-                ...(agent ? {agent: agent} : {agent: {$in: agents}})
-            })
+                    agents = await UserAzyk.find({role: 'суперагент'}).distinct('_id')
+                    agents = await EmploymentAzyk.find({user: {$in: agents}}).distinct('_id')
+               }
+           }
+            // Получаем историю гео-локаций агентов за день с учетом фильтра по агенту
+            let agentHistoryGeos = await AgentHistoryGeoAzyk.find({
+                createdAt: {$gte: dateStart, $lt: dateEnd},
+                ...(agent ? {agent} : {agent: {$in: agents}})
+           })
                 .select('agent client _id createdAt geo')
                 .populate({
                     path: 'client',
                     select: '_id name address'
-                })
+               })
                 .populate({
                     path: 'agent',
                     select: '_id name'
-                })
+               })
                 .sort('-createdAt')
                 .lean()
             if (!agent) {
                 let dataKey = {}
-                for (let i = 0; i < agentHistoryGeoAzyks.length; i++) {
-                    if (!dataKey[agentHistoryGeoAzyks[i].agent._id])
-                        dataKey[agentHistoryGeoAzyks[i].agent._id] = {
-                            _id: agentHistoryGeoAzyks[i].agent._id,
+                await parallelPromise(agentHistoryGeos, async agentHistoryGeo => {
+                    const agentId = agentHistoryGeo.agent._id.toString()
+                    if (!dataKey[agentId])
+                        dataKey[agentId] = {
+                            _id: agentId,
                             count: 0,
-                            name: agentHistoryGeoAzyks[i].agent.name,
+                            name: agentHistoryGeo.agent.name,
                             cancel: 0,
                             order: 0
-                        }
-                    dataKey[agentHistoryGeoAzyks[i].agent._id].count += 1
+                       }
+                    dataKey[agentId].count += 1
                     if (await InvoiceAzyk.findOne({
-                            $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
-                            client: agentHistoryGeoAzyks[i].client._id,
-                            del: {$ne: 'deleted'},
-                            taken: true
-                        }).select('_id').lean())
-                        dataKey[agentHistoryGeoAzyks[i].agent._id].order += 1
+                        createdAt: {$gte: dateStart, $lt: dateEnd},
+                        client: agentHistoryGeo.client._id,
+                        del: {$ne: 'deleted'},
+                        taken: true
+                   }).select('_id').lean())
+                        dataKey[agentId].order += 1
                     else
-                        dataKey[agentHistoryGeoAzyks[i].agent._id].cancel += 1
-                }
+                        dataKey[agentId].cancel += 1
+               })
                 const keys = Object.keys(dataKey)
-                for (let i = 0; i < keys.length; i++) {
+                for(const key of keys) {
                     data.push({
-                        _id: dataKey[keys[i]]._id,
+                        _id: dataKey[key]._id,
                         data: [
-                            dataKey[keys[i]].name,
-                            dataKey[keys[i]].count,
-                            dataKey[keys[i]].order,
-                            dataKey[keys[i]].cancel,
+                            dataKey[key].name,
+                            dataKey[key].count,
+                            dataKey[key].order,
+                            dataKey[key].cancel,
                         ]
-                    })
-                }
+                   })
+               }
                 return {
                     columns: ['агент', 'посещений', 'заказов', 'отказов'],
                     row: data
-                };
-            }
+               };
+           }
             else {
-                for (let i = 0; i < agentHistoryGeoAzyks.length; i++) {
+                await parallelPromise(agentHistoryGeos, async agentHistoryGeo => {
                     data.push({
-                        _id: agentHistoryGeoAzyks[i]._id,
+                        _id: agentHistoryGeo._id,
                         data: [
-                            pdDDMMYYHHMM(agentHistoryGeoAzyks[i].createdAt),
-                            `${agentHistoryGeoAzyks[i].client.name}${agentHistoryGeoAzyks[i].client.address && agentHistoryGeoAzyks[i].client.address[0] ? ` (${agentHistoryGeoAzyks[i].client.address[0][2] ? `${agentHistoryGeoAzyks[i].client.address[0][2]}, ` : ''}${agentHistoryGeoAzyks[i].client.address[0][0]})` : ''}`,
-                            agentHistoryGeoAzyks[i].client.address[0][1] ? `${getGeoDistance(...(agentHistoryGeoAzyks[i].geo.split(', ')), ...(agentHistoryGeoAzyks[i].client.address[0][1].split(', ')))} м` : '-',
-                            agentHistoryGeoAzyks[i].agent.name,
+                            pdDDMMYYHHMM(agentHistoryGeo.createdAt),
+                            `${agentHistoryGeo.client.name}${agentHistoryGeo.client.address && agentHistoryGeo.client.address[0] ? ` (${agentHistoryGeo.client.address[0][2] ? `${agentHistoryGeo.client.address[0][2]}, ` : ''}${agentHistoryGeo.client.address[0][0]})` : ''}`,
+                            agentHistoryGeo.client.address[0][1] ? `${getGeoDistance(...(agentHistoryGeo.geo.split(', ')), ...(agentHistoryGeo.client.address[0][1].split(', ')))} м` : '-',
+                            agentHistoryGeo.agent.name,
                             await InvoiceAzyk.findOne({
-                                $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
-                                client: agentHistoryGeoAzyks[i].client._id,
+                                createdAt: {$gte: dateStart, $lt: dateEnd},
+                                client: agentHistoryGeo.client._id,
                                 del: {$ne: 'deleted'},
                                 taken: true
-                            })
+                           })
                                 .select('_id')
                                 .sort('-createdAt')
                                 .lean() ? 'заказ' : 'отказ'
                         ]
-                    })
-                }
+                   })
+
+               })
                 return {
                     columns: ['дата', 'клиент', 'растояние', 'агент', 'статус'],
                     row: data
-                };
-            }
-        }
-    },
+               };
+           }
+       }
+   },
     agentMapGeos: async(parent, {agent, date}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin' ].includes(user.role)) {
-            let dateStart = date?new Date(date):new Date()
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+            let dateStart = checkDate(date)
             dateStart.setHours(3, 0, 0, 0)
             let dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
             let data = []
             let take
-            let agentHistoryGeoAzyks = await AgentHistoryGeoAzyk.find({
-                $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
-                agent: agent
-            })
+            let agentHistoryGeos = await AgentHistoryGeoAzyk.find({
+                createdAt: {$gte: dateStart, $lt: dateEnd},
+                agent
+           })
                 .select('agent client _id createdAt geo')
                 .populate({
                     path: 'client',
                     select: '_id name address'
-                })
+               })
                 .populate({
                     path: 'agent',
                     select: '_id name'
-                })
+               })
                 .sort('-createdAt')
                 .lean()
-            for (let i = 0; i < agentHistoryGeoAzyks.length; i++) {
+            await parallelPromise(agentHistoryGeos, async agentHistoryGeo => {
                 take = await InvoiceAzyk.findOne({
-                    $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
-                    client: agentHistoryGeoAzyks[i].client._id,
+                    createdAt: {$gte: dateStart, $lt: dateEnd},
+                    client: agentHistoryGeo.client._id,
                     del: {$ne: 'deleted'},
                     taken: true
-                })
+               })
                     .select('_id')
                     .sort('-createdAt')
                     .lean()
-                if(take&&agentHistoryGeoAzyks[i].client.address[0][1]){
+                if(take&&agentHistoryGeo.client.address[0][1]) {
                     data.push([
-                        `агент ${agentHistoryGeoAzyks[i].client.name}${agentHistoryGeoAzyks[i].client.address&&agentHistoryGeoAzyks[i].client.address[0]?` (${agentHistoryGeoAzyks[i].client.address[0][2] ? `${agentHistoryGeoAzyks[i].client.address[0][2]}, ` : ''}${agentHistoryGeoAzyks[i].client.address[0][0]})` : ''}`,
-                        agentHistoryGeoAzyks[i].geo,
+                        `агент ${agentHistoryGeo.client.name}${agentHistoryGeo.client.address&&agentHistoryGeo.client.address[0]?` (${agentHistoryGeo.client.address[0][2] ? `${agentHistoryGeo.client.address[0][2]}, ` : ''}${agentHistoryGeo.client.address[0][0]})` : ''}`,
+                        agentHistoryGeo.geo,
                         '#FFFF00'
                     ])
                     data.push([
-                        `${agentHistoryGeoAzyks[i].client.name}${agentHistoryGeoAzyks[i].client.address&&agentHistoryGeoAzyks[i].client.address[0]?` (${agentHistoryGeoAzyks[i].client.address[0][2] ? `${agentHistoryGeoAzyks[i].client.address[0][2]}, ` : ''}${agentHistoryGeoAzyks[i].client.address[0][0]})` : ''}`,
-                        agentHistoryGeoAzyks[i].client.address[0][1],
+                        `${agentHistoryGeo.client.name}${agentHistoryGeo.client.address&&agentHistoryGeo.client.address[0]?` (${agentHistoryGeo.client.address[0][2] ? `${agentHistoryGeo.client.address[0][2]}, ` : ''}${agentHistoryGeo.client.address[0][0]})` : ''}`,
+                        agentHistoryGeo.client.address[0][1],
                         '#4b0082'
                     ])
-                }
-                }
-                return data
-        }
-    },
+               }
+           })
+            return data
+       }
+   },
 };
 
 const resolversMutation = {
     addAgentHistoryGeo: async(parent, {client, geo}, {user}) => {
-        if(['агент', 'суперагент'].includes(user.role)){
+        if(['агент', 'суперагент'].includes(user.role)) {
             let dateStart = new Date()
             dateStart.setHours(3, 0, 0, 0)
             let dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
-            let _object = await AgentHistoryGeoAzyk.findOne({
-                $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt:dateEnd}}],
-                client: client,
-                agent: user.employment
+            let agentHistoryGeo = await AgentHistoryGeoAzyk.findOne({
+                createdAt: {$gte: dateStart, $lt: dateEnd},
+                client, agent: user.employment
             })
                 .select('_id')
                 .lean()
-            if(!_object) {
-                _object = new AgentHistoryGeoAzyk({
+            if(!agentHistoryGeo) {
+                await AgentHistoryGeoAzyk.create({
                     agent: user.employment,
                     client: client,
                     geo: geo
                 })
-                await AgentHistoryGeoAzyk.create(_object)
             }
+            return 'OK';
         }
-        return {data: 'OK'};
-    },
+   },
 };
 
 module.exports.resolversMutation = resolversMutation;

@@ -13,17 +13,16 @@ const singleOutXMLReturnedSchema = mongoose.Schema({
     returned: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ReturnedAzyk'
-    },
+   },
     track: {
         type: Number,
         default: 1
-    },
+   },
     status: String,
     organization: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrganizationAzyk'
-    },
-    pass: String,
+   }
 }, {
     timestamps: true
 });

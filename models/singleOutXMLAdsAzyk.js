@@ -5,12 +5,11 @@ const singleOutXMLAdsSchema = mongoose.Schema({
     district: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'DistrictAzyk'
-    },
+   },
     organization: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrganizationAzyk'
-    },
-    pass: String,
+   },
 
 }, {
     timestamps: true

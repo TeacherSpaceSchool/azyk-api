@@ -1,6 +1,6 @@
 const NotificationStatisticAzyk = require('../models/notificationStatisticAzyk');
 const {sendWebPush} = require('../module/webPush');
-const { saveImage, urlMain, reductionSearch} = require('../module/const');
+const {saveImage, urlMain, reductionSearch, unawaited} = require('../module/const');
 
 const type = `
   type NotificationStatistic {
@@ -14,7 +14,7 @@ const type = `
     delivered: Int
     failed: Int
     click: Int
-  }
+ }
 `;
 
 const query = `
@@ -22,7 +22,7 @@ const query = `
 `;
 
 const mutation = `
-    addNotificationStatistic(icon: Upload, text: String!, title: String!, tag: String, url: String): Data
+    addNotificationStatistic(icon: Upload, text: String!, title: String!, tag: String, url: String): NotificationStatistic
 `;
 
 const resolvers = {
@@ -30,32 +30,31 @@ const resolvers = {
         if('admin'===user.role)
             return await NotificationStatisticAzyk.find({
                 $or: [
-                    {title: {'$regex': reductionSearch(search), '$options': 'i'}},
-                    {text: {'$regex': reductionSearch(search), '$options': 'i'}},
-                    {tag: {'$regex': reductionSearch(search), '$options': 'i'}},
-                    {url: {'$regex': reductionSearch(search), '$options': 'i'}}
+                    {title: {$regex: reductionSearch(search), $options: 'i'}},
+                    {text: {$regex: reductionSearch(search), $options: 'i'}},
+                    {tag: {$regex: reductionSearch(search), $options: 'i'}},
+                    {url: {$regex: reductionSearch(search), $options: 'i'}}
                 ]
-            })
+           })
                 .sort('-createdAt')
                 .lean()
         else
             return []
-    }
+   }
 };
 
 const resolversMutation = {
     addNotificationStatistic: async(parent, {text, title, tag , url, icon}, {user}) => {
-        if('admin'===user.role){
-            let payload = {title: title, message: text, user: 'all', tag: tag, url: url}
-            if(icon){
-                let { stream, filename } = await icon;
-                filename = await saveImage(stream, filename)
-                payload.icon = urlMain+filename
+        if('admin'===user.role) {
+            let payload = {title, message: text, tag, url}
+            if(icon) {
+                let {stream, filename} = await icon;
+                payload.icon = urlMain + await saveImage(stream, filename)
             }
-            await sendWebPush(payload)
-        }
-        return {data: 'OK'};
-    }
+            unawaited(() => sendWebPush(payload))
+            return payload
+       }
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

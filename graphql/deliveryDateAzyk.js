@@ -1,5 +1,6 @@
 const DeliveryDate = require('../models/deliveryDateAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
+const {parallelBulkWrite} = require('../module/parallel');
 
 const type = `
   type DeliveryDate {
@@ -9,7 +10,7 @@ const type = `
     days: [Boolean]
     organization: ID
     priority: Int
-  }
+ }
 `;
 
 const query = `
@@ -18,53 +19,48 @@ const query = `
 `;
 
 const mutation = `
-    setDeliveryDates(clients: [ID]!, organization: ID!, days: [Boolean]!, priority: Int!): Data
+    setDeliveryDates(clients: [ID]!, organization: ID!, days: [Boolean]!, priority: Int!): String
 `;
 
 const resolvers = {
     deliveryDates: async(parent, {clients, organization}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
-            return await DeliveryDate.find({client: {$in: clients}, organization:user.organization?user.organization: organization==='super'?null:organization}).lean()
-        }
-    },
+            return await DeliveryDate.find({
+                client: {$in: clients},
+                organization:user.organization?user.organization: organization==='super'?null:organization
+            }).sort('-createdAt').lean()
+       }
+   },
     deliveryDate: async(parent, {client, organization}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin', 'client'].includes(user.role)) {
             if(user.organization)
                 organization = user.organization
             else {
-                let subbrand = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
+                let subbrand = await SubBrandAzyk.findById(organization).select('organization').lean()
                 if(subbrand)
                     organization = subbrand.organization
-            }
-            return await DeliveryDate.findOne({client, organization}).lean()
-        }
-    }
+           }
+            return await DeliveryDate.findOne({client, organization}).sort('-createdAt').lean()
+       }
+   }
 };
 
 const resolversMutation = {
     setDeliveryDates: async(parent, {clients, organization, days, priority}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)){
-            for(let i=0; i<clients.length; i++){
-                let deliveryDate = await DeliveryDate.findOne({client: clients[i], organization: user.organization?user.organization:organization==='super'?null:organization});
-                if(!deliveryDate){
-                    let _object = new DeliveryDate({
-                        days: days,
-                        priority: priority,
-                        client: clients[i],
-                        organization: organization==='super'?null:organization
-                    });
-                    await DeliveryDate.create(_object)
-                }
-                else {
-                    deliveryDate.days = days;
-                    deliveryDate.priority = priority;
-                    await deliveryDate.save();
-                }
-            }
-
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
+            organization = user.organization||(organization === 'super'?null:organization)
+            // Получаем список существующих клиентов DeliveryDate
+            let existingClients = await DeliveryDate.find({client: {$in: clients}, organization}).distinct('client').lean()
+            existingClients = existingClients.map(client => client.toString())
+            // Если такие клиенты уже есть — обновляем их DeliveryDate
+            await DeliveryDate.updateMany({client: {$in: existingClients}, organization}, {days, priority})
+            // Если таких клиентов нет — создаем их DeliveryDate
+            clients = clients.filter(client => !existingClients.includes(client.toString()))
+            if(clients.length)
+                await parallelBulkWrite(DeliveryDate, clients.map(client => ({insertOne: {document: {days, priority, client, organization}}})))
+            return 'OK';
         }
-        return {data: 'OK'};
-    }
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

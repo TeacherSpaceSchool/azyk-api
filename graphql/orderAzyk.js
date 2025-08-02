@@ -6,23 +6,23 @@ const DistrictAzyk = require('../models/districtAzyk');
 const RouteAzyk = require('../models/routeAzyk');
 const BasketAzyk = require('../models/basketAzyk');
 const ClientAzyk = require('../models/clientAzyk');
-const ItemAzyk = require('../models/itemAzyk');
 const AdsAzyk = require('../models/adsAzyk');
 const mongoose = require('mongoose');
 const DiscountClient = require('../models/discountClientAzyk');
-const { setSingleOutXMLAzyk, setSingleOutXMLAzykLogic } = require('../module/singleOutXMLAzyk');
-const randomstring = require('randomstring');
+const {setSingleOutXMLAzykLogic} = require('../module/singleOutXMLAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
-const { pubsub } = require('./index');
-const { withFilter } = require('graphql-subscriptions');
+const {pubsub} = require('./index');
+const {withFilter} = require('graphql-subscriptions');
 const RELOAD_ORDER = 'RELOAD_ORDER';
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
-const { checkFloat, reductionSearch} = require('../module/const');
-const { checkAdss } = require('../graphql/adsAzyk');
+const {checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate} = require('../module/const');
+const {checkAdss} = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
-const uuidv1 = require('uuid/v1.js');
+const { v1: uuidv1 } = require('uuid');
 const ModelsErrorAzyk = require('../models/errorAzyk');
 const {calculateStock} = require('../module/stockAzyk');
+const {parallelBulkWrite, parallelPromise} = require('../module/parallel');
+const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 
 const type = `
   type Order {
@@ -35,12 +35,12 @@ const type = `
     allPrice: Float
     status: String
     allTonnage: Float
-    consignment: Int
     returned: Int
-    consignmentPrice: Float
     
+    consignmentPrice: Float
+    consignment: Int
     allSize: Float
- }
+}
   type Invoice {
     _id: ID
      discount: Int
@@ -50,7 +50,6 @@ const type = `
     orders: [Order]
     client: Client
     allPrice: Float 
-    consignmentPrice: Float
     returnedPrice: Float
     info: String
     address: [String]
@@ -59,7 +58,6 @@ const type = `
     number: String
     confirmationForwarder: Boolean
     confirmationClient: Boolean
-    paymentConsignation: Boolean
     sync: Int
     cancelClient: Date
     cancelForwarder: Date
@@ -76,22 +74,25 @@ const type = `
     track: Int
     forwarder: Employment
      
+    paymentConsignation: Boolean
+    consignmentPrice: Float
     provider: Organization
     sale: Organization
     allSize: Float
-  }
+ }
   type HistoryOrder {
     createdAt: Date
     invoice: ID
     orders: [HistoryOrderElement]
     editor: String
-  }
+ }
   type HistoryOrderElement {
     item: String
     count: Int
-    consignment: Int
     returned: Int
-  }
+    
+    consignment: Int
+ }
   type ReloadOrder {
     who: ID
     client: ID
@@ -101,7 +102,7 @@ const type = `
     organization: ID
     invoice: Invoice
     type: String
-  }
+ }
   input OrderInput {
     _id: ID
     count: Int
@@ -109,35 +110,29 @@ const type = `
     allTonnage: Float
     name: String
     status: String
-    consignment: Int
     returned: Int
+    
+    consignment: Int
     consignmentPrice: Float
-  }
+ }
 `;
 
 const query = `
     invoices(search: String!, sort: String!, filter: String!, date: String!, skip: Int, organization: ID, city: String): [Invoice]
     invoicesFromDistrict(organization: ID!, district: ID!, date: String!): [Invoice]
    invoicesSimpleStatistic(search: String!, filter: String!, date: String, organization: ID, city: String): [String]
-    invoicesTrash(search: String!, skip: Int): [Invoice]
-   invoicesTrashSimpleStatistic(search: String!): [String]
     orderHistorys(invoice: ID!): [HistoryOrder]
     invoicesForRouting(produsers: [ID]!, clients: [ID]!, dateStart: Date, dateEnd: Date, dateDelivery: Date): [Invoice]
     invoice(_id: ID!): Invoice
-    sortInvoice: [Sort]
-    filterInvoice: [Filter]
-    isOrderToday(organization: ID!, clients: ID!, dateDelivery: Date!): Boolean
 `;
 
 const mutation = `
-    acceptOrders: Data
-    addOrders(priority: Int!, dateDelivery: Date!, info: String, inv: Boolean, unite: Boolean, paymentMethod: String, organization: ID!, client: ID!): Data
+    acceptOrders: String
+    addOrders(priority: Int!, dateDelivery: Date!, info: String, inv: Boolean, unite: Boolean, paymentMethod: String, organization: ID!, client: ID!): String
     setOrder(orders: [OrderInput], invoice: ID): Invoice
-    setInvoice(adss: [ID], taken: Boolean, invoice: ID!, confirmationClient: Boolean, confirmationForwarder: Boolean, cancelClient: Boolean, cancelForwarder: Boolean, paymentConsignation: Boolean): Data
-    setInvoicesLogic(track: Int, forwarder: ID, invoices: [ID]!): Data
-    deleteOrders(_id: [ID]!): Data
-    restoreOrders(_id: [ID]!): Data
-    approveOrders(invoices: [ID]!, route: ID): Data
+    setInvoice(adss: [ID], taken: Boolean, invoice: ID!, confirmationClient: Boolean, confirmationForwarder: Boolean, cancelClient: Boolean, cancelForwarder: Boolean): String
+    setInvoicesLogic(track: Int, forwarder: ID, invoices: [ID]!): String
+    deleteOrders(ids: [ID]!): String
 `;
 
 const subscription  = `
@@ -145,40 +140,13 @@ const subscription  = `
 `;
 
 const resolvers = {
-    invoicesTrashSimpleStatistic: async(parent, {search}, {user}) => {
-        let _agents;
-        if(search.length>0){
-            _agents = await EmploymentAzyk.find({
-                name: {'$regex': reductionSearch(search), '$options': 'i'}
-            }).distinct('_id').lean()
-        }
-        let invoices = [];
-        if(user.role==='admin') {
-            invoices =  await InvoiceAzyk.find(
-                {
-                    del: 'deleted',
-                    ...(search.length>0?{
-                            $or: [
-                                {number: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                {info: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                {address: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                {forwarder: {$in: _agents}},
-                                {agent: {$in: _agents}},
-                            ]
-                        }
-                        :{})
-                }
-            )
-                .lean()
-        }
-        return [invoices.length.toString()]
-    },
     invoicesSimpleStatistic: async(parent, {search, filter, date, organization, city}, {user}) => {
         if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперэкспедитор', 'суперагент'].includes(user.role)) {
+            //дата доставки
             let dateStart;
             let dateEnd;
             if (date !== '') {
-                dateStart = new Date(date)
+                dateStart = checkDate(date)
                 dateStart.setHours(3, 0, 0, 0)
                 dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
@@ -205,77 +173,57 @@ const resolvers = {
                 dateStart.setHours(3, 0, 0, 0)
                 dateEnd.setHours(3, 0, 0, 0)
             }
-            let _agents;
-            if (search.length > 0) {
-                _agents = await EmploymentAzyk.find({
-                    name: {'$regex': reductionSearch(search), '$options': 'i'}
-                }).distinct('_id').lean()
-            }
-            let clients
-            if (['агент', 'менеджер', 'суперагент'].includes(user.role)) {
-                clients = await DistrictAzyk
-                    .find({$or: [{manager: user.employment}, {agent: user.employment}]})
-                    .distinct('client').lean()
-            }
-            let organizations
-            if (user.role==='суперагент'){
-                organizations = await OrganizationAzyk.find({
-                    superagent: true
-                })
-                    .distinct('_id')
-                    .lean()
-            }
-            let invoices = [];
-            invoices = await InvoiceAzyk.find(
+            //поиск
+            // eslint-disable-next-line no-undef
+            // eslint-disable-next-line no-undef
+            const [districtClients, superagentOrganizations, integrationOrganizations] = await Promise.all([
+                ['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
+                user.role==='суперагент'?OrganizationAzyk.find({superagent: true}).distinct('_id'):null,
+                filter==='Не синхронизированные'?OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id'):null
+            ]);
+            const invoices = await InvoiceAzyk.find(
                 {
+                    //не удален
                     del: {$ne: 'deleted'},
-                    ...filter==='обработка'?{taken: false, cancelClient: null, cancelForwarder: null}:{taken: true},
-                    $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
-                    ...['суперагент', 'агент'].includes(user.role)&&clients.length||'менеджер' === user.role ? {client: {$in: clients}} : ['суперагент', 'экспедитор', 'агент', 'суперэкспедитор'].includes(user.role) ? {agent: user.employment} : {},
-                    ...user.organization ? {
-                        $or: [
-                            {organization: user.organization},
-                        ],
-                    } : {},
-                    ...(filter === 'консигнации' ? {consignmentPrice: {$gt: 0}} : {}),
-                    ...(filter === 'акция' ? {adss: {$ne: []}} : {}),
-                    ...organization ? {organization: new mongoose.Types.ObjectId(organization)} : {},
-                    ...city ? {city: city} : {},
+                    //в период
+                    createdAt: {$gte: dateStart, $lt: dateEnd},
+                    //только в районах
+                    ...districtClients? {client: {$in: districtClients}} : {},
+                    //только в своей организации
+                    ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
+                    //город
+                    ...city ? {city} : {},
+                    //клиент только свои
                     ...user.client ? {client: user.client} : {},
-                    ...user.role === 'суперагент' ? {organization: {$in: organizations}} : {},
-                    ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$eq: ''}}} : {}),
-                    ...(search.length > 0 ? {
-                            $or: [
-                                {number: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                {info: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                {address: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                {forwarder: {$in: _agents}},
-                                {agent: {$in: _agents}},
-                            ]
-                        }
-                        : {})
+                    //суперагент только в доступных организациях
+                    ...['суперагент', 'суперэкспедитор'].includes(user.role) ? {organization: {$in: superagentOrganizations}} : {},
+                    //фильтр
+                    ...filter === 'акция' ? {adss: {$ne: []}} : {},
+                    ...filter==='обработка'?{taken: false, cancelClient: null, cancelForwarder: null}:{taken: true},
+                    ...filter === 'Без геолокации' ? {address: {$elemMatch: {$eq: ''}}} : {},
+                    ...(filter === 'Не синхронизированные' ? {organization: {$in: integrationOrganizations}, sync: {$nin: [1, 2]}, taken: true} : {}),
+                    //поиск
+                    ...search?{$or: [
+                            {number: {$regex: reductionSearch(search), $options: 'i'}},
+                            {info: {$regex: reductionSearch(search), $options: 'i'}},
+                            {address: {$regex: reductionSearch(search), $options: 'i'}}
+                        ]}:{},
                 }
             )
-                .select('returnedPrice allPrice orders allTonnage consignmentPrice paymentConsignation')
+                .select('returnedPrice allPrice orders allTonnage')
                 .lean()
+            //перебор товаров
             let tonnage = 0;
             let price = 0;
-            let consignment = 0;
-            let consignmentPayment = 0;
-            let lengthList = 0;
-            for (let i = 0; i < invoices.length; i++) {
+            let lengthList = invoices.length;
+            for(let i = 0; i < invoices.length; i++) {
                 if (invoices[i].allPrice) {
                     price += invoices[i].allPrice - invoices[i].returnedPrice
                 }
-                lengthList += 1
                 if (invoices[i].allTonnage)
                     tonnage += invoices[i].allTonnage
-                if (invoices[i].consignmentPrice)
-                    consignment += invoices[i].consignmentPrice
-                if (invoices[i].paymentConsignation)
-                    consignmentPayment += invoices[i].consignmentPrice
             }
-            return [lengthList.toString(), checkFloat(price).toString(), checkFloat(consignment).toString(), checkFloat(consignmentPayment).toString(), checkFloat(tonnage).toString()]
+            return [lengthList.toString(), checkFloat(price).toString(), checkFloat(tonnage).toString()]
         }
     },
     invoices: async(parent, {search, sort, filter, date, skip, organization, city}, {user}) =>  {
@@ -283,9 +231,8 @@ const resolvers = {
             //console.time('get BD')
             let dateStart;
             let dateEnd;
-            let clients
-            if (date !== '') {
-                dateStart = new Date(date)
+            if (date) {
+                dateStart = checkDate(date)
                 dateStart.setHours(3, 0, 0, 0)
                 dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
@@ -316,302 +263,149 @@ const resolvers = {
                 dateStart.setYear(dateStart.getFullYear()-1)
                 dateStart.setHours(3, 0, 0, 0)
             }
-            if (['суперагент', 'агент', 'менеджер'].includes(user.role)) {
-                clients = await DistrictAzyk
-                    .find({$or: [{manager: user.employment}, {agent: user.employment}]})
-                    .distinct('client')
-                    .lean()
-            }
+            //сортировка
             let _sort = {}
             _sort[sort[0] === '-' ? sort.substring(1) : sort] = sort[0] === '-' ? -1 : 1
-            let _agents;
-            if (search.length) {
-                _agents = await EmploymentAzyk.find({
-                    name: {'$regex': reductionSearch(search), '$options': 'i'}
-                }).distinct('_id').lean()
-            }
-            let organizations
-            if (['суперагент', 'суперэкспедитор'].includes(user.role)) {
-                organizations = await OrganizationAzyk.find({
-                    superagent: true
-                })
-                    .distinct('_id')
-                    .lean()
-            }
-            let invoices = await InvoiceAzyk.aggregate(
-                [
-                    {
-                        $match: {
-                            del: {$ne: 'deleted'},
-                            ...city ? {city: city} : {},
-                            ...organization ? {organization: new mongoose.Types.ObjectId(organization)} : {},
-                            ...user.client ? {client: user.client} : {},
-                            ...['суперагент', 'агент'].includes(user.role) && clients.length || 'менеджер' === user.role ? {client: {$in: clients}} : ['суперагент', 'экспедитор', 'суперэкспедитор', 'агент'].includes(user.role) ? {agent: user.employment} : {},
-                            ...['суперагент', 'суперэкспедитор'].includes(user.role) ? {organization: {$in: organizations}} : {},
-                            ...(dateStart ? {$and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}]} : {}),
-                            ...(filter === 'консигнации' ? {consignmentPrice: {$gt: 0}} : {}),
-                            ...(filter === 'акция' ? {adss: {$ne: []}} : {}),
-                            ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$eq: ''}}} : {}),
-                            ...(filter === 'обработка' ? {
-                                taken: false,
-                                cancelClient: null,
-                                cancelForwarder: null
-                            } : {}),
-                            ...user.organization ? {
-                                $or: [
-                                    {organization: user.organization},
-                                ],
-                            } : {},
-                            ...search.length > 0 ? {
-                                $or: [
-                                    {number: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                    {info: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                    {address: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                    {forwarder: {$in: _agents}},
-                                    {agent: {$in: _agents}},
-                                ]
-                            } : {}
-                        }
-                    },
-                    {$sort: _sort},
-                    {$skip: skip != undefined ? skip : 0},
-                    {$limit: skip != undefined ? 15 : 10000000000},
-                    {
-                        $lookup:
-                            {
-                                from: ClientAzyk.collection.collectionName,
-                                let: {client: '$client'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$client', '$_id']}}},
-                                ],
-                                as: 'client'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: false,
-                            path: '$client'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: EmploymentAzyk.collection.collectionName,
-                                let: {agent: '$agent'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$agent', '$_id']}}},
-                                ],
-                                as: 'agent'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$agent'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: EmploymentAzyk.collection.collectionName,
-                                let: {forwarder: '$forwarder'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$forwarder', '$_id']}}},
-                                ],
-                                as: 'forwarder'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$forwarder'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {organization: '$organization'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$organization', '$_id']}}},
-                                ],
-                                as: 'organization'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$organization'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: AdsAzyk.collection.collectionName,
-                                let: {adss: '$adss'},
-                                pipeline: [
-                                    {$match: {$expr: {$in: ['$_id', '$$adss']}}},
-                                ],
-                                as: 'adss'
-                            }
-                    }
-                ])
+            // eslint-disable-next-line no-undef
+            const [districtClients, superagentOrganizations, integrationOrganizations] = await Promise.all([
+                ['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
+                user.role==='суперагент'?OrganizationAzyk.find({superagent: true}).distinct('_id'):null,
+                filter==='Не синхронизированные'?OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id'):null
+            ]);
             //console.timeEnd('get BD')
-            return invoices
-        }
-    },
-    invoicesTrash: async(parent, {search, skip}, {user}) => {
-        let _agents;
-        if(search.length>0){
-            _agents = await EmploymentAzyk.find({
-                name: {'$regex': reductionSearch(search), '$options': 'i'}
-            }).distinct('_id').lean()
-        }
-        if(user.role==='admin') {
-            return await InvoiceAzyk.aggregate(
-                [
-                    {
-                        $match: {
-                            del: 'deleted',
+            return await InvoiceAzyk.aggregate([
+                {
+                    $match: {
+                        //не удален
+                        del: {$ne: 'deleted'},
+                        //город
+                        ...city ? {city} : {},
+                        //только в своей организации
+                        ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
+                        //клиент только свои
+                        ...user.client ? {client: user.client} : {},
+                        //только в районах
+                        ...districtClients? {client: {$in: districtClients}} : {},
+                        //суперагент только в доступных организациях
+                        ...['суперагент', 'суперэкспедитор'].includes(user.role) ? {organization: {$in: superagentOrganizations}} : {},
+                        //в период
+                        ...(dateStart ? {createdAt: {$gte: dateStart, $lt: dateEnd}} : {}),
+                        //фильтр
+                        ...(filter === 'акция' ? {adss: {$ne: []}} : {}),
+                        ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$eq: ''}}} : {}),
+                        ...(filter === 'обработка' ? {taken: false, cancelClient: null, cancelForwarder: null} : {}),
+                        ...(filter === 'Не синхронизированные' ? {organization: {$in: integrationOrganizations}, sync: {$nin: [1, 2]}, taken: true} : {}),
+                        //поиск
+                        ...search?{$or: [
+                                {number: {$regex: reductionSearch(search), $options: 'i'}},
+                                {info: {$regex: reductionSearch(search), $options: 'i'}},
+                                {address: {$regex: reductionSearch(search), $options: 'i'}}
+                            ]}:{},
+                    }
+                },
+                {$sort: _sort},
+                {$skip: isNotEmpty(skip) ? skip : 0},
+                {$limit: isNotEmpty(skip) ? 15 : 10000000000},
+                {
+                    $lookup:
+                        {
+                            from: ClientAzyk.collection.collectionName,
+                            let: {client: '$client'},
+                            pipeline: [
+                                {$match: {$expr: {$eq: ['$$client', '$_id']}}},
+                            ],
+                            as: 'client'
                         }
-                    },
-                    {
-                        $match: {
-                            ...(search.length > 0 ? {
-                                    $or: [
-                                        {number: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                        {info: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                        {address: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                        {forwarder: {$in: _agents}},
-                                        {agent: {$in: _agents}},
-                                    ]
-                                }
-                                : {})
+                },
+                {
+                    $unwind: {
+                        preserveNullAndEmptyArrays: false,
+                        path: '$client'
+                    }
+                },
+                {
+                    $lookup:
+                        {
+                            from: EmploymentAzyk.collection.collectionName,
+                            let: {agent: '$agent'},
+                            pipeline: [
+                                {$match: {$expr: {$eq: ['$$agent', '$_id']}}},
+                            ],
+                            as: 'agent'
                         }
-                    },
-                    {$sort: {'createdAt': -1}},
-                    {$skip: skip != undefined ? skip : 0},
-                    {$limit: skip != undefined ? 15 : 10000000000},
-                    {
-                        $lookup:
-                            {
-                                from: ClientAzyk.collection.collectionName,
-                                let: {client: '$client'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$client', '$_id']}}},
-                                ],
-                                as: 'client'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: false,
-                            path: '$client'
+                },
+                {
+                    $unwind: {
+                        preserveNullAndEmptyArrays: true,
+                        path: '$agent'
+                    }
+                },
+                {
+                    $lookup:
+                        {
+                            from: EmploymentAzyk.collection.collectionName,
+                            let: {forwarder: '$forwarder'},
+                            pipeline: [
+                                {$match: {$expr: {$eq: ['$$forwarder', '$_id']}}},
+                            ],
+                            as: 'forwarder'
                         }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: EmploymentAzyk.collection.collectionName,
-                                let: {agent: '$agent'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$agent', '$_id']}}},
-                                ],
-                                as: 'agent'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$agent'
+                },
+                {
+                    $unwind: {
+                        preserveNullAndEmptyArrays: true,
+                        path: '$forwarder'
+                    }
+                },
+                {
+                    $lookup:
+                        {
+                            from: OrganizationAzyk.collection.collectionName,
+                            let: {organization: '$organization'},
+                            pipeline: [
+                                {$match: {$expr: {$eq: ['$$organization', '$_id']}}},
+                            ],
+                            as: 'organization'
                         }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: EmploymentAzyk.collection.collectionName,
-                                let: {forwarder: '$forwarder'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$forwarder', '$_id']}}},
-                                ],
-                                as: 'forwarder'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$forwarder'
+                },
+                {
+                    $unwind: {
+                        preserveNullAndEmptyArrays: true,
+                        path: '$organization'
+                    }
+                },
+                {
+                    $lookup:
+                        {
+                            from: AdsAzyk.collection.collectionName,
+                            let: {adss: '$adss'},
+                            pipeline: [
+                                {$match: {$expr: {$in: ['$_id', '$$adss']}}},
+                            ],
+                            as: 'adss'
                         }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: AdsAzyk.collection.collectionName,
-                                let: {adss: '$adss'},
-                                pipeline: [
-                                    {$match: {$expr: {$in: ['$_id', '$$adss']}}},
-                                ],
-                                as: 'adss'
-                            }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {organization: '$organization'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$organization', '$_id']}}},
-                                ],
-                                as: 'organization'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$organization'
-                        }
-                    },
-                ])
+                }
+            ])
         }
     },
     orderHistorys: async(parent, {invoice}, {user}) => {
-        if(['admin', 'менеджер', 'суперорганизация', 'организация'].includes(user.role)){
-            let historyOrders =  await HistoryOrderAzyk.find({invoice: invoice}).sort('-createdAt').lean()
-            return historyOrders
+        if(['admin', 'менеджер', 'суперорганизация', 'организация'].includes(user.role)) {
+            return HistoryOrderAzyk.find({invoice}).sort('-createdAt').lean()
         }
     },
-    isOrderToday: async(parent, {organization}, {user}) => {
-        if('client'===user.role){
-            let dateStart = new Date()
-            if(dateStart.getHours()<3)
-                dateStart.setDate(dateStart.getDate() - 1)
-            dateStart.setHours(3, 0, 0, 0)
-            let dateEnd = new Date(dateStart)
-            dateEnd.setDate(dateEnd.getDate() + 1)
-            let objectInvoice = await InvoiceAzyk.findOne({
-                organization: organization,
-                client: user.client,
-                $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt:dateEnd}}],
-                del: {$ne: 'deleted'},
-                cancelClient: null,
-                cancelForwarder: null
-            }).sort('-createdAt').select('_id').lean()
-            return !!objectInvoice
-        }
-    },
-    invoicesForRouting: async(parent, { produsers, clients, dateStart, dateEnd, dateDelivery }, {user}) => {
+    invoicesForRouting: async(parent, {produsers, clients, dateStart, dateEnd, dateDelivery}, {user}) => {
         if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             if(dateDelivery) {
-                dateStart = new Date(dateDelivery)
+                dateStart = checkDate(dateDelivery)
                 dateStart.setHours(3, 0, 0, 0)
                 dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
             }
             else {
-                dateStart = new Date(dateStart)
+                dateStart = checkDate(dateStart)
                 dateStart.setHours(3, 0, 0, 0)
-                if(dateEnd&&dateEnd.toString()!=='Invalid Date'){
-                    dateEnd = new Date(dateEnd)
+                if(dateEnd) {
+                    dateEnd = checkDate(dateEnd)
                     dateEnd.setDate(dateEnd.getDate() + 1)
                     dateEnd.setHours(3, 0, 0, 0)
                 }
@@ -620,15 +414,15 @@ const resolvers = {
                     dateEnd.setDate(dateEnd.getDate() + 1)
                 }
             }
-            let invoices =  await InvoiceAzyk.find({
+            return await InvoiceAzyk.find({
                 del: {$ne: 'deleted'},
                 taken: true,
                 distributed: {$ne: true},
                 organization: {$in: produsers},
-                    ...clients.length>0?{client: {$in: clients}}:{},
-                ...dateDelivery?{$and: [{dateDelivery: {$gte: dateStart}}, {dateDelivery: {$lt: dateEnd}}]}:{$and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}]}
+                ...clients.length ? {client: {$in: clients}} : {},
+                ...dateDelivery?{dateDelivery: {$gte: dateStart, $lt: dateEnd}} : {createdAt: {$gte: dateStart, $lt: dateEnd}}
             })
-                .select('_id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync dateDelivery')
+                .select('_id agent createdAt updatedAt allTonnage client allPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder taken sync dateDelivery')
                 .populate({path: 'client', select: '_id name'})
                 .populate({path: 'agent', select: '_id name'})
                 .populate({path: 'forwarder', select: '_id name'})
@@ -636,14 +430,13 @@ const resolvers = {
                 .populate({path: 'organization', select: '_id name'})
                 .sort('createdAt')
                 .lean()
-            return invoices
         }
         else  return []
     },
     invoice: async(parent, {_id}, {user}) => {
         if(['агент', 'менеджер', 'суперорганизация', 'организация', 'экспедитор', 'суперагент', 'admin', 'суперэкспедитор', 'client'].includes(user.role)) {
-            return await InvoiceAzyk.findOne({
-                _id: _id,
+            return InvoiceAzyk.findOne({
+                _id,
                 ...user.client ? {client: user.client} : {},
                 ...user.organization ?
                     {
@@ -679,77 +472,11 @@ const resolvers = {
                 .lean()
         }
     },
-    sortInvoice: async() => {
-        let sort = [
-            {
-                name: 'Дата заказа',
-                field: 'createdAt'
-            },
-            {
-                name: 'Дата доставки',
-                field: 'dateDelivery'
-            },
-            {
-                name: 'Статус',
-                field: 'status'
-            },
-            {
-                name: 'Сумма',
-                field: 'allPrice'
-            },
-            {
-                name: 'Тоннаж',
-                field: 'allTonnage'
-            },
-            {
-                name: 'Консигнации',
-                field: 'consignmentPrice'
-            }
-        ]
-        return sort
-    },
-    filterInvoice: async() => {
-        let filter = [
-            {
-                name: 'Все',
-                value: ''
-            },
-            {
-                name: 'Обработка',
-                value: 'обработка'
-            },
-            /*{
-                name: 'Отмена',
-                value: 'отмена'
-            },
-            {
-                name: 'Принят',
-                value: 'принят'
-            },
-            {
-                name: 'Выполнен',
-                value: 'выполнен'
-            },*/
-            {
-                name: 'Консигнации',
-                value: 'консигнации'
-            },
-            {
-                name: 'Акции',
-                value: 'акция'
-            },
-            {
-                name: 'Без геолокации',
-                value: 'Без геолокации'
-            }
-        ]
-        return filter
-    },
     invoicesFromDistrict: async(parent, {organization, district, date}, {user}) =>  {
         if(['admin', 'агент', 'менеджер','суперорганизация', 'организация'].includes(user.role)) {
             let dateStart;
             let dateEnd;
-            dateStart = new Date(date)
+            dateStart = checkDate(date)
             dateStart.setHours(3, 0, 0, 0)
             dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
@@ -764,19 +491,20 @@ const resolvers = {
                     dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
                 }
             }
-            let _clients = await DistrictAzyk.findOne({
-                _id: district
-            }).distinct('client').lean();
+            let _clients
             if (['агент', 'менеджер'].includes(user.role)) {
                 _clients = await DistrictAzyk
                     .find({$or: [{manager: user.employment}, {agent: user.employment}]})
-                    .distinct('client').lean()
+                    .distinct('client')
+            }
+            else {
+                _clients = await DistrictAzyk.findById(district).distinct('client');
             }
             return await InvoiceAzyk.aggregate(
                 [
                     {
                         $match: {
-                            $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
+                            createdAt: {$gte: dateStart, $lt: dateEnd},
                             taken: true,
                             del: {$ne: 'deleted'},
                             client: {$in: _clients},
@@ -870,695 +598,673 @@ const resolvers = {
     },
 };
 
-const setOrder = async ({orders, invoice, user}) => {
-    let object = await InvoiceAzyk.findOne({_id: invoice})
-        .populate({
-            path: 'client'
-        })
-    let editor;
-    if(orders.length>0&&(['экспедитор', 'суперэкспедитор', 'менеджер', 'организация', 'суперорганизация', 'admin', 'client', 'агент', 'суперагент'].includes(user.role))){
-        let allPrice = 0
-        let allTonnage = 0
-        let returnedPrice = 0
-        let consignmentPrice = 0
-        for(let i=0; i<orders.length;i++){
-            await OrderAzyk.updateOne(
-                {_id: orders[i]._id},
-                {
-                    count: orders[i].count,
-                    allPrice: orders[i].allPrice,
-                    consignmentPrice: checkFloat(orders[i].consignmentPrice),
-                    returned: orders[i].returned,
-                    consignment: orders[i].consignment,
-                    allTonnage: checkFloat(orders[i].allTonnage)
-                });
-            returnedPrice += checkFloat(orders[i].returned * (orders[i].allPrice / orders[i].count))
-            allPrice += orders[i].allPrice
-            allTonnage += orders[i].allTonnage
-            consignmentPrice += orders[i].consignmentPrice
-        }
-        object.allPrice = checkFloat(allPrice)
-        object.allTonnage = checkFloat(allTonnage)
-        object.consignmentPrice = checkFloat(consignmentPrice)
-        object.orders = orders.map(order=>order._id)
-        object.returnedPrice = checkFloat(returnedPrice)
-        await object.save();
-    }
-    //обновленый заказ
-    let resInvoice = await InvoiceAzyk.findOne({_id: invoice})
-        .populate({
-            path: 'orders',
-            populate: {
-                path: 'item'
-            }
-        })
-        .populate({
-            path: 'client',
-            populate: [
-                {path: 'user'}
-            ]
-        })
-        .populate({path: 'agent'})
-        .populate({path: 'adss'})
-        .populate({path: 'forwarder'})
-        .populate({path: 'organization'})
-    //подсчет остатков
-    if (resInvoice.organization.calculateStock) {
-        await calculateStock(resInvoice.orders.map(order => order._id), resInvoice.organization._id, resInvoice.client._id)
-    }
-    //история
-    if(user.role==='admin'){
-        editor = 'админ'
-    }
-    else if(user.role==='client'){
-        editor = `клиент ${resInvoice.client.name}`
-    }
-    else{
-        let employment = await EmploymentAzyk.findOne({user: user._id}).select('name').lean()
-        editor = `${user.role} ${employment.name}`
-    }
-    resInvoice.editor = editor
-    await resInvoice.save();
-    let objectHistoryOrder = new HistoryOrderAzyk({
-        invoice: invoice,
-        orders: orders.map(order=>{
-            return {
-                item: order.name,
-                count: order.count,
-                consignment: order.consignment,
-                returned: order.returned
-            }
-        }),
-        editor: editor,
-    });
-    await HistoryOrderAzyk.create(objectHistoryOrder);
-    //отправка в 1С
-    let dateDelivery = new Date()
-    dateDelivery.setDate(dateDelivery.getDate() - 7)
-    if((resInvoice.guid||resInvoice.dateDelivery>dateDelivery)) {
-        if(resInvoice.organization.pass&&resInvoice.organization.pass.length) {
-            if (resInvoice.orders[0].status === 'принят') {
-                const {setSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
-                resInvoice.sync = await setSingleOutXMLAzyk(resInvoice, true)
-            }
-            else if (resInvoice.orders[0].status === 'отмена') {
-                const {cancelSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
-                resInvoice.sync = await cancelSingleOutXMLAzyk(resInvoice)
-            }
-        }
-        ///заглушка
-        else {
-            let _object = new ModelsErrorAzyk({
-                err: `${resInvoice.number} Отсутствует organization.pass ${resInvoice.organization.pass}`,
-                path: 'setOrder'
-            });
-            await ModelsErrorAzyk.create(_object)
-        }
-    }
-    ///заглушка
-    else {
-        let _object = new ModelsErrorAzyk({
-            err: `${resInvoice.number} Отсутствует guid`,
-            path: 'setOrder'
-        });
-        await ModelsErrorAzyk.create(_object)
-    }
-    //ws
-    let superDistrict = await DistrictAzyk.findOne({
-        organization: null,
-        client: resInvoice.client._id
-    })
-        .select('agent')
-        .lean();
-    let district = await DistrictAzyk.findOne({
-        organization: resInvoice.organization._id,
-        client: resInvoice.client._id
-    })
-        .select('organization manager agent')
-        .lean()
-
-    pubsub.publish(RELOAD_ORDER, { reloadOrder: {
-        who: user.role==='admin'?null:user._id,
-        client: resInvoice.client._id,
-        agent: district?district.agent:undefined,
-        superagent: superDistrict?superDistrict.agent:undefined,
-        organization: resInvoice.organization._id,
-        invoice: resInvoice,
-        manager: district?district.manager:undefined,
-        type: 'SET'
-    } });
-    return resInvoice
-}
-
-const setInvoice = async ({adss, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder, paymentConsignation, user}) => {
-    let object = await InvoiceAzyk.findOne({_id: invoice}).populate('client').populate('order')
-    let admin = ['admin', 'суперагент', 'суперэкспедитор'].includes(user.role)
-    let client = 'client'===user.role&&user.client.toString()===object.client._id.toString()
-    let undefinedClient = ['менеджер', 'суперорганизация', 'организация', 'экспедитор', 'агент'].includes(user.role)&&!object.client.user
-    let employment = ['менеджер', 'суперорганизация', 'организация', 'агент', 'экспедитор'].includes(user.role)&&[object.organization.toString()].includes(user.organization.toString());
-    if(adss!=undefined&&(admin||undefinedClient||employment)) {
+const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder, user}) => {
+    //накладная
+    let object = await InvoiceAzyk.findById(invoice).populate('client')
+    //проверка роли
+    let isAdmin = ['admin', 'суперагент', 'суперэкспедитор'].includes(user.role)
+    let isClient = 'client'===user.role&&user.client.toString()===object.client._id.toString()
+    let isEmployment = ['менеджер', 'суперорганизация', 'организация', 'агент', 'экспедитор'].includes(user.role)&&object.organization.toString()===user.organization.toString();
+    let isUndefinedClient = ['менеджер', 'суперорганизация', 'организация', 'экспедитор', 'агент'].includes(user.role)&&!object.client.user
+    //optionUpdateOrder
+    let optionUpdateOrder
+    //ручное задание акций
+    if(isNotEmpty(adss)&&(isAdmin||isUndefinedClient||isEmployment)) {
         object.adss = adss
     }
-    if(paymentConsignation!=undefined&&(admin||undefinedClient||employment)){
-        object.paymentConsignation = paymentConsignation
-    }
-    if(taken!=undefined&&(admin||employment)){
+    //принятие либо снятие принятия заказ
+    if(isNotEmpty(taken)&&(isAdmin||isEmployment)) {
         object.taken = taken
         if(taken) {
-            await OrderAzyk.updateMany({_id: {$in: object.orders}}, {status: 'принят'})
+            optionUpdateOrder = {status: 'принят'}
         }
         else {
-            await OrderAzyk.updateMany({_id: {$in: object.orders}}, {status: 'обработка', returned: 0})
+            optionUpdateOrder =  {status: 'обработка', returned: 0}
             object.confirmationForwarder = false
             object.confirmationClient = false
             object.returnedPrice = 0
             object.sync = object.sync!==0?1:0
         }
-        await checkAdss(invoice, !taken)
+        if(needCheckAdss)
+            await checkAdss(invoice, !taken)
     }
-    if(object.taken&&confirmationClient!=undefined&&(admin||undefinedClient||client)){
+    //заказ доставлен подтверждение клиентом
+    if(object.taken&&isNotEmpty(confirmationClient)&&(isAdmin||isUndefinedClient||isClient)) {
         object.confirmationClient = confirmationClient
         if(!confirmationClient) {
-            await OrderAzyk.updateMany({_id: {$in: object.orders}}, {status: 'принят'})
+            optionUpdateOrder = {status: 'принят'}
         }
     }
-    if(object.taken&&confirmationForwarder!=undefined&&(admin||employment)){
+    //заказ доставлен подтверждение поставщиком
+    if(object.taken&&isNotEmpty(confirmationForwarder)&&(isAdmin||isEmployment)) {
         object.confirmationForwarder = confirmationForwarder
         if(!confirmationForwarder) {
-            await OrderAzyk.updateMany({_id: {$in: object.orders}}, {status: 'принят'})
+            optionUpdateOrder = {status: 'принят'}
         }
     }
-    if(object.taken&&object.confirmationForwarder&&object.confirmationClient){
-        await OrderAzyk.updateMany({_id: {$in: object.orders}}, {status: 'выполнен'})
+    //заказ доставлен подтвержден клиентом и поставщиком
+    if(object.taken&&object.confirmationForwarder&&object.confirmationClient) {
+        optionUpdateOrder = {status: 'выполнен'}
     }
-
-    if(object.taken&&(object.confirmationForwarder||object.confirmationClient)){
-        let route = await RouteAzyk.findOne({invoices: invoice}).populate({
-            path: 'invoices',
-            populate : {
-                path : 'orders',
-            }
-        });
-        if(route){
+    //подтвеждение доставки в маршруте экспедитора
+    if(object.taken&&(object.confirmationForwarder||object.confirmationClient)) {
+        //маршрут экспедитора
+        let route = await RouteAzyk.findOne({invoices: invoice}).populate({path: 'invoices', select: 'cancelForwarder'}).lean();
+        if(route) {
             let completedRoute = true;
             for(let i = 0; i<route.invoices.length; i++) {
-                if(!route.invoices[i].cancelClient&&!route.invoices[i].cancelForwarder)
-                    completedRoute = route.invoices[i].confirmationForwarder;
+                if(!route.invoices[i].cancelForwarder)
+                    completedRoute = false;
             }
             if(completedRoute)
                 route.status = 'выполнен';
             else
                 route.status = 'выполняется';
-            await route.save();
+            await RouteAzyk.updateOne({invoices: invoice}, {status: route.status})
         }
     }
-
-    if(cancelClient!=undefined&&(cancelClient||object.cancelClient!=undefined)&&!object.cancelForwarder&&(admin||client)){
-        if(cancelClient){
+    //отмена/возврат клиентом
+    if(isNotEmpty(cancelClient)&&(cancelClient||isNotEmpty(object.cancelClient))&&!object.cancelForwarder&&(isAdmin||isClient)) {
+        //отмена клиентом
+        if(cancelClient) {
             object.cancelClient = new Date()
-            await OrderAzyk.updateMany({_id: {$in: object.orders}}, {status: 'отмена'})
+            optionUpdateOrder = {status: 'отмена'}
         }
+        //возврат поставщиком
         else if(!cancelClient) {
+            //расчет времени
             let difference = (new Date()).getTime() - (object.cancelClient).getTime();
             let differenceMinutes = checkFloat(difference / 60000);
             if (differenceMinutes < 10||user.role==='admin') {
-                object.cancelClient = undefined
-                await OrderAzyk.updateMany({_id: {$in: object.orders}}, {status: 'обработка'})
-                object.taken = undefined
-                object.confirmationClient = undefined
-                object.confirmationForwarder = undefined
+                object.cancelClient = null
+                optionUpdateOrder = {status: 'обработка'}
+                object.taken = null
+                object.confirmationClient = null
+                object.confirmationForwarder = null
             }
         }
     }
-
-    if(cancelForwarder!=undefined&&(cancelForwarder||object.cancelForwarder!=undefined)&&!object.cancelClient&&(admin||employment)){
-        if(cancelForwarder){
+    //отмена/возврат поставщиком
+    if(isNotEmpty(cancelForwarder)&&(cancelForwarder||isNotEmpty(object.cancelForwarder))&&!object.cancelClient&&(isAdmin||isEmployment)) {
+        //отмена поставщиком
+        if(cancelForwarder) {
             object.cancelForwarder = new Date()
-            await OrderAzyk.updateMany({_id: {$in: object.orders}}, {status: 'отмена'})
+            optionUpdateOrder = {status: 'отмена'}
         }
+        //возврат поставщиком
         else if(!cancelForwarder) {
             let difference = (new Date()).getTime() - (object.cancelForwarder).getTime();
             let differenceMinutes = checkFloat(difference / 60000);
             if (differenceMinutes < 10||user.role==='admin') {
-                object.cancelForwarder = undefined
-                object.cancelClient = undefined
-                await OrderAzyk.updateMany({_id: {$in: object.orders}}, {status: 'обработка'})
-                object.taken = undefined
-                object.confirmationClient = undefined
-                object.confirmationForwarder = undefined
+                object.cancelForwarder = null
+                object.cancelClient = null
+                optionUpdateOrder = {status: 'обработка'}
+                object.taken = null
+                object.confirmationClient = null
+                object.confirmationForwarder = null
             }
         }
     }
+    if(optionUpdateOrder) await OrderAzyk.updateMany({_id: {$in: object.orders}}, optionUpdateOrder)
     await object.save();
+}
+
+const setOrder = async ({orders, invoice, user}) => {
+    //накладная
+    invoice = await InvoiceAzyk.findById(invoice)
+        .populate({path: 'orders', populate: {path: 'item'}})
+        .populate({path: 'client'})
+        .populate({path: 'agent'})
+        .populate({path: 'adss'})
+        .populate({path: 'forwarder'})
+        .populate({path: 'organization'})
+        .lean()
+    //удаляемые orders
+    let ordersForDelete = []
+    //проверка доступа
+    if(orders&&orders.length) {
+        //общие данные
+        let allPrice = 0
+        let allTonnage = 0
+        let returnedPrice = 0
+        const bulkOperations = [];
+        //удаляемые orders
+        const ordersIds = orders.map(order => order._id.toString())
+        ordersForDelete = invoice.orders.filter(invoiceOrder => !ordersIds.includes(invoiceOrder._id.toString()))
+        ordersForDelete = ordersForDelete.map(orderForDelete => orderForDelete._id)
+        await OrderAzyk.updateMany({_id: {$in: ordersForDelete}}, {count: 0, returned: 0, allPrice: 0, allTonnage: 0, status: 'отмена', ads: null})
+        //order по id
+        const orderById = {}
+        for(const invoiceOrder of invoice.orders)
+            orderById[invoiceOrder._id] = invoiceOrder
+        //обнуление для обновления
+        invoice.orders = []
+        //перебор
+        for(let i = 0; i < orders.length; i++) {
+            //обновление
+            const updatedOrder = {
+                count: orders[i].count,
+                allPrice: orders[i].allPrice,
+                returned: orders[i].returned,
+                allTonnage: checkFloat(orders[i].allTonnage)
+            }
+            //подсчет накладной
+            returnedPrice += orders[i].returned * (orders[i].allPrice / orders[i].count)
+            allPrice += orders[i].allPrice
+            allTonnage += orders[i].allTonnage
+            //обновление в монго
+            bulkOperations.push({updateOne: {filter: {_id: orders[i]._id}, update: {$set: updatedOrder}}});
+            //обновление для интеграции
+            invoice.orders.push({...orderById[orders[i]._id], ...updatedOrder})
+        }
+        //массовое обновление
+        unawaited(() => parallelBulkWrite(OrderAzyk, bulkOperations));
+        //обновление накладной
+        invoice.allPrice = checkFloat(allPrice)
+        invoice.allTonnage = checkFloat(allTonnage)
+        invoice.returnedPrice = checkFloat(returnedPrice)
+    }
+    //редактор
+    invoice.editor = `${user.role}${user.name?` ${user.name}`:''}`
+    //дата доставки не менее сегодня
+    let today = new Date()
+    if(today.getHours() < 3)
+        today.setDate(today.getDate() - 1)
+    today.setHours(3, 0, 0, 0)
+    //проходит
+    if(invoice.dateDelivery>=today) {
+        //организация с интеграцией
+        if(invoice.organization.pass) {
+            //принятие
+            if (invoice.taken) {
+                const {setSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
+                invoice.sync = await setSingleOutXMLAzyk(invoice)
+            }
+            //отмена
+            else if (invoice.cancelClient||invoice.cancelForwarder) {
+                const {cancelSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
+                invoice.sync = await cancelSingleOutXMLAzyk(invoice)
+            }
+        }
+        ///заглушка
+        else {
+            unawaited(() => ModelsErrorAzyk.create({
+                err: `${invoice.number} Отсутствует organization.pass ${invoice.organization.pass}`,
+                path: 'setOrder'
+            }))
+        }
+    }
+    ///заглушка
+    else {
+        unawaited(() => ModelsErrorAzyk.create({
+            err: `${invoice.number} Дата доставки просрочена`,
+            path: 'setOrder'
+        }))
+    }
+    //сохранить накладную
+    await InvoiceAzyk.updateOne({_id: invoice._id}, {
+        allPrice: invoice.allPrice, allTonnage: invoice.allTonnage, returnedPrice: invoice.returnedPrice,
+        editor: invoice.editor, sync: invoice.sync, orders: invoice.orders.map(order => order._id)
+    });
+    //подсчет остатков
+    if(invoice.organization.calculateStock)
+        unawaited(() => calculateStock([...ordersForDelete, ...invoice.orders.map(order => order._id)], invoice.organization._id, invoice.client._id))
+    //удаление выбывших позиций
+    if(ordersForDelete.length)
+        unawaited(() => OrderAzyk.deleteMany({_id: {$in: ordersForDelete}}))
+    //история изменения
+    unawaited(() => HistoryOrderAzyk.create({
+        invoice: invoice._id, editor: invoice.editor,
+        orders: orders.map(order => {
+            return {item: order.name, count: order.count, returned: order.returned}
+        })
+    }))
+    //ws
+    unawaited(async () => {
+        // eslint-disable-next-line no-undef
+        let [superDistrict, district] = await Promise.all([
+            DistrictAzyk.findOne({organization: null, client: invoice.client._id}).select('agent').lean(),
+            DistrictAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id, ...invoice.agent?{agent: invoice.agent._id}:{}}).select('organization manager agent').lean()
+        ]);
+        pubsub.publish(RELOAD_ORDER, {reloadOrder: {
+                who: user.role==='admin'?null:user._id,
+                client: invoice.client._id,
+                agent: district?district.agent:null,
+                superagent: superDistrict?superDistrict.agent:null,
+                organization: invoice.organization._id,
+                invoice: invoice,
+                manager: district?district.manager:null,
+                type: 'SET'
+            }})
+    })
+    return invoice
+}
+
+const acceptOrders = async (dateEnd) => {
+    const {setSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
+    const {unawaited} = require('../module/const');
+    const {pubsub} = require('./index');
+    //организации с автоприемом
+    let organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id')
+    //накладные
+    let invoices = await InvoiceAzyk.find({
+        del: {$ne: 'deleted'},
+        taken: {$ne: true},
+        cancelClient: null,
+        cancelForwarder: null,
+        organization: {$in: organizations},
+        ...dateEnd?{createdAt: {$lt: dateEnd}}:{}
+    })
+        .populate({path: 'client'})
+        .populate({path: 'organization'})
+        .populate({path: 'orders', populate: {path: 'item'}})
+        .populate({path: 'agent'})
+        .populate({path: 'forwarder'})
+        .sort('createdAt')
+        .lean()
+    //если есть
+    if(invoices.length) {
+        //ordersForAccept
+        const ordersForAccept = []
+        // подготовим массив операций
+        const bulkOperations = [];
+        //invoicesForCheckAdss
+        let invoicesForCheckAdss = {}
+        //перебор
+        // eslint-disable-next-line no-undef
+        await parallelPromise(invoices, async (invoice) => {
+            //заказы для подбора акций
+            invoicesForCheckAdss[invoice.client._id] = invoice._id
+            //дата доставки не менее сегодня
+            let today = new Date()
+            if(today.getHours() < 3)
+                today.setDate(today.getDate() - 1)
+            today.setHours(3, 0, 0, 0)
+            //проходит
+            if(invoice.dateDelivery>=today) {
+                //организация с интеграцией
+                if (invoice.organization.pass)
+                    invoice.sync = await setSingleOutXMLAzyk(invoice)
+                ///заглушка
+                else
+                    unawaited(() => ModelsErrorAzyk.create({
+                        err: `${invoice.number} Отсутствует organization.pass ${invoice.organization.pass}`,
+                        path: 'acceptOrders'
+                    }))
+            }
+            ///заглушка
+            else
+                unawaited(() => ModelsErrorAzyk.create({
+                    err: `${invoice.number} Дата доставки просрочена`,
+                    path: 'acceptOrders'
+                }))
+            //принятие order
+            for(const order of invoice.orders) {
+                order.status = 'принят'
+                ordersForAccept.push(order._id)
+            }
+            //прием
+            invoice.taken = true
+            //редактор
+            invoice.editor = 'acceptOrders'
+            //массив обновлений
+            bulkOperations.push({updateOne: {
+                filter: {_id: invoice._id}, update: {$set: {editor: invoice.editor, sync: invoice.sync, taken: invoice.taken}}
+            }});
+            //ws
+            unawaited(async () => {
+                // eslint-disable-next-line no-undef
+                const [superDistrict, district] = await Promise.all([
+                    DistrictAzyk.findOne({organization: null, client: invoice.client._id}).select('agent').lean(),
+                    DistrictAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id, ...invoice.agent?{agent: invoice.agent._id}:{}}).select('organization manager agent').lean()
+                ]);
+                pubsub.publish(RELOAD_ORDER, {reloadOrder: {
+                    who: null,
+                    client: invoice.client._id,
+                    agent: district?district.agent:null,
+                    superagent: superDistrict?superDistrict.agent:null,
+                    organization: invoice.organization._id,
+                    invoice: invoice,
+                    manager: district?district.manager:null,
+                    type: 'SET'
+                }})
+            })
+        })
+        //обновление
+        await parallelBulkWrite(InvoiceAzyk, bulkOperations);
+        await OrderAzyk.updateMany({_id: {$in: ordersForAccept}}, {status: 'принят'})
+        //подбор акций
+        await parallelPromise(Object.values(invoicesForCheckAdss), async invoice => await checkAdss(invoice, false))
+    }
 }
 
 const resolversMutation = {
     acceptOrders: async(parent, ctx, {user}) => {
-        if(user.role==='admin'){
-            let dateDelivery = new Date()
-            dateDelivery.setDate(dateDelivery.getDate() - 7)
-            let dateEnd = new Date()
-            dateEnd.setMinutes(dateEnd.getMinutes()-10)
-            let organizations = await OrganizationAzyk.find({autoAcceptNight: true}).distinct('_id').lean()
-            let invoices = await InvoiceAzyk.find({
-                del: {$ne: 'deleted'},
-                taken: {$ne: true},
-                cancelClient: null,
-                cancelForwarder: null,
-                createdAt: {$lte: dateEnd},
-                organization: {$in: organizations}
-            })
-            //.select('client organization orders dateDelivery paymentMethod number _id inv')
-                .populate({
-                    path: 'client',
-                    //  select: '_id'
-                })
-                .populate({
-                    path: 'organization',
-                    //   select: '_id pass'
-                })
-                .populate({
-                    path: 'orders',
-                    //  select: '_id item count returned allPrice ',
-                    populate: {
-                        path: 'item',
-                        //    select: '_id priotiry packaging'
-                    }
-                })
-                .populate({path: 'agent'})
-                .populate({path: 'forwarder'})
-            for(let i = 0; i<invoices.length;i++) {
-                invoices[i].taken = true
-                await OrderAzyk.updateMany({_id: {$in: invoices[i].orders.map(element=>element._id)}}, {status: 'принят'})
-                await checkAdss(invoices[i]._id)
-                if(invoices[i].guid||invoices[i].dateDelivery>dateDelivery) {
-                    if (invoices[i].organization.pass && invoices[i].organization.pass.length) {
-                        invoices[i].sync = await setSingleOutXMLAzyk(invoices[i])
-                    }
-                    ///заглушка
-                    else {
-                        let _object = new ModelsErrorAzyk({
-                            err: `${invoices[i].number} Отсутствует organization.pass ${invoices[i].organization.pass}`,
-                            path: 'acceptOrders'
-                        });
-                        await ModelsErrorAzyk.create(_object)
-                    }
-                }
-                ///заглушка
-                else {
-                    let _object = new ModelsErrorAzyk({
-                        err: `${invoices[i].number} Отсутствует guid`,
-                        path: 'acceptOrders'
-                    });
-                    await ModelsErrorAzyk.create(_object)
-                }
-                invoices[i].editor = 'админ'
-                let objectHistoryOrder = new HistoryOrderAzyk({
-                    invoice: invoices[i]._id,
-                    orders: invoices[i].orders.map(order=>{
-                        return {
-                            item: order.name,
-                            count: order.count,
-                            consignment: order.consignment,
-                            returned: order.returned
-                        }
-                    }),
-                    editor: 'админ',
-                });
-                await HistoryOrderAzyk.create(objectHistoryOrder);
-                await invoices[i].save()
-                invoices[i].adss = await AdsAzyk.find({_id: {$in: invoices[i].adss}})
-                pubsub.publish(RELOAD_ORDER, { reloadOrder: {
-                    who: null,
-                    client: invoices[i].client._id,
-                    agent: invoices[i].agent?invoices[i].agent._id:undefined,
-                    superagent: undefined,
-                    organization: invoices[i].organization._id,
-                    invoice: invoices[i],
-                    manager: undefined,
-                    type: 'SET'
-                } });
-            }
+        if(user.role==='admin') {
+            const dateEnd = new Date()
+            dateEnd.setMinutes(dateEnd.getMinutes() - 10)
+            await acceptOrders(dateEnd)
+            return 'OK';
         }
-        return {data: 'OK'};
     },
     addOrders: async(parent, {priority, dateDelivery, info, paymentMethod, organization, client, inv, unite}, {user}) => {
         // Привязка клиента, если заказ делает клиент
         if(user.client) client = user.client
-        client = await ClientAzyk.findOne({_id: client}).select('address id city').lean()
-        // Получаем организацию от SubBrand, если задано
-        let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
+        // Получаем организацию от SubBrand, если есть
+        // eslint-disable-next-line no-undef
+        const [subBrand, clientData] = await Promise.all([
+            !user.organization?SubBrandAzyk.findById(organization).select('organization').lean():null,
+            ClientAzyk.findById(client).select('address city category').lean()
+        ])
         if(subBrand) organization = subBrand.organization
+        client = clientData
+        if(user.organization) organization = user.organization
         // Проверка деления по суббрендам
-        const divideBySubBrand = (await OrganizationAzyk.findById(organization).select('divideBySubBrand').lean()).divideBySubBrand
         // Получаем корзины пользователя (агента или клиента)
-        let baskets = await BasketAzyk.find(
-            user.client? {client: user.client} : {agent: user.employment}
-        )
-            .select('item count consignment _id')
-            .populate({
-                path: 'item',
-                select: 'price _id weight',
-                match: {organization: organization}
-            })
-            .lean();
+        // eslint-disable-next-line no-undef
+        let [organizationData, baskets, discountData, specialPricesClient, specialPricesCategory, superDistrict, district] = await Promise.all([
+            OrganizationAzyk.findById(organization).select('divideBySubBrand autoAcceptAgent calculateStock').lean(),
+            BasketAzyk.find(user.client? {client: user.client} : {agent: user.employment}).select('item count _id').populate({path: 'item', select: 'price _id weight subBrand'}).lean(),
+            DiscountClient.findOne({client: client._id, organization}).lean(),
+            SpecialPriceClientAzyk.find({organization, client: client._id}).select('item price').lean(),
+            SpecialPriceCategory.find({organization, category: client.category}).select('item price').lean(),
+            DistrictAzyk.findOne({organization: null, client: client._id}).select('agent').lean(),
+            DistrictAzyk.findOne({organization, client: client._id, ...user.role==='агент'?{agent: user.employment}:{}}).select('agent manager organization').lean()
+        ])
+        //фильтруем нулевые значения
+        baskets = baskets.filter(basket => basket.count)
+        //проверка специальной цены клиента
+        const specialPriceClientByItem = {}
+        for(const specialPriceClient of specialPricesClient) {
+            specialPriceClientByItem[specialPriceClient.item] = specialPriceClient.price
+        }
+        //проверка специальной цены категории
+        const specialPriceCategoryByItem = {}
+        for(const specialPriceCategory of specialPricesCategory) {
+            specialPriceCategoryByItem[specialPriceCategory.item] = specialPriceCategory.price
+        }
+        //скидка клиента
+        const discount = discountData?discountData.discount:0
+        //автоприем
+        const autoAcceptAgent = organizationData.autoAcceptAgent;
+        const divideBySubBrand = organizationData.divideBySubBrand;
         // Группируем корзины по суббрендам, если включено деление
-        let basketsBySubBrand = {}
-        if(divideBySubBrand) {
-            for(let i=0; i<baskets.length; i++) {
-                let subBrand = (await ItemAzyk.findById(baskets[i].item._id).select('subBrand').lean()).subBrand
-                if(!subBrand) subBrand = 'all'
-                if(!basketsBySubBrand[subBrand])
-                    basketsBySubBrand[subBrand] = []
-                basketsBySubBrand[subBrand].push(baskets[i])
+        let basketsBySubBrand
+        if (divideBySubBrand) {
+            // Группируем baskets по subBrand
+            // eslint-disable-next-line no-undef
+            basketsBySubBrand = {};
+            for(const basket of baskets) {
+                const subBrand = basket.item.subBrand || 'all';
+                if (!basketsBySubBrand[subBrand])
+                    basketsBySubBrand[subBrand] = [];
+                basketsBySubBrand[subBrand].push(basket);
             }
-            basketsBySubBrand = Object.values(basketsBySubBrand)
-        }
-        else {
-            basketsBySubBrand = [baskets]
-        }
+            basketsBySubBrand = Object.values(basketsBySubBrand);
+        } else
+            basketsBySubBrand = [baskets];
+        //генерация номеров
+        const numbers = []
+        for(let i=0; i<basketsBySubBrand.length; i++)
+            numbers[i] = await generateUniqueNumber(InvoiceAzyk, numbers)
+        //надо ли checkAds
+        let invoiceCheckAdss
         // Обрабатываем каждую группу корзин
-        for(let i=0; i<basketsBySubBrand.length; i++) {
-            let guid = await uuidv1()
-            baskets = basketsBySubBrand[i]
-            baskets = baskets.filter(basket => (basket.item))
-            if(baskets.length>0){
+        // eslint-disable-next-line no-undef
+        await Promise.all(basketsBySubBrand.map(async (baskets, idx) => {
+            //формируем корзины побренда
+            if(baskets.length) {
+                //guid
+                let guid = await uuidv1()
+                //сегодня
                 let dateStart = new Date()
                 if(dateStart.getHours()<3)
                     dateStart.setDate(dateStart.getDate() - 1)
                 dateStart.setHours(3, 0, 0, 0)
                 let dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
-                // Получаем агентов
-                // eslint-disable-next-line no-undef
-                let [superDistrict, district] = await Promise.all([
-                    DistrictAzyk.findOne({organization: null, client: client._id}).select('agent').lean(),
-                    DistrictAzyk.findOne({organization, client: client._id}).select('agent manager organization').lean()
-                ]);
-
+                //накладная
                 let objectInvoice;
+                //если объединяем заказы и не счет-фактура
                 if(unite&&!inv) {
-                    if(divideBySubBrand) {
-                        let subBrand = (await ItemAzyk.findById(baskets[0].item._id).select('subBrand').lean()).subBrand
-                        const objectInvoices = await InvoiceAzyk.find({
-                            organization: organization,
-                            client: client._id,
-                            dateDelivery: dateDelivery,
-                            $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
-                            del: {$ne: 'deleted'},
-                            cancelClient: null,
-                            cancelForwarder: null,
-                            inv: {$ne: 1}
-                        })
-                            .select('_id orders')
-                            .populate({
-                                path: 'orders',
-                                select: 'item',
-                                populate: {
-                                    path: 'item',
-                                    select: 'subBrand'
-                                }
-                            })
-                            .sort('-createdAt')
-                            .lean()
-                        for(let i1=0; i1<objectInvoices.length; i1++) {
-                            if(subBrand.toString()===objectInvoices[i1].orders[0].item.subBrand.toString()) {
-                                objectInvoice = await InvoiceAzyk.findById(objectInvoices[i1]._id)
-                                    .populate('client')
-                                    .sort('-createdAt')
-                                break
+                    //накладные за сегодня и подбренд
+                    // eslint-disable-next-line no-undef
+                    const objectInvoices = await InvoiceAzyk.find({
+                        organization,
+                        client: client._id,
+                        dateDelivery: dateDelivery,
+                        createdAt: { $gte: dateStart, $lt: dateEnd },
+                        del: {$ne: 'deleted'},
+                        cancelClient: null,
+                        cancelForwarder: null,
+                        inv: {$ne: 1}
+                    })
+                        .populate({
+                            path: 'orders',
+                            select: '_id item',
+                            populate: {
+                                path: 'item',
+                                select: 'subBrand'
                             }
+                        })
+                        .sort('-createdAt')
+                        .lean()
+                    //перебираем накладные
+                    for(let i = 0; i < objectInvoices.length; i++) {
+                        if(baskets[0].item.subBrand)
+                            baskets[0].item.subBrand = baskets[0].item.subBrand.toString()
+                        if(objectInvoices[i].orders[0].item.subBrand)
+                            objectInvoices[i].orders[0].item.subBrand = objectInvoices[i].orders[0].item.subBrand.toString()
+                        if (baskets[0].item.subBrand === objectInvoices[i].orders[0].item.subBrand) {
+                            objectInvoice = objectInvoices[i];
+                            objectInvoice.orders = objectInvoice.orders.map(order => order._id)
+                            break;
                         }
                     }
-                    else {
-                        objectInvoice = await InvoiceAzyk.findOne({
-                            organization: organization,
-                            client: client._id,
-                            dateDelivery: dateDelivery,
-                            $and: [{createdAt: {$gte: dateStart}}, {createdAt: {$lt: dateEnd}}],
-                            del: {$ne: 'deleted'},
-                            cancelClient: null,
-                            cancelForwarder: null,
-                            inv: {$ne: 1}
-                        })
-                            .populate('client')
-                            .sort('-createdAt')
-                    }
                 }
-                let discount = await DiscountClient.findOne({client: client._id, organization: organization}).lean()
-                discount = discount?discount.discount:0
-                if(!objectInvoice){
-                    // Нет счета — создаём заказы
+                //нету накладной
+                if(!objectInvoice) {
+                    // создаём заказы
                     // eslint-disable-next-line no-undef
-                    const orders = await Promise.all(baskets.map(async basket => {
-                        let price = await SpecialPriceClientAzyk.findOne({
-                            item: basket.item._id,
-                            client: client._id
-                        }).select('price').lean()
-                        price = price?price.price:basket.item.price
-                        price = !discount?
-                            price
-                            :
-                            checkFloat(price-price/100*discount)
+                    let orders = await Promise.all(baskets.map(async basket => {
+                        //проверка специальной цены клиента
+                        let price = isNotEmpty(specialPriceClientByItem[basket.item._id])?specialPriceClientByItem[basket.item._id]:isNotEmpty(specialPriceCategoryByItem[basket.item._id])?specialPriceCategoryByItem[basket.item._id]:basket.item.price
+                        //итоговая цена
+                        price = !discount? price : checkFloat(price-price/100*discount)
+                        //возвращаем заказа
                         return await OrderAzyk.create({
                             item: basket.item._id,
                             client: client._id,
                             count: basket.count,
-                            consignment: basket.consignment,
-                            consignmentPrice: checkFloat(basket.consignment*price),
                             allTonnage: checkFloat(basket.count*(basket.item.weight?basket.item.weight:0)),
                             allPrice: checkFloat(price*basket.count),
                             status: 'обработка',
                             agent: user.employment,
                         });
                     }));
-                    let number = randomstring.generate({length: 12, charset: 'numeric'});
-                    while (await InvoiceAzyk.findOne({number: number}).select('_id').lean())
-                        number = randomstring.generate({length: 12, charset: 'numeric'});
+                    //общая сумма накладной
                     let allPrice = 0
                     let allTonnage = 0
-                    let consignmentPrice = 0
-                    for(let iii=0; iii<orders.length;iii++) {
-                        allPrice += orders[iii].allPrice
-                        consignmentPrice += orders[iii].consignmentPrice
-                        allTonnage += orders[iii].allTonnage
-                        orders[iii] = orders[iii]._id
-                    }
-                    objectInvoice = new InvoiceAzyk({
+                    orders = orders.map(order => {
+                        allPrice += order.allPrice
+                        allTonnage += order.allTonnage
+                        return order._id
+                    })
+                    //создаем накладную
+                    objectInvoice = await InvoiceAzyk.create({
                         guid,
                         city: client.city,
-                        priority: priority,
-                        discount: discount,
-                        orders: orders,
+                        priority,
+                        discount,
+                        orders,
                         client: client._id,
                         allPrice: checkFloat(allPrice),
-                        consignmentPrice: checkFloat(consignmentPrice),
                         allTonnage: checkFloat(allTonnage),
-                        info: info,
+                        info,
                         address: client.address[0],
                         paymentMethod: paymentMethod,
-                        number: number,
+                        number: numbers[idx],
                         agent: user.employment,
-                        organization: organization,
+                        organization,
                         adss: [],
                         track: 1,
-                        dateDelivery: dateDelivery,
+                        dateDelivery,
                         district:  district?district.name:null,
-                        who: user._id
+                        who: user._id,
+                        ...inv?{inv: 1}:{}
                     });
-                    if(inv)
-                        objectInvoice.inv = 1
-                    objectInvoice = await InvoiceAzyk.create(objectInvoice);
                 }
                 // Счет найден — обновляем существующие заказы
                 else {
-                    for(let ii=0; ii<baskets.length;ii++){
-                        let price
-                        let objectOrder = await OrderAzyk.findOne({
-                            item: baskets[ii].item._id,
-                            _id: {$in: objectInvoice.orders},
-                        })
-                        if(objectOrder){
-                            price = checkFloat(objectOrder.allPrice/objectOrder.count)
-                            objectOrder.count+=baskets[ii].count
-                            objectOrder.consignment+=baskets[ii].consignment
-                            objectOrder.consignmentPrice+=checkFloat(baskets[ii].consignment*price)
-                            objectOrder.allTonnage+=checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0))
-                            objectOrder.allPrice+=checkFloat(price*baskets[ii].count)
-                            await objectOrder.save()
+                    //заказы счета по товарам
+                    let objectOrders = await OrderAzyk.find({
+                        _id: {$in: objectInvoice.orders}
+                    }).select('_id item allPrice count allTonnage').lean()
+                    const orderByItem = {}
+                    for(const objectOrder of objectOrders)
+                        orderByItem[objectOrder.item] = objectOrder
+                    //перебор корзин
+                    // eslint-disable-next-line no-undef
+                    baskets = await Promise.all(baskets.map(async basket => {
+                        //есть ли заказ на товар
+                        let objectOrder = orderByItem[basket.item._id]
+                        //если есть
+                        if(objectOrder) {
+                            //подсчет и сохранение
+                            basket.price = checkFloat(objectOrder.allPrice/objectOrder.count)
+                            objectOrder.count += basket.count
+                            objectOrder.allTonnage += basket.count*(basket.item.weight?basket.item.weight:0)
+                            objectOrder.allPrice += basket.price*basket.count
+                            await OrderAzyk.updateOne(
+                                {_id: objectOrder._id}, {count: objectOrder.count, allTonnage: checkFloat(objectOrder.allTonnage), allPrice: checkFloat(objectOrder.allPrice)}
+                            )
                         }
+                        //если нету
                         else {
-                            price = await SpecialPriceClientAzyk.findOne({
-                                item: baskets[ii].item._id,
-                                client: client._id
-                            }).select('price').lean()
-                            price = price?price.price:baskets[ii].item.price
-                            price = !discount?
-                                price
-                                :
-                                checkFloat(price-price/100*discount)
-                            objectOrder = new OrderAzyk({
-                                item: baskets[ii].item._id,
+                            //проверка специальной цены клиента
+                            basket.price = isNotEmpty(specialPriceClientByItem[basket.item._id])?
+                                specialPriceClientByItem[basket.item._id]:isNotEmpty(specialPriceCategoryByItem[basket.item._id])?
+                                    specialPriceCategoryByItem[basket.item._id]:basket.item.price
+                            //итоговая цена
+                            basket.price = !discount? basket.price : checkFloat(basket.price-basket.price/100*discount)
+                            //создание заказа
+                            objectOrder = await OrderAzyk.create({
+                                item: basket.item._id,
                                 client: client._id,
-                                count: baskets[ii].count,
-                                consignment: baskets[ii].consignment,
-                                consignmentPrice: checkFloat(baskets[ii].consignment*price),
-                                allTonnage: checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0)),
-                                allPrice: checkFloat(price*baskets[ii].count),
+                                count: basket.count,
+                                allTonnage: checkFloat(basket.count*(basket.item.weight?basket.item.weight:0)),
+                                allPrice: checkFloat(basket.price*basket.count),
                                 status: 'обработка',
                                 agent: user.employment,
-                            });
-                            objectOrder = await OrderAzyk.create(objectOrder);
-                            objectInvoice.orders.push(objectOrder);
+                            })
+                            //_id для добавления нового заказа
+                            basket.objectOrder = objectOrder._id
                         }
-                        objectInvoice.allPrice+=price*baskets[ii].count
-                        objectInvoice.allTonnage+=checkFloat(baskets[ii].count*(baskets[ii].item.weight?baskets[ii].item.weight:0))
-                        objectInvoice.consignmentPrice+=checkFloat(baskets[ii].consignment*price)
+                        return basket
+                    }))
+                    //перебор корзин для подсчета сумм накладной
+                    let allPrice = objectInvoice.allPrice;
+                    let allTonnage = objectInvoice.allTonnage;
+                    let orders = objectInvoice.orders;
+                    for(const basket of baskets) {
+                        allPrice += basket.price*basket.count
+                        allTonnage += basket.count*(basket.item.weight?basket.item.weight:0)
+                        //если новый заказ добавить к накладной
+                        if(basket.objectOrder) objectInvoice.orders.push(basket.objectOrder);
                     }
-                    await OrderAzyk.updateMany({_id: {$in: objectInvoice.orders}}, {status: 'обработка', returned: 0})
-                    objectInvoice.returnedPrice = 0
-                    objectInvoice.confirmationForwarder = false
-                    objectInvoice.confirmationClient = false
-                    objectInvoice.taken = false
-                    objectInvoice.sync = 0
-                    for(let ii=0; ii<objectInvoice.orders.length;ii++) {
-                        objectInvoice.orders[ii] = objectInvoice.orders[ii]._id
-                    }
-                    let editor
-                    if(user.role==='admin'){
-                        editor = 'админ'
-                    }
-                    else if(user.role==='client'){
-                        editor = `клиент ${objectInvoice.client.name}`
-                    }
-                    else{
-                        let employment = await EmploymentAzyk.findOne({user: user._id}).lean()
-                        editor = `${user.role} ${employment.name}`
-                    }
-                    objectInvoice.editor = editor
-                    objectInvoice.markModified('orders');
-                    await objectInvoice.save();
-                    let objectHistoryOrder = new HistoryOrderAzyk({
-                        invoice: objectInvoice._id,
-                        editor: editor,
-                    });
-                    await HistoryOrderAzyk.create(objectHistoryOrder);
+                    //кто менял
+                    const editor = `${user.role}${user.name?` ${user.name}`:''}`
+                    // eslint-disable-next-line no-undef
+                    await Promise.all([
+                        //перевод всех заказов в обработку
+                        OrderAzyk.updateMany({_id: {$in: objectInvoice.orders}}, {status: 'обработка', returned: 0}),
+                        //обновление накладной
+                        InvoiceAzyk.updateOne({_id: objectInvoice._id}, {
+                            returnedPrice: 0, confirmationForwarder: false, confirmationClient: false, taken: false, sync: 0, editor,
+                            allPrice: checkFloat(allPrice), allTonnage: checkFloat(allTonnage), orders
+                        }),
+                        //история
+                        HistoryOrderAzyk.create({invoice: objectInvoice._id, editor,})
+                    ])
                 }
                 // Автопринятие заказов агентом, если разрешено
-                if(user.employment&&(await OrganizationAzyk.findOne({_id: organization}).select('autoAcceptAgent').lean()).autoAcceptAgent) {
+                if(user.employment&&autoAcceptAgent) {
                     await setInvoice({taken: true, invoice: objectInvoice._id, user})
                     await setOrder({orders: [], invoice: objectInvoice._id, user})
+                    invoiceCheckAdss = objectInvoice._id
                 }
-                // Получаем финальный счёт для публикации
-                let newInvoice = await InvoiceAzyk.findOne({_id: objectInvoice._id})
-                    .select(' _id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
-                    .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
-                    .populate({path: 'agent', select: '_id name'})
-                    .populate({path: 'organization', select: '_id name'})
-                    .populate({path: 'forwarder', select: '_id name'})
-                    .lean()
-                pubsub.publish(RELOAD_ORDER, { reloadOrder: {
+                //публикация и подсчет остатков
+                unawaited(async() => {
+                    // Удаляем использованные корзины
+                    await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
+                    // Получаем финальный счёт для публикации
+                    let newInvoice = await InvoiceAzyk.findById(objectInvoice._id)
+                        .select(' _id agent createdAt updatedAt allTonnage client allPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder taken sync city dateDelivery')
+                        .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
+                        .populate({path: 'agent', select: '_id name'})
+                        .populate({path: 'organization', select: '_id name'})
+                        .populate({path: 'forwarder', select: '_id name'})
+                        .lean()
+                    //подсчет остатков
+                    if (organizationData.calculateStock&&!(user.employment&&autoAcceptAgent))
+                        await calculateStock(objectInvoice.orders, newInvoice.organization._id, newInvoice.client._id)
+                    //публикация
+                    await pubsub.publish(RELOAD_ORDER, {reloadOrder: {
+                            who: user.role==='admin'?null:user._id,
+                            agent: district?district.agent:null,
+                            superagent: superDistrict?superDistrict.agent:null,
+                            client: client._id,
+                            organization,
+                            invoice: newInvoice,
+                            manager: district?district.manager:null,
+                            type: 'ADD'
+                        }})
+                });
+            }
+        }))
+        if(invoiceCheckAdss)
+            await checkAdss(invoiceCheckAdss, false)
+        return 'OK';
+    },
+    deleteOrders: async(parent, {ids}, {user}) => {
+        if(user.role==='admin') {
+            let objects = await InvoiceAzyk.find({_id: {$in: ids}})
+            // eslint-disable-next-line no-undef
+            await Promise.all(objects.map(async object => {
+                object.del = 'deleted'
+                await object.save()
+                // eslint-disable-next-line no-undef
+                let [superDistrict, district] = await Promise.all([
+                    DistrictAzyk.findOne({organization: null, client: object.client}).select('agent').lean(),
+                    DistrictAzyk.findOne({
+                        client: object.client,
+                        organization: object.organization,
+                        ...object.agent?{agent: object.agent}:{}}).select('agent manager organization').lean()
+                ]);
+                unawaited(() => pubsub.publish(RELOAD_ORDER, {reloadOrder: {
                         who: user.role==='admin'?null:user._id,
-                        agent: district?district.agent:undefined,
-                        superagent: superDistrict?superDistrict.agent:undefined,
-                        client: client._id,
-                        organization: organization,
-                        invoice: newInvoice,
-                        manager: district?district.manager:undefined,
-                        type: 'ADD'
-                    } });
-                // Удаляем использованные корзины
-                await BasketAzyk.deleteMany({_id: {$in: baskets.map(element=>element._id)}})
-            }
+                        client: object.client,
+                        agent: district?district.agent:null,
+                        superagent: superDistrict?superDistrict.agent:null,
+                        organization: object.organization,
+                        invoice: {_id: object._id},
+                        manager: district?district.manager:null,
+                        type: 'DELETE'
+                    }}));
+            }))
+            return 'OK';
         }
-        return {data: 'OK'};
     },
-    deleteOrders: async(parent, {_id}, {user}) => {
-        if(user.role==='admin'){
-            let objects = await InvoiceAzyk.find({_id: {$in: _id}})
-            for(let i=0; i<objects.length; i++){
-                objects[i].del = 'deleted'
-                await objects[i].save()
-                let superDistrict = await DistrictAzyk.findOne({
-                    organization: null,
-                    client: objects[i].client
-                })
-                    .select('agent')
-                    .lean();
-                let district = await DistrictAzyk.findOne({
-                    organization: objects[i].organization,
-                    client: objects[i].client
-                })
-                    .select('organization manager agent')
-                    .lean();
-                pubsub.publish(RELOAD_ORDER, { reloadOrder: {
-                    who: user.role==='admin'?null:user._id,
-                    client: objects[i].client,
-                    agent: district?district.agent:undefined,
-                    superagent: superDistrict?superDistrict.agent:undefined,
-                    organization: objects[i].organization,
-                    invoice: {_id: objects[i]._id},
-                    manager: district?district.manager:undefined,
-                    type: 'DELETE'
-                } });
-            }
-        }
-        return {data: 'OK'};
-    },
-    restoreOrders: async(parent, {_id}, {user}) => {
-        if(user.role==='admin'){
-            let objects = await InvoiceAzyk.find({_id: {$in: _id}})
-            for(let i=0; i<objects.length; i++){
-                objects[i].del = null
-                await objects[i].save()
-            }
-        }
-        return {data: 'OK'};
-    },
-    setInvoicesLogic: async(parent, {track, forwarder, invoices}, {user}) => {
+    setInvoicesLogic: async(parent, {track, forwarder, invoices}) => {
         await setSingleOutXMLAzykLogic(invoices, forwarder, track)
-
-        let resInvoices = await InvoiceAzyk.find({_id: {$in: invoices}})
-            .select(' _id agent createdAt updatedAt allTonnage client allPrice consignmentPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder paymentConsignation taken sync city dateDelivery')
-            .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
-            .populate({path: 'agent', select: '_id name'})
-            .populate({path: 'organization', select: '_id name'})
-            .populate({path: 'forwarder', select: '_id name'})
-            .lean()
-        if(resInvoices.length>0){
-            let superDistrict = await DistrictAzyk.findOne({
-                organization: null,
-                client: resInvoices[0].client._id
-            })
-                .select('agent')
-                .lean();
-            let district = await DistrictAzyk.findOne({
-                organization: resInvoices[0].organization._id,
-                client: resInvoices[0].client._id
-            })
-                .select('organization manager agent')
-                .lean()
-            for(let i=0; i<resInvoices.length; i++){
-                pubsub.publish(RELOAD_ORDER, { reloadOrder: {
-                    who: user.role==='admin'?null:user._id,
-                    client: resInvoices[i].client._id,
-                    agent: district?district.agent:undefined,
-                    superagent: superDistrict?superDistrict.agent:undefined,
-                    organization: resInvoices[i].organization._id,
-                    invoice: resInvoices[i],
-                    manager: district?district.manager:undefined,
-                    type: 'SET'
-                } });
-            }
-        }
-        return {data: 'OK'};
+        return 'OK';
     },
     setOrder: async(parent, {orders, invoice}, {user}) => {
         return await setOrder({orders, invoice, user})
     },
-    setInvoice: async(parent, {adss, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder, paymentConsignation}, {user}) => {
-        await setInvoice({adss, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder, paymentConsignation, user})
-        return {data: 'OK'};
+    setInvoice: async(parent, {adss, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder}, {user}) => {
+        await setInvoice({adss, needCheckAdss: true, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder, user})
+        return 'OK';
     }
 };
 
@@ -1592,3 +1298,4 @@ module.exports.mutation = mutation;
 module.exports.type = type;
 module.exports.query = query;
 module.exports.resolvers = resolvers;
+module.exports.acceptOrders = acceptOrders;

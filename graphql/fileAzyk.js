@@ -3,7 +3,7 @@ const {pdDDMMYYHHMM} = require('../module/const');
 const fs = require('fs');
 const path = require('path');
 const dirs = ['images', 'xlsx']
-const { deleteFile, urlMain } = require('../module/const');
+const {deleteFile, urlMain} = require('../module/const');
 const ClientAzyk = require('../models/clientAzyk');
 const BlogAzyk = require('../models/blogAzyk');
 const ContactAzyk = require('../models/contactAzyk');
@@ -22,114 +22,108 @@ const type = `
     createdAt: String
     active: String
     owner: String
-  }
+ }
 `;
 
 const query = `
-    files(filter: String!): [File]
-    filterFile: [Filter]
+    files: [File]
 `;
 
 const mutation = `
-    clearAllDeactiveFiles: Data
+    clearAllDeactiveFiles: String
 `;
 
 const resolvers = {
-    files: async(parent, {filter}, {user}) => {
+    files: async(parent, args, {user}) => {
         if(user.role==='admin') {
             let data = [], res = [], filesUrl = [], stat, size, createdAt, url
-            for (let i = 0; i < dirs.length; i++) {
+            for(let i = 0; i < dirs.length; i++) {
                 url = path.join(app.dirname, 'public', dirs[i])
                 const files = fs.readdirSync(url, 'utf8');
-                for (let name of files) {
+                for(let name of files) {
                     url = path.join(app.dirname, 'public', dirs[i], name)
                     stat = fs.statSync(url)
                     createdAt = pdDDMMYYHHMM(stat.atime)
                     size = Math.round((stat.size/1000000) * 1000)/1000;
                     data.push({name, size, url: dirs[i], createdAt});
                     filesUrl.push(`${urlMain}/${dirs[i]}/${name}`)
-                }
-            }
+               }
+           }
+            // eslint-disable-next-line no-undef
+            const [client, blog, contact, ads, organization, item, faq, equipment, subBrand] = await Promise.all([
+                ClientAzyk.find({image: {$in: filesUrl}}).select('name image').lean(),
+                BlogAzyk.find({image: {$in: filesUrl}}).select('title image').lean(),
+                ContactAzyk.find({image: {$in: filesUrl}}).select('image').lean(),
+                AdsAzyk.find({image: {$in: filesUrl}}).select('title image').lean(),
+                OrganizationAzyk.find({image: {$in: filesUrl}}).select('name image').lean(),
+                ItemAzyk.find({image: {$in: filesUrl}}).select('name image').lean(),
+                FaqAzyk.find({url: {$in: filesUrl}}).select('title url').lean(),
+                EquipmentAzyk.find({image: {$in: filesUrl}}).select('name image').lean(),
+                SubBrandAzyk.find({image: {$in: filesUrl}}).select('name image').lean()
+            ])
             res = [
-                ...(await ClientAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Клиент'}}),
-                ...(await BlogAzyk.find({image: {$in: filesUrl}}).select('title image').lean()).map(element=>{return {...element, name: element.title, type: 'Блог'}}),
-                ...(await ContactAzyk.find({image: {$in: filesUrl}}).select('image').lean()).map(element=>{return {...element, name: 'Azyk.Store', type: 'Контакты'}}),
-                ...(await AdsAzyk.find({image: {$in: filesUrl}}).select('title image').lean()).map(element=>{return {...element, name: element.title, type: 'Акция'}}),
-                ...(await OrganizationAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Организация'}}),
-                ...(await ItemAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Товар'}}),
-                ...(await FaqAzyk.find({url: {$in: filesUrl}}).select('title url').lean()).map(element=>{return {...element, name: element.title, type: 'Инструкция'}}),
-                ...(await EquipmentAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Оборудование'}}),
-                ...(await SubBrandAzyk.find({image: {$in: filesUrl}}).select('name image').lean()).map(element=>{return {...element, type: 'Подбренд'}}),
+                ...client.map(element=>{return {...element, type: 'Клиент'}}),
+                ...blog.map(element=>{return {...element, name: element.title, type: 'Блог'}}),
+                ...contact.map(element=>{return {...element, name: 'Azyk.Store', type: 'Контакты'}}),
+                ...ads.map(element=>{return {...element, name: element.title, type: 'Акция'}}),
+                ...organization.map(element=>{return {...element, type: 'Организация'}}),
+                ...item.map(element=>{return {...element, type: 'Товар'}}),
+                ...faq.map(element=>{return {...element, name: element.title, type: 'Инструкция'}}),
+                ...equipment.map(element=>{return {...element, type: 'Оборудование'}}),
+                ...subBrand.map(element=>{return {...element, type: 'Подбренд'}}),
             ]
             filesUrl = {}
-            for (let i = 0; i < res.length; i++) {
+            for(let i = 0; i < res.length; i++) {
                 filesUrl[res[i].image?res[i].image:res[i].url?res[i].url:'lol'] = res[i]
-            }
+           }
             res = []
             let fileUrl
-            for (let i = 0; i < data.length; i++) {
+            for(let i = 0; i < data.length; i++) {
                 fileUrl = filesUrl[`${urlMain}/${data[i].url}/${data[i].name}`]
                 data[i].active = fileUrl ? 'активен' : 'неактивен'
                 data[i].owner = fileUrl? `${fileUrl.type} ${fileUrl.name}`: 'Отсутствует'
-                if(!filter.length||(filter==='active'&&fileUrl)||(filter==='deactive'&&!fileUrl))
-                    res.push(data[i])
-            }
+                res.push(data[i])
+           }
             res = res.sort(function (a, b) {
                 return b.size - a.size
-            });
+           });
             return res;
-        }
-    },
-    filterFile: async(parent, ctx, {user}) => {
-        let filter = [
-            {
-                name: 'Все',
-                value: ''
-            },
-            {
-                name: 'Активные',
-                value: 'active'
-            },
-            {
-                name: 'Неактивные',
-                value: 'deactive'
-            }
-        ]
-        if(user.role)
-            filter.push()
-        return filter
-    },
+       }
+   },
 };
 
 const resolversMutation = {
     clearAllDeactiveFiles: async(parent, ctx, {user}) => {
-        if('admin'===user.role){
+        if(user.role==='admin') {
             let data = [], url
-            for (let i = 0; i < dirs.length; i++) {
+            for(let i = 0; i < dirs.length; i++) {
                 url = path.join(app.dirname, 'public', dirs[i])
                 const files = fs.readdirSync(url, 'utf8');
-                for (let name of files) {
+                for(let name of files) {
                     data.push(`${urlMain}/${dirs[i]}/${name}`)
-                }
-            }
+               }
+           }
+            // eslint-disable-next-line no-undef
+            const [client, blog, contact, ads, organization, item, faq, equipment, subBrand] = await Promise.all([
+                ClientAzyk.find({image: {$in: data}}).distinct('image'),
+                BlogAzyk.find({image: {$in: data}}).distinct('image'),
+                ContactAzyk.find({image: {$in: data}}).distinct('image'),
+                AdsAzyk.find({image: {$in: data}}).distinct('image'),
+                OrganizationAzyk.find({image: {$in: data}}).distinct('image'),
+                ItemAzyk.find({image: {$in: data}}).distinct('image'),
+                FaqAzyk.find({url: {$in: data}}).distinct('url'),
+                EquipmentAzyk.find({image: {$in: data}}).distinct('image'),
+                SubBrandAzyk.find({image: {$in: data}}).distinct('image')
+            ])
             let filesUrl = [
-                ...(await ClientAzyk.find({image: {$in: data}}).distinct('image').lean()),
-                ...(await BlogAzyk.find({image: {$in: data}}).distinct('image').lean()),
-                ...(await ContactAzyk.find({image: {$in: data}}).distinct('image').lean()),
-                ...(await AdsAzyk.find({image: {$in: data}}).distinct('image').lean()),
-                ...(await OrganizationAzyk.find({image: {$in: data}}).distinct('image').lean()),
-                ...(await ItemAzyk.find({image: {$in: data}}).distinct('image').lean()),
-                ...(await FaqAzyk.find({url: {$in: data}}).distinct('url').lean()),
-                ...(await EquipmentAzyk.find({image: {$in: data}}).distinct('image').lean()),
-                ...(await SubBrandAzyk.find({image: {$in: data}}).distinct('image').lean()),
-            ]
-            for (let i = 0; i < data.length; i++) {
+                ...client, ...blog, ...contact, ...ads, ...organization, ...item, ...faq, ...equipment, ...subBrand]
+            for(let i = 0; i < data.length; i++) {
                 if(!filesUrl.includes(data[i]))
                     await deleteFile(data[i])
-            }
-        }
-        return {data: 'OK'}
-    }
+           }
+       }
+        return 'OK'
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

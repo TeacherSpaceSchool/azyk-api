@@ -5,15 +5,15 @@ const AutoAzykSchema = mongoose.Schema({
     tonnage: {
         type: Number,
         default: 0
-    },
+   },
     employment: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'EmploymentAzyk'
-    },
+   },
     organization: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrganizationAzyk'
-    },
+   },
 }, {
     timestamps: true
 });

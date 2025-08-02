@@ -4,7 +4,7 @@ const ItemAzyk = require('../models/itemAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const Item = require('../models/itemAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const mongoose = require('mongoose');
+const WarehouseAzyk = require('../models/warehouseAzyk');
 
 const type = `
   type Stock {
@@ -14,7 +14,7 @@ const type = `
     organization: Organization
     warehouse: Warehouse
     count: Float
-  }
+ }
 `;
 
 const query = `
@@ -24,94 +24,90 @@ const query = `
 
 const mutation = `
     addStock(item: ID!, organization: ID!, count: Float!, warehouse: ID): Stock
-    setStock(_id: ID!, count: Float!): Data
-    deleteStock(_id: ID!): Data
+    setStock(_id: ID!, count: Float!): String
+    deleteStock(_id: ID!): String
 `;
 
 const resolvers = {
-    itemsForStocks: async(parent, {organization/*, warehouse*/}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
-            /*let excludedItems = await StockAzyk.find({
-                organization: user.organization?user.organization:organization,
+    itemsForStocks: async(parent, {organization, warehouse}, {user}) => {
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+            let excludedItems = await StockAzyk.find({
+                organization: user.organization||organization,
                 warehouse
-            })
+           })
                 .distinct('item')
-                .lean()*/
+                .lean()
             return await Item.find({
-                ///_id: {$nin: excludedItems},
-                organization: user.organization?user.organization:organization
-            })
+                _id: {$nin: excludedItems},
+                organization: user.organization||organization
+           })
                 .select('_id name')
                 .lean()
-        }
-    },
+       }
+   },
     stocks: async(parent, {organization, client, search}, {user}) => {
         if(user.role) {
-            let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization _id').lean()
-            if(subBrand){
-                organization = subBrand.organization
-            }
-            let searchedItems;
-            if (search) {
-                searchedItems = await ItemAzyk.find({
-                    name: {'$regex': reductionSearch(search), '$options': 'i'}
-                }).distinct('_id').lean()
-            }
-            if(user.role==='клиент') {
+            if(user.client)
                 client = user.client
-            }
-            if(user.organization) {
+            else if(user.organization)
                 organization = user.organization
-            }
+            // eslint-disable-next-line no-undef
+            const [subBrand, searchedItems] = await Promise.all([
+                SubBrandAzyk.findById(organization).select('organization _id').lean(),
+                search?ItemAzyk.find({name: {$regex: reductionSearch(search), $options: 'i'}}).distinct('_id'):null,
+            ])
+            if(subBrand) organization = subBrand.organization
             let warehouse
             if(client) {
-                warehouse = (await DistrictAzyk.findOne({organization, client}).select('warehouse').lean()).warehouse
-            }
+                const district = await DistrictAzyk.findOne({organization, client}).select('warehouse').lean()
+                warehouse = district&&district.warehouse
+           }
             return await StockAzyk.find({
                 organization,
                 ...client?{warehouse}:{},
-                ...searchedItems ? {item: {$in: searchedItems}} : {}
-            })
+                ...search?{item: {$in: searchedItems}}:{}
+           })
                 .sort('-createdAt')
                 .populate({
                     path: 'item',
                     select: '_id name'
-                })
+               })
                 .populate({
                     path: 'warehouse',
                     select: '_id name'
-                })
+               })
                 .lean()
-        }
-    }
+       }
+   }
 };
 
 const resolversMutation = {
     addStock: async(parent, {item, organization, count, warehouse}, {user}) => {
         if(
             ['admin', 'суперорганизация', 'организация'].includes(user.role)&&
-            !(await StockAzyk.countDocuments({item, organization, warehouse}).lean())
-        ){
-            let _object = new StockAzyk({item, count, warehouse, organization: user.organization?user.organization:organization});
-            _object = await StockAzyk.create(_object)
-            _object.item = await ItemAzyk.findById(item).select('_id name')
-            return _object
-        }
-    },
+            !(await StockAzyk.countDocuments({item, organization: user.organization||organization, warehouse}).lean())
+        ) {
+            // eslint-disable-next-line no-undef
+            const [createdObject, itemData, warehouseData] = await Promise.all([
+                StockAzyk.create({item, count, warehouse, organization: user.organization||organization}),
+                ItemAzyk.findById(item).select('_id name').lean(),
+                warehouse?WarehouseAzyk.findById(warehouse).select('_id name').lean():null
+            ]);
+            return {...createdObject.toObject(), item: itemData, warehouse: warehouseData}
+       }
+   },
     setStock: async(parent, {_id, count}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
-            let object = await StockAzyk.findById(_id)
-            object.count = count
-            await object.save();
-        }
-        return {data: 'OK'}
-    },
-    deleteStock: async(parent, { _id }, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+            await StockAzyk.updateOne({_id}, {count})
+       }
+        return 'OK'
+   },
+    deleteStock: async(parent, {_id}, {user}) => {
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
             await StockAzyk.deleteOne({_id})
-        }
-        return {data: 'OK'}
-    }
+       }
+        return 'OK'
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

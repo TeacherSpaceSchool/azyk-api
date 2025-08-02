@@ -1,4 +1,4 @@
-const { getClientRedis } = require('../module/redis');
+const {getClientRedis} = require('../module/redis');
 
 module.exports.setProfile = async (user, profile)=>{
     let clientRedis = await getClientRedis()

@@ -7,7 +7,7 @@ const userAzykSchema = mongoose.Schema({
         type: String,
         required: true,
         unique: true
-    },
+   },
    // phone: String,
     role: String,
     status: String,
@@ -23,14 +23,14 @@ userAzykSchema.virtual('password')
         if (password) {
             this.salt = crypto.randomBytes(128).toString('base64');
             this.passwordHash = crypto.pbkdf2Sync(password, this.salt, 1, 128, 'sha1');
-        } else {
-            this.salt = undefined;
-            this.passwordHash = undefined;
-        }
-    })
+       } else {
+            this.salt = null;
+            this.passwordHash = null;
+       }
+   })
     .get(function () {
         return this._plainPassword;
-    });
+   });
 
 userAzykSchema.methods.checkPassword = function (password) {
     if (!password) return false;
@@ -45,7 +45,7 @@ const UserAzyk = mongoose.model('UserAzyk', userAzykSchema);
 UserAzyk.collection.dropIndex('phone_1', function(err, result) {
     if (err) {
         console.log('Error in dropping index!', err);
-    }
+   }
 });*/
 
 module.exports = UserAzyk;

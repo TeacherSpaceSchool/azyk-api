@@ -4,44 +4,37 @@ const InvoiceAzykSchema = mongoose.Schema({
     orders: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrderAzyk'
-    }],
+   }],
     adss: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: 'AdsAzyk'
-        }],
+       }],
     priority: {
         type: Number,
         default: 0
-    },
+   },
     client: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ClientAzyk'
-    },
+   },
     allPrice: Number,
-    consignmentPrice: {
-        type: Number,
-        default: 0
-    },
     returnedPrice: {
         type: Number,
         default: 0
-    },
+   },
     allTonnage: {
         type: Number,
         default: 0
-    },
+   },
     allSize: {
         type: Number,
         default: 0
-    },
+   },
     inv: {
         type: Number,
         default: 0
-    },
-    city: {
-        type: String,
-        default: 'Бишкек'
-    },
+   },
+    city: String,
     number: String,
     guid: String,
     info: String,
@@ -50,35 +43,28 @@ const InvoiceAzykSchema = mongoose.Schema({
     dateDelivery: Date,
     confirmationForwarder: Boolean,
     confirmationClient: Boolean,
-    paymentConsignation: Boolean,
-    cancelClient: {
-        type: Date,
-        default: null
-    },
-    cancelForwarder: {
-        type: Date,
-        default: null
-    },
+    cancelClient: Date,
+    cancelForwarder: Date,
     sync: {
         type: Number,
         default: 0
-    },
+   },
     track: {
         type: Number,
         default: 1
-    },
+   },
     forwarder: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'EmploymentAzyk'
-    },
+   },
     taken: {
         type: Boolean,
         default: false
-    },
+   },
     distributed: {
         type: Boolean,
         default: false
-    },
+   },
     del: String,
     district: String,
     discount: Number,
@@ -86,11 +72,11 @@ const InvoiceAzykSchema = mongoose.Schema({
     agent: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'EmploymentAzyk'
-    },
+   },
     organization: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrganizationAzyk'
-    },
+   },
     who: mongoose.Schema.Types.ObjectId
 }, {
     timestamps: true

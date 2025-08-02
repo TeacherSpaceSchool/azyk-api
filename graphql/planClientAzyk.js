@@ -2,7 +2,7 @@ const PlanClient = require('../models/planClientAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
-const {saveFile, deleteFile, checkInt, urlMain, reductionSearch} = require('../module/const');
+const {saveFile, deleteFile, checkInt, urlMain, reductionSearch, isNotEmpty} = require('../module/const');
 const path = require('path');
 const readXlsxFile = require('read-excel-file/node');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
@@ -11,6 +11,7 @@ const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const fs = require('fs');
 const OrganizationAzyk = require('../models/organizationAzyk');
+const {parallelBulkWrite, parallelPromise} = require('../module/parallel');
 
 const type = `
   type PlanClient {
@@ -20,45 +21,43 @@ const type = `
     current: Int
     month: Int
     visit: Int
-  }
+ }
 `;
 
 const query = `
     clientsForPlanClients(search: String!, organization: ID!, city: String, district: ID): [Client]
-    unloadPlanClients(city: String, organization: ID!, district: ID): Data
+    unloadPlanClients(city: String, organization: ID!, district: ID): String
     planClients(search: String!, city: String, organization: ID!, district: ID, skip: Int!): [PlanClient]
     planClientsCount(search: String!, city: String, organization: ID!, district: ID): Int
     planClient(client: ID!, organization: ID!): PlanClient
 `;
 
 const mutation = `
-    setPlanClient(client: ID!, organization: ID!, month: Int!, visit: Int!): Data
-    deletePlanClient(_id: ID!): Data
-    uploadPlanClients(document: Upload!, organization: ID!): Data
+    setPlanClient(client: ID!, organization: ID!, month: Int!, visit: Int!): ID
+    deletePlanClient(_id: ID!): String
+    uploadPlanClients(document: Upload!, organization: ID!): String
 `;
 
 const resolvers = {
     clientsForPlanClients: async(parent, {search, district, organization, city}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
-            let districtClients;
-            if(district||['менеджер', 'агент'].includes(user.role)) {
-                districtClients = await DistrictAzyk.find({
+
+            // eslint-disable-next-line no-undef
+            const [districtClients, usedClients, organizationCities] = await Promise.all([
+                district||['менеджер', 'агент'].includes(user.role)?DistrictAzyk.find({
                     ...district?{_id: district}:{},
                     ...user.role==='агент'?{agent: user.employment}:{},
                     ...user.role==='менеджер'?{manager: user.employment}:{},
-                })
-                    .distinct('client')
-                    .lean()
-            }
-            let usedClients = await PlanClient.find({
-                organization: user.organization?user.organization:organization
-            })
-                .distinct('client')
-                .lean();
+               }).distinct('client'):null,
+                PlanClient.find({organization: user.organization||organization}).distinct('client'),
+                !city?OrganizationAzyk.findById(organization).select('cities').lean():null
+            ])
+
             let cities = []
             if(!city) {
-                cities = (await OrganizationAzyk.findById(organization).select('cities').lean()).cities
-            }
+                cities = organizationCities.cities
+           }
+
             return await ClientAzyk.find({
                 $and: [
                     {_id: {$nin: usedClients}},
@@ -66,17 +65,17 @@ const resolvers = {
                     ...city?[{city}]:[{city: {$in: cities}}],
                     ...districtClients?[{_id: {$in: districtClients}}]:[],
                     ...search?[{$or: [
-                            {name: {'$regex': reductionSearch(search), '$options': 'i'}},
-                            {info: {'$regex': reductionSearch(search), '$options': 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
+                            {name: {$regex: reductionSearch(search), $options: 'i'}},
+                            {info: {$regex: reductionSearch(search), $options: 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
                         ]}]:[]
                 ]
-            })
+           })
                 .sort('-name')
                 .limit(100)
                 .lean()
-        }
-    },
+       }
+   },
     unloadPlanClients: async(parent, {city, organization, district}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
             let workbook = new ExcelJS.Workbook();
@@ -103,197 +102,179 @@ const resolvers = {
             worksheet.getCell(`E${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
             worksheet.getCell(`E${row}`).value = 'GUID:';
 
-
-            let districtClients;
-            if(district||['менеджер', 'агент'].includes(user.role)) {
-                districtClients = await DistrictAzyk.find({
+            // eslint-disable-next-line no-undef
+            const [districtClients, searchedClients] = await Promise.all([
+                district||['менеджер', 'агент'].includes(user.role)?DistrictAzyk.find({
                     ...district?{_id: district}:{},
                     ...user.role==='агент'?{agent: user.employment}:{},
                     ...user.role==='менеджер'?{manager: user.employment}:{},
-                })
-                    .distinct('client')
-                    .lean()
-            }
-            let searchedClients;
-            if(city) {
-                searchedClients = await ClientAzyk.find({
+               }).distinct('client'):null,
+                city?ClientAzyk.find({
                     del: {$ne: 'deleted'},
                     ...city?{city}:{}
-                })
-                    .distinct('_id').lean()
-            }
+               }).distinct('_id'):null
+            ])
+
             const res = await PlanClient.find({
                 $and: [
                     ...searchedClients?[{client: {$in: searchedClients}}]:[],
                     ...districtClients?[{client: {$in: districtClients}}]:[],
-                    {organization: user.organization?user.organization:organization}
+                    {organization: user.organization||organization}
                 ]
-            })
+           })
                 .sort('-createdAt')
                 .populate({
                     path: 'client',
                     select: '_id name address'
-                })
+               })
                 .lean()
             const dateStart = new Date()
             dateStart.setHours(3, 0, 0, 0)
             dateStart.setDate(1)
             const dateEnd = new Date(dateStart)
             dateEnd.setMonth(dateEnd.getMonth() + 1)
-            for(let i=0; i<res.length; i++) {
-                const invoices = await InvoiceAzyk.find(
+            await parallelPromise(res, async resData => {
+                // eslint-disable-next-line no-undef
+                const [invoices, integrateData] = await Promise.all([
+                    InvoiceAzyk.find(
                     {
-                        $and: [
-                            dateStart ? {createdAt: {$gte: dateStart}} : {},
-                            dateEnd ? {createdAt: {$lt: dateEnd}} : {}
-                        ],
+                        createdAt: {$gte: dateStart, $lt: dateEnd},
                         taken: true,
                         del: {$ne: 'deleted'},
-                        ...city?{city: city}:{},
-                        organization: user.organization?user.organization:organization,
-                        client: res[i].client._id
-                    }
+                        ...city?{city}:{},
+                        organization: user.organization||organization,
+                        client: resData.client._id
+                   }
                 )
                     .select('allPrice returnedPrice')
-                    .lean()
-                res[i].current = 0
+                    .lean(),
+                    Integrate1CAzyk.findOne({organization, client: resData.client._id}).select('guid').lean()
+                ])
+
+                resData.current = 0
                 for(let i1=0; i1<invoices.length; i1++) {
-                    res[i].current += invoices[i1].allPrice - invoices[i1].returnedPrice
-                }
+                    resData.current += invoices[i1].allPrice - invoices[i1].returnedPrice
+               }
 
                 row += 1
-                worksheet.getCell(`A${row}`).value = `${res[i].client.name}${res[i].client.address&&res[i].client.address[0]?` (${res[i].client.address[0][2] ? `${res[i].client.address[0][2]}, ` : ''}${res[i].client.address[0][0]})`:''}`;
-                worksheet.getCell(`B${row}`).value = res[i].visit;
-                worksheet.getCell(`C${row}`).value = res[i].month;
-                worksheet.getCell(`D${row}`).value = res[i].current;
+                worksheet.getCell(`A${row}`).value = `${resData.client.name}${resData.client.address&&resData.client.address[0]?` (${resData.client.address[0][2] ? `${resData.client.address[0][2]}, ` : ''}${resData.client.address[0][0]})`:''}`;
+                worksheet.getCell(`B${row}`).value = resData.visit;
+                worksheet.getCell(`C${row}`).value = resData.month;
+                worksheet.getCell(`D${row}`).value = resData.current;
 
-                const guid = await Integrate1CAzyk.findOne({
-                    organization,
-                    client: res[i].client._id
-                }).select('guid').lean()
-                worksheet.getCell(`E${row}`).value = guid?guid.guid:'';
+                worksheet.getCell(`E${row}`).value = integrateData?integrateData.guid:'';
 
-            }
+           })
             let xlsxname = `${randomstring.generate(20)}.xlsx`;
             let xlsxdir = path.join(app.dirname, 'public', 'xlsx');
-            if (!await fs.existsSync(xlsxdir)){
+            if (!await fs.existsSync(xlsxdir)) {
                 await fs.mkdirSync(xlsxdir);
-            }
+           }
             let xlsxpath = path.join(app.dirname, 'public', 'xlsx', xlsxname);
             await workbook.xlsx.writeFile(xlsxpath);
-            return({data: urlMain + '/xlsx/' + xlsxname})
-        }
-    },
+            return urlMain + '/xlsx/' + xlsxname
+       }
+   },
     planClients: async(parent, {search, district, city, organization, skip}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
-            let districtClients;
-            if(district||['менеджер', 'агент'].includes(user.role)) {
-                districtClients = await DistrictAzyk.find({
+
+            // eslint-disable-next-line no-undef
+            const [districtClients, searchedClients] = await Promise.all([
+                district||['менеджер', 'агент'].includes(user.role)?DistrictAzyk.find({
                     ...district?{_id: district}:{},
                     ...user.role==='агент'?{agent: user.employment}:{},
                     ...user.role==='менеджер'?{manager: user.employment}:{},
-                })
-                    .distinct('client')
-                    .lean()
-            }
-            let searchedClients;
-            if(search||city) {
-                searchedClients = await ClientAzyk.find({
+               }).distinct('client'):null,
+                !search||city?ClientAzyk.find({
                     del: {$ne: 'deleted'},
                     ...city?{city}:{},
                     ...search?{$or: [
-                            {name: {'$regex': reductionSearch(search), '$options': 'i'}},
-                            {info: {'$regex': reductionSearch(search), '$options': 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
+                            {name: {$regex: reductionSearch(search), $options: 'i'}},
+                            {info: {$regex: reductionSearch(search), $options: 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
                         ]}:{}
-                })
-                    .distinct('_id').lean()
-            }
+               })
+                    .distinct('_id'):null
+            ])
+
             const res = await PlanClient.find({
                 $and: [
                     ...searchedClients?[{client: {$in: searchedClients}}]:[],
                     ...districtClients?[{client: {$in: districtClients}}]:[],
-                    {organization: user.organization?user.organization:organization}
+                    {organization: user.organization||organization}
                 ]
-            })
+           })
                 .sort('-createdAt')
-                .skip(skip)
-                .limit(15)
+                .skip(isNotEmpty(skip)?skip:0)
+                .limit(isNotEmpty(skip)?15:10000000000)
                 .populate({
                     path: 'client',
                     select: '_id name address'
-                })
+               })
                 .lean()
             const dateStart = new Date()
             dateStart.setHours(3, 0, 0, 0)
             dateStart.setDate(1)
             const dateEnd = new Date(dateStart)
             dateEnd.setMonth(dateEnd.getMonth() + 1)
-            for(let i=0; i<res.length; i++) {
+            // eslint-disable-next-line no-undef
+            await parallelPromise(res, async resData => {
                 const invoices = await InvoiceAzyk.find(
                     {
-                        $and: [
-                            dateStart ? {createdAt: {$gte: dateStart}} : {},
-                            dateEnd ? {createdAt: {$lt: dateEnd}} : {}
-                        ],
+                        createdAt: {$gte: dateStart, $lt: dateEnd},
                         taken: true,
                         del: {$ne: 'deleted'},
-                        ...city?{city: city}:{},
-                        organization: user.organization?user.organization:organization,
-                        client: res[i].client._id
-                    }
+                        ...city?{city}:{},
+                        organization: user.organization||organization,
+                        client: resData.client._id
+                   }
                 )
                     .select('allPrice returnedPrice')
                     .lean()
-                res[i].current = 0
+                resData.current = 0
                 for(let i1=0; i1<invoices.length; i1++) {
-                    res[i].current += invoices[i1].allPrice - invoices[i1].returnedPrice
-                }
-            }
+                    resData.current += invoices[i1].allPrice - invoices[i1].returnedPrice
+               }
+           })
             return res
-        }
-    },
+       }
+   },
     planClientsCount: async(parent, {search, district, city, organization}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
-            let districtClients;
-            if(district||['менеджер', 'агент'].includes(user.role)) {
-                districtClients = await DistrictAzyk.find({
+            // eslint-disable-next-line no-undef
+            const [districtClients, searchedClients] = await Promise.all([
+                district||['менеджер', 'агент'].includes(user.role)?DistrictAzyk.find({
                     ...district?{_id: district}:{},
                     ...user.role==='агент'?{agent: user.employment}:{},
                     ...user.role==='менеджер'?{manager: user.employment}:{},
-                })
-                    .distinct('client')
-                    .lean()
-            }
-            let searchedClients;
-            if(search||city) {
-                searchedClients = await ClientAzyk.find({
+               }).distinct('client'):null,
+                !search||city?ClientAzyk.find({
                     del: {$ne: 'deleted'},
                     ...city?{city}:{},
                     ...search?{$or: [
-                            {name: {'$regex': reductionSearch(search), '$options': 'i'}},
-                            {info: {'$regex': reductionSearch(search), '$options': 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
+                            {name: {$regex: reductionSearch(search), $options: 'i'}},
+                            {info: {$regex: reductionSearch(search), $options: 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
                         ]}:{}
-                })
-                    .distinct('_id').lean()
-            }
+               })
+                    .distinct('_id'):null
+            ])
             return await PlanClient.countDocuments({
                 $and: [
                     ...searchedClients?[{client: {$in: searchedClients}}]:[],
                     ...districtClients?[{client: {$in: districtClients}}]:[],
-                    {organization: user.organization?user.organization:organization}
+                    {organization: user.organization||organization}
                 ]
-            })
+           })
                 .lean()
-        }
-    },
+       }
+   },
     planClient: async(parent, {client, organization}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
             const res = await PlanClient.findOne({
                 client,
-                organization: user.organization?user.organization:organization
-            }).lean()
+                organization: user.organization||organization
+           }).lean()
             if(res) {
                 const dateStart = new Date()
                 dateStart.setHours(3, 0, 0, 0)
@@ -302,97 +283,94 @@ const resolvers = {
                 dateEnd.setMonth(dateEnd.getMonth() + 1)
                 const invoices = await InvoiceAzyk.find(
                     {
-                        $and: [
-                            dateStart ? {createdAt: {$gte: dateStart}} : {},
-                            dateEnd ? {createdAt: {$lt: dateEnd}} : {}
-                        ],
+                        createdAt: {$gte: dateStart, $lt: dateEnd},
                         taken: true,
                         del: {$ne: 'deleted'},
-                        organization: user.organization ? user.organization : organization,
+                        organization: user.organization||organization,
                         client
-                    }
+                   }
                 )
                     .select('allPrice returnedPrice')
                     .lean()
                 res.current = 0
-                for (let i1 = 0; i1 < invoices.length; i1++) {
+                for(let i1 = 0; i1 < invoices.length; i1++) {
                     res.current += invoices[i1].allPrice - invoices[i1].returnedPrice
-                }
-            }
+               }
+           }
             return res
-        }
-    }
+       }
+   }
 };
 
 const resolversMutation = {
     setPlanClient: async(parent, {client, organization, month, visit}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)){
-            let planClient = await PlanClient.findOne({
-                client,
-                organization: user.organization?user.organization:organization
-            });
-            if(!planClient){
-                planClient = new PlanClient({
-                    month, visit,
-                    client,
-                    organization: user.organization?user.organization:organization
-                });
-                planClient = await PlanClient.create(planClient)
-            }
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+            organization = user.organization||organization
+            let planClient = await PlanClient.findOne({client, organization});
+            if(!planClient)
+                planClient = await PlanClient.create({month, visit, client, organization})
             else {
                 planClient.month = month;
                 planClient.visit = visit;
                 await planClient.save();
-            }
-            return {data: 'OK'};
-        }
-    },
+           }
+            return planClient._id;
+       }
+   },
     deletePlanClient: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)){
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
              await PlanClient.deleteOne({
                 _id,
                 ...user.organization? {organization: user.organization}:{}
-            });
-        }
-        return {data: 'OK'};
-    },
-    uploadPlanClients: async(parent, { document, organization }, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)){
+           });
+       }
+        return 'OK';
+   },
+    uploadPlanClients: async(parent, {document, organization}, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
             let {stream, filename} = await document;
-            filename = await saveFile(stream, filename);
-            let xlsxpath = path.join(app.dirname, 'public', filename);
+            let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
             let rows = await readXlsxFile(xlsxpath)
             if(user.organization) organization = user.organization
-            for (let i = 0; i < rows.length; i++) {
-                const visit = checkInt(rows[i][1])
-                const month = checkInt(rows[i][2])
-                let client = (await Integrate1CAzyk.findOne({
-                    organization,
-                    guid: rows[i][0]
-                }).select('client').lean()).client
-                let planClient = await PlanClient.findOne({
-                    organization,
-                    client
-                })
-                if(!planClient){
-                    let _object = new PlanClient({
-                        month, visit,
-                        client,
-                        organization: user.organization?user.organization:organization
-                    });
-                    await PlanClient.create(_object)
-                }
-                else {
-                    planClient.month = month;
-                    planClient.visit = visit;
-                    await planClient.save();
-                }
-
-            }
+            //получаем интеграции
+            const integrates = await Integrate1CAzyk.find({
+                organization, client: {$ne: null},
+                guid: {$in: rows.map(row => row[0])}
+           }).select('client guid').lean()
+            const clientByGuid = {}
+            for(const integrate of integrates) {
+                clientByGuid[integrate.guid] = integrate.client.toString()
+           }
+            //planByClient
+            const planClients = await PlanClient.find({
+                organization,
+                client: {$in: Object.values(clientByGuid)}
+           }).select('_id client')
+            const planByClient = {}
+            for(const planClient of planClients) {
+                planByClient[planClient.client.toString()] = planClient._id
+           }
+            //bulkwrite
+            const bulkOperations = [];
+            //перебор
+            for(const row of rows) {
+                const visit = checkInt(row[1])
+                const month = checkInt(row[2])
+                let client = clientByGuid[row[0]]
+                let planClient = planByClient[client]
+                //если нету добавляем
+                if (!planClient)
+                    bulkOperations.push({insertOne: {month, visit, client, organization}});
+                // если есть — подготовим updateOne в bulkWrite
+                else
+                    bulkOperations.push({updateOne: {filter: {_id: planClient}, update: {$set: {month, visit}}}});
+           }
+            // если есть обновления — выполним bulkWrite
+            if (bulkOperations.length) await parallelBulkWrite(PlanClient, bulkOperations);
             await deleteFile(filename)
-            return ({data: 'OK'})
-        }
-    },
+            return  'OK'
+       }
+   },
 };
 
 module.exports.resolversMutation = resolversMutation;

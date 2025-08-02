@@ -7,11 +7,11 @@ const FaqAzykSchema = mongoose.Schema({
     typex:  {
         type: String,
         default: 'клиенты'
-    },
+   },
     civic:  {
         type: String,
         default: 'клиенты'
-    },
+   },
 }, {
     timestamps: true
 });

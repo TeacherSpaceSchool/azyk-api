@@ -72,14 +72,15 @@ const statsCollection = async (collection) => {
 }
 
 module.exports.saveBase64ToFile = (base64) => {
+    // eslint-disable-next-line no-undef
     return new Promise((resolve) => {
         let filename = `${randomstring.generate(14)}.png`;
         base64 = base64.split(';base64,').pop();
         let filepath = path.join(app.dirname, 'public', 'images', filename)
         fs.writeFile(filepath, base64, {encoding: 'base64'}, function() {
             resolve(`/images/${filename}`)
-        });
-    })
+       });
+   })
 }
 
 const checkInt = (int) => {
@@ -92,6 +93,7 @@ const checkFloat = (float) => {
 }
 
 module.exports.saveFile = (stream, filename) => {
+    // eslint-disable-next-line no-undef
     return new Promise((resolve) => {
         filename = `${randomstring.generate(7)}${filename}`;
         let filepath = path.join(app.dirname, 'public', 'images', filename)
@@ -99,11 +101,12 @@ module.exports.saveFile = (stream, filename) => {
         stream.pipe(fstream)
         fstream.on('finish', () => {
             resolve(`/images/${filename}`)
-        })
-    })
+       })
+   })
 }
 
 module.exports.saveImage = (stream, filename) => {
+    // eslint-disable-next-line no-undef
     return new Promise(async (resolve) => {
         let randomfilename = `${randomstring.generate(7)}${filename}`;
         let filepath = path.join(app.dirname, 'public', 'images', randomfilename)
@@ -119,22 +122,25 @@ module.exports.saveImage = (stream, filename) => {
                     .write(filepathResize);
                 fs.unlink(filepath, ()=>{
                     resolve(`/images/${randomfilename}`)
-                })
-            }
+               })
+           }
             else
                 resolve(`/images/${randomfilename}`)
-        })
-    })
+       })
+   })
 }
 
 module.exports.deleteFile = (oldFile) => {
-    return new Promise(async (resolve) => {
-        oldFile = oldFile.replace(urlMain, '')
-        oldFile = path.join(app.dirname, 'public', oldFile)
-        fs.unlink(oldFile, ()=>{
-            resolve()
-        })
-    })
+    if(oldFile) {
+        // eslint-disable-next-line no-undef
+        return new Promise(async (resolve) => {
+            oldFile = oldFile.replace(urlMain, '')
+            oldFile = path.join(app.dirname, 'public', oldFile)
+            fs.unlink(oldFile, () => {
+                resolve()
+           })
+       })
+   }
 }
 const pdDDMMYYYY = (date) =>
 {
@@ -172,7 +178,7 @@ module.exports.reductionSearch = (search) => {
         search = search.replace(/\*/g, '\\*')
         search = search.replace(/\?/g, '\\?')
         return search
-    }
+   }
     return ''
 }
 
@@ -190,20 +196,37 @@ module.exports.isNotEmpty = (value) => {
     return value !== undefined && value !== null;
 }
 
+module.exports.isEmpty = (value) => {
+    return value === undefined || value === null;
+}
+
 module.exports.chunkArray = (array, size) => {
     const result = [];
     for(let i = 0; i < array.length; i += size) {
         result.push(array.slice(i, i + size));
-    }
+   }
     return result;
 }
 
 module.exports.sendPushToAdmin = async ({title, message}) => {
-    let user = await UserAzyk.findOne({role: 'admin'}).select('_id').lean()
-    if(user){
-        await sendWebPush({title: title?title:'AZYK.STORE', message, user: user._id})
-    }
+    const adminUser = await UserAzyk.findOne({role: 'admin'}).select('_id').lean()
+    await sendWebPush({title: title, message, users: [adminUser._id]})
 }
+
+module.exports.unawaited = (func) => setTimeout(async () => await func())
+
+module.exports.generateUniqueNumber = async (table, numbers = []) => {
+    let number
+    do {
+        number = randomstring.generate({length: 12, charset: 'numeric'})
+   } while (await table.findOne({number}).select('_id').lean()||numbers.includes(number))
+    return number
+}
+
+module.exports.checkDate = (date) => {
+    const parsed = new Date(date);
+    return Number.isNaN(parsed) ? new Date() : parsed;
+};
 
 module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Боконбаева', 'Жалал-Абад', 'Кара-Балта', 'Каракол', 'Казарман', 'Кочкор', 'Кызыл-Кия', 'Нарын', 'Ош', 'Раззаков', 'Талас', 'Токмок', 'Чолпон-Ата', 'Москва'];
 

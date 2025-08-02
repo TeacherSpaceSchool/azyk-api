@@ -10,5 +10,5 @@ describe('contact test', () => {
         let contact = resolvers.contact();
         console.log(contact)
         //assert.notStrictEqual([contact].length, 1);
-    });
+   });
 });

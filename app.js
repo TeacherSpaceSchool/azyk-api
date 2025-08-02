@@ -2,21 +2,16 @@ const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const logger = require('morgan');
 const connectDB = require('./models/index');
 const app = express();
 app.use(cookieParser());
-const usersRouter = require('./routes/users');
 const passportEngine = require('./module/passport');
 const cors = require('cors');
-const adminRouter = require('./routes/admin');
-const os = require('os');
 const compression = require('compression');
 const bodyParser = require('body-parser');
 let graphql  = require('./graphql/index');
 const subscribe = require('./routes/subscribe');
 const push = require('./routes/push');
-//const integrateShoroRouter = require('./routes/integrateShoro');
 const singleIntegrateRouter = require('./routes/singleIntegrate');
 require('body-parser-xml-json')(bodyParser);
 
@@ -26,32 +21,32 @@ connectDB.connect()
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 ///app.use(logger('dev'));
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(function(req, res, next){
+app.use(bodyParser.urlencoded({extended: false}))
+app.use(function(req, res, next) {
     if (req.is('text/*')) {
         req.text = '';
         req.setEncoding('utf8');
-        req.on('data', function(chunk){
+        req.on('data', function(chunk) {
             try{
                 req.text += chunk
-            } catch (err) {
+           } catch (err) {
                 console.error(err)
                 res.status(401);
                 res.end(JSON.stringify(err.message))
-            }
-        });
-        req.on('end', function(){
+           }
+       });
+        req.on('end', function() {
             try{
                 req.body = JSON.parse(req.text); next()
-            } catch (err) {
+           } catch (err) {
                 console.error(err)
                 res.status(401);
                 res.end(JSON.stringify(err.message))
-            }
-        });
-    } else {
+           }
+       });
+   } else {
         next();
-    }
+   }
 });
 app.use(bodyParser.json({limit: '10mb'}));
 app.use(bodyParser.xml({limit: '10mb'}));
@@ -73,11 +68,8 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 let serverGQL = graphql.run(app)
-app.use('/', adminRouter);
-app.use('/users', usersRouter);
 app.use('/subscribe', subscribe);
 app.use('/push', push);
-//app.use('/integrate', integrateShoroRouter);
 app.use('/integrate', singleIntegrateRouter);
 
 // catch 404 and forward to error handler
@@ -86,6 +78,7 @@ app.use(function(req, res, next) {
 });
 
 // error handler
+// eslint-disable-next-line no-unused-vars
 app.use(function(err, req, res, next) {
     // set locals, only providing error in development
     res.locals.message = err.message;

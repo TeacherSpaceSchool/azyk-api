@@ -1,22 +1,46 @@
-const { isMainThread } = require('worker_threads');
+const {isMainThread} = require('worker_threads');
 const connectDB = require('../models/index');
 const cron = require('node-cron');
 const MerchandisingAzyk = require('../models/merchandisingAzyk');
-const { deleteFile } = require('../module/const');
+const NotificationStatistic = require('../models/notificationStatisticAzyk');
+const {deleteFile, unawaited, sendPushToAdmin} = require('../module/const');
+const {parallelPromise} = require('../module/parallel');
+const ModelsErrorAzyk = require('../models/errorAzyk');
+const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
+const HistoryOrderAzyk = require('../models/historyOrderAzyk');
+const HistoryReturnedAzyk = require('../models/historyReturnedAzyk');
+const HistoryAzyk = require('../models/historyAzyk');
+const IntegrationLogAzyk = require('../models/integrationLogAzyk');
+
 connectDB.connect();
 
 if(!isMainThread) {
     cron.schedule('1 4 * * *', async() => {
-        let date = new Date()
-        date.setDate(date.getDate() - 60)
+        try {
+            let date = new Date()
+            date.setDate(date.getDate() - 60)
+            // eslint-disable-next-line no-undef
+            const [merchandisingImages, notificationStatisticIcons] = await Promise.all([
+                MerchandisingAzyk.find({createdAt: {$lte: date}}).distinct('images'),
+                NotificationStatistic.find({createdAt: {$lte: date}}).distinct('icon')
+            ])
+            const filesForDelete = [...merchandisingImages, ...notificationStatisticIcons]
+            await parallelPromise(filesForDelete, async (fileForDelete) => await deleteFile(fileForDelete))
+            // eslint-disable-next-line no-undef
+            await Promise.all([
+                NotificationStatistic.deleteMany({createdAt: {$lte: date}}),
+                MerchandisingAzyk.deleteMany({createdAt: {$lte: date}}),
+                AgentHistoryGeoAzyk.deleteMany({createdAt: {$lte: date}}),
+                HistoryOrderAzyk.deleteMany({createdAt: {$lte: date}}),
+                HistoryReturnedAzyk.deleteMany({createdAt: {$lte: date}}),
+                HistoryAzyk.deleteMany({createdAt: {$lte: date}}),
+                IntegrationLogAzyk.deleteMany({createdAt: {$lte: date}})
+            ])
 
-        let merchandisings = await MerchandisingAzyk.find({date: {$lte: date}}).select('images').lean()
-        for(let i=0; i<merchandisings.length; i++) {
-            for(let i1=0; i1<merchandisings[i].images.length; i1++) {
-                await deleteFile(merchandisings[i].images[i1])
-            }
-        }
-        console.log(await MerchandisingAzyk.deleteMany({date: {$lte: date}}))
-
-    });
+       }
+        catch (err) {
+            unawaited(() => ModelsErrorAzyk.create({err: err.message, path: 'deleteBD.js'}))
+            unawaited(() =>  sendPushToAdmin({message: 'Ошибка deleteBD.js'}))
+       }
+   });
 }

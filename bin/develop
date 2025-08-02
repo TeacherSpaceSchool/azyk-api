@@ -34,12 +34,12 @@ function normalizePort(val) {
     if (isNaN(port)) {
         // named pipe
         return val;
-    }
+   }
 
     if (port >= 0) {
         // port number
         return port;
-    }
+   }
 
     return false;
 }
@@ -51,7 +51,7 @@ function normalizePort(val) {
 function onError(error) {
     if (error.syscall !== 'listen') {
         throw error;
-    }
+   }
 
     var bind = typeof port === 'string'
         ? 'Pipe ' + port
@@ -69,7 +69,7 @@ function onError(error) {
             break;
         default:
             throw error;
-    }
+   }
 }
 /**
  * Event listener for HTTP server "listening" event.

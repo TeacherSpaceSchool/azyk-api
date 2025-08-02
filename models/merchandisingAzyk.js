@@ -4,15 +4,15 @@ const MerchandisingAzykSchema = mongoose.Schema({
     employment: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'EmploymentAzyk'
-    },
+   },
     organization: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrganizationAzyk'
-    },
+   },
     client: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ClientAzyk'
-    },
+   },
     date: Date,
     productAvailability: [String],
     productInventory: Boolean,
@@ -29,11 +29,11 @@ const MerchandisingAzykSchema = mongoose.Schema({
     reviewerScore: {
         type: Number,
         default: 0
-    },
+   },
     reviewerComment: {
         type: String,
         default: ''
-    },
+   },
 }, {
     timestamps: true
 });

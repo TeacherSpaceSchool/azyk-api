@@ -4,13 +4,13 @@ const SpecialPriceCategoryAzykSchema = mongoose.Schema({
     item: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ItemAzyk'
-    },
+   },
     price: Number,
     category: String,
     organization: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrganizationAzyk'
-    },
+   },
 }, {
     timestamps: true
 });

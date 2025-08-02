@@ -1,7 +1,7 @@
-const LimitItemClient = require('../models/limitItemClientAzyk');
-const Item = require('../models/itemAzyk');
-const Client = require('../models/clientAzyk');
+const LimitItemClientAzyk = require('../models/limitItemClientAzyk');
+const ClientAzyk = require('../models/clientAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
+const ItemAzyk = require('../models/itemAzyk');
 
 const type = `
   type LimitItemClient {
@@ -11,7 +11,7 @@ const type = `
     limit: Int
     organization: Organization
     item: Item
-  }
+ }
 `;
 
 const query = `
@@ -21,96 +21,83 @@ const query = `
 
 const mutation = `
     addLimitItemClient(client: ID!, organization: ID!, limit: Int!, item: ID!): LimitItemClient
-    setLimitItemClient(_id: ID!, limit: Int!): Data
-    deleteLimitItemClient(_id: ID!): Data
+    setLimitItemClient(_id: ID!, limit: Int!): String
+    deleteLimitItemClient(_id: ID!): String
 `;
 
 const resolvers = {
     limitItemClients: async(parent, {client, organization}, {user}) => {
         if(user.role) {
+            if(user.role==='client') client = user.client
             if(organization) {
-                let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
-                if(subBrand){
+                let subBrand = await SubBrandAzyk.findById(organization).select('organization').lean()
+                if(subBrand) {
                     organization = subBrand.organization
-                }
-            }
-            return await LimitItemClient
+               }
+           }
+            return await LimitItemClientAzyk
                 .find({
                     client,
-                    organization: user.organization?user.organization:organization
-                })
+                    organization: user.organization||organization
+               })
                 .populate({
                     path: 'organization',
                     select: '_id name'
-                })
+               })
                 .populate({
                     path: 'item',
                     select: '_id name'
-                })
+               })
                 .populate({
                     path: 'client',
                     select: '_id name address'
-                })
+               })
                 .lean()
-        }
-    },
+       }
+   },
     itemsForLimitItemClients: async(parent, {client, organization}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
-            let excludedItems = await LimitItemClient.find({
-                client,
-                organization: user.organization?user.organization:organization
-            })
-                .distinct('item')
-                .lean()
-            let city = (await Client.findOne({_id: client}).select('city').lean()).city
-            return await Item.find({_id: {$nin: excludedItems}, organization: user.organization?user.organization:organization, city})
+            // eslint-disable-next-line no-undef
+            const [excludedItems, clientCity] = await Promise.all([
+                LimitItemClientAzyk.find({
+                    client, organization: user.organization||organization
+               }).distinct('item'),
+                ClientAzyk.findById(client).select('city').lean()
+            ])
+            let city = clientCity.city
+            return await ItemAzyk.find({_id: {$nin: excludedItems}, organization: user.organization||organization, city})
                 .select('_id name')
                 .lean()
-        }
-    },
+       }
+   },
 };
 
 const resolversMutation = {
     addLimitItemClient: async(parent, {client, organization, limit, item}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)&&!(await LimitItemClient.findOne({item, client}).select('_id').lean())) {
-            let _object = new LimitItemClient({
-                item,
-                limit,
-                client,
-                organization
-            });
-            _object = await LimitItemClient.create(_object)
-            return await LimitItemClient
-                .findById(_object._id)
-                .populate({
-                    path: 'organization',
-                    select: '_id name'
-                })
-                .populate({
-                    path: 'item',
-                    select: '_id name'
-                })
-                .populate({
-                    path: 'client',
-                    select: '_id name address'
-                })
-                .lean()
-        }
-    },
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)&&!(await LimitItemClientAzyk.findOne({item, client}).select('_id').lean())) {
+            // eslint-disable-next-line no-undef
+            const [createdObject, itemData, clientData] = await Promise.all([
+                LimitItemClientAzyk.create({item, limit, client, organization}),
+                ItemAzyk.findById(item).select('_id name').lean(),
+                ClientAzyk.findById(client).select('_id name address').lean(),
+            ]);
+            return {...createdObject.toObject(), item: itemData, client: clientData}
+       }
+   },
     setLimitItemClient: async(parent, {_id, limit}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
-            let object = await LimitItemClient.findById(_id)
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
+            let object = await LimitItemClientAzyk.findById(_id)
             object.limit = limit
             await object.save();
-        }
-        return {data: 'OK'};
-    },
-    deleteLimitItemClient: async(parent, { _id }, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)){
-            await LimitItemClient.deleteOne({_id})
-        }
-        return {data: 'OK'}
-    }
+       }
+        return 'OK';
+   },
+    deleteLimitItemClient: async(parent, {_id}, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
+            await LimitItemClientAzyk.deleteOne({_id})
+       }
+        return 'OK'
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

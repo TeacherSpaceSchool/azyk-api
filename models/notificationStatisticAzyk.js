@@ -11,15 +11,15 @@ const NotificationStatisticAzykSchema = mongoose.Schema({
     click: {
         type: Number,
         default: 0
-    },
+   },
     ips: {
         type: [String],
         default: []
-    },
+   },
     who: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'UserAzyk'
-    },
+   },
 }, {
     timestamps: true
 });

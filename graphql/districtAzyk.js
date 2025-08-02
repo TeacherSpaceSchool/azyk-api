@@ -1,16 +1,14 @@
 const DistrictAzyk = require('../models/districtAzyk');
-const OrganizationAzyk = require('../models/organizationAzyk');
 const mongoose = require('mongoose');
 const ClientAzyk = require('../models/clientAzyk');
-const ItemAzyk = require('../models/itemAzyk');
-const OrderAzyk = require('../models/orderAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
-const UserAzyk = require('../models/userAzyk');
-const OutXMLAdsShoroAzyk = require('../models/integrate/shoro/outXMLAdsShoroAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const {reductionSearch} = require('../module/const');
+const {reductionSearch, unawaited} = require('../module/const');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
+const OrganizationAzyk = require('../models/organizationAzyk');
+const SingleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');
+const {addHistory, historyTypes} = require('../module/history');
 
 const type = `
   type District {
@@ -23,280 +21,237 @@ const type = `
       ecspeditor: Employment
       manager: Employment
       warehouse: Warehouse
-  }
+ }
 `;
 
 const query = `
     districts(organization: ID, search: String!, sort: String!): [District]
     district(_id: ID): District
     clientDistrict(organization: ID!): District
-    sortDistrict: [Sort]
     clientsWithoutDistrict(organization: ID, district: ID, city: String): [Client]
 `;
 
 const mutation = `
-    addDistrict(organization: ID, client: [ID]!, name: String!, agent: ID, manager: ID, ecspeditor: ID, warehouse: ID, city: String): Data
-    setDistrict(_id: ID!, client: [ID], name: String, agent: ID, manager: ID, ecspeditor: ID, warehouse: ID): Data
-    deleteDistrict(_id: [ID]!): Data
+    addDistrict(organization: ID, client: [ID]!, name: String!, agent: ID, manager: ID, ecspeditor: ID, warehouse: ID, city: String): String
+    setDistrict(_id: ID!, client: [ID], name: String, agent: ID, manager: ID, ecspeditor: ID, warehouse: ID): String
+    deleteDistrict(_id: ID!): String
 `;
 
 const resolvers = {
     districts: async(parent, {organization, search}, {user}) => {
         if(['суперорганизация', 'организация', 'admin', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
-            let _organizations;
-            let _clients;
-            let _agents;
-            if (search.length > 0) {
-                _clients = await ClientAzyk
-                    .find({
+            // eslint-disable-next-line no-undef
+            const [searchedClients, searchedEmployments] = await Promise.all([
+                search?ClientAzyk.find({
                         $or: [
-                            {name: {'$regex': reductionSearch(search), '$options': 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
+                            {name: {$regex: reductionSearch(search), $options: 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
                         ]
-                    })
-                    .distinct('_id')
-                    .lean()
-                _agents = await EmploymentAzyk.find({
-                    name: {'$regex': reductionSearch(search), '$options': 'i'}
-                }).distinct('_id').lean()
-                _organizations = await OrganizationAzyk.find({
-                    name: {'$regex': reductionSearch(search), '$options': 'i'}
-                }).distinct('_id').lean()
-            }
+                   }).distinct('_id'):null,
+                search?await EmploymentAzyk.find({
+                    name: {$regex: reductionSearch(search), $options: 'i'},
+                    ...user.organization?{organization: user.organization}:{}
+               }).distinct('_id'):null
+            ])
             return await DistrictAzyk.find({
-                organization: user.organization?user.organization: organization === 'super' ? null : organization,
-                ...(search.length > 0 ? {
+                organization: user.organization || (organization==='super'?null:organization),
+                ...(search ? {
                     $or: [
-                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
-                        {agent: {$in: _agents}},
-                        {ecspeditor: {$in: _agents}},
-                        {manager: {$in: _agents}},
-                        {client: {$in: _clients}},
-                        {organization: {$in: _organizations}}
+                        {name: {$regex: reductionSearch(search), $options: 'i'}},
+                        {agent: {$in: searchedEmployments}},
+                        {ecspeditor: {$in: searchedEmployments}},
+                        {manager: {$in: searchedEmployments}},
+                        {client: {$in: searchedClients}},
                     ]
-                } : {}),
+               } : {}),
                 ...'менеджер' === user.role ? {manager: user.employment} : {},
                 ...'агент' === user.role ? {agent: user.employment} : {},
-            })
+           })
                 .populate({
                     path: 'agent',
                     select: 'name _id'
-                })
+               })
                 .populate({
                     path: 'ecspeditor',
                     select: 'name _id'
-                })
+               })
                 .populate({
                     path: 'organization',
                     select: 'name _id'
-                })
+               })
                 .populate({
                     path: 'manager',
                     select: 'name _id'
-                })
+               })
                 .sort('name')
                 .lean()
-        }
-    },
-    clientsWithoutDistrict: async(parent, { organization, city, district }, {user}) => {
-        if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)){
-            if(organization!=='super')
-                 organization = await OrganizationAzyk.findOne({_id: organization}).select('_id accessToClient clientDuplicate').lean()
-            let usedClients
-            if(!organization.clientDuplicate||district) {
-                usedClients = await DistrictAzyk.find({
-                    organization: user.organization ? user.organization : organization._id,
-                    ...organization.clientDuplicate ? {_id: district} : {}
-                }).distinct('client').lean()
-            }
-            let integrateClients
-            if(user.onlyIntegrate) {
-                integrateClients = await Integrate1CAzyk
+       }
+   },
+    clientsWithoutDistrict: async(parent, {organization, district}, {user}) => {
+        if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+            if(user.organization) organization = user.organization
+            organization = await OrganizationAzyk.findById(organization).select('_id cities clientDuplicate onlyIntegrate').lean()
+            // eslint-disable-next-line no-undef
+            const [usedClients, integrateClients] = await Promise.all([
+                !organization.clientDuplicate||district?DistrictAzyk.find({
+                    organization: organization._id,
+                    ...organization.clientDuplicate?{_id: district}:{}
+               }).distinct('client'):null,
+                organization.onlyIntegrate?Integrate1CAzyk
                     .find({
                         client: {$ne: null},
-                        organization: user.organization
-                    })
-                    .distinct('client')
-                    .lean()
-            }
-            let clients
-            if(!organization.accessToClient) {
-                let items = await ItemAzyk.find({organization: user.organization}).distinct('_id').lean()
-                clients = await OrderAzyk.find({item: {$in: items}}).distinct('client').lean()
-            }
-            clients = await ClientAzyk
-                .aggregate(
-                    [
-                        {
-                            $match: {
-                                $and: [
-                                    ...usedClients?[{_id: { $nin: usedClients}}]:[],
-                                    ...clients?[{_id: {$in: clients}}]:[],
-                                    {name: {'$regex': '^((?!агент).)*$', '$options': 'i'}},
-                                    {name: {'$regex': '^((?!agent).)*$', '$options': 'i'}}
-                                ],
-                                ...user.cities?{city: {$in: user.cities}}:{},
-                                ...city ? {city: city} : {},
-                                ...integrateClients ? {_id: {$in: integrateClients}} : {},
-                                del: {$ne: 'deleted'},
-                                address: {$elemMatch: {$elemMatch: {$ne: ''}}},
-                            }
-                        },
-                        {
-                            $lookup:
-                                {
-                                    from: UserAzyk.collection.collectionName,
-                                    let: {user: '$user'},
-                                    pipeline: [
-                                        {$match: {$expr: {$eq: ['$$user', '$_id']}}},
-                                    ],
-                                    as: 'user'
-                                }
-                        },
-                        {
-                            $unwind: {
-                                preserveNullAndEmptyArrays: true, // this remove the object which is null
-                                path: '$user'
-                            }
-                        },
-                        {
-                            $match: {
-                                'user.status': 'active'
-                            }
-                        },
-                    ])
+                        organization: organization._id
+                   })
+                    .distinct('client'):null,
+            ])
+            let clients = await ClientAzyk.find({
+                ...usedClients||integrateClients?{$and: [
+                        ...usedClients?[{_id: {$nin: usedClients}}]:[],
+                        ...integrateClients?[{_id: {$in: integrateClients}}]:[{}],
+                    ]}:{},
+                city: organization.cities[0],
+                del: {$ne: 'deleted'},
+            }).lean()
             return clients
 
-        }
-    },
+       }
+   },
     district: async(parent, {_id}, {user}) => {
         if(['суперорганизация', 'организация', 'admin', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             return await DistrictAzyk.findOne({
-                ...mongoose.Types.ObjectId.isValid(_id)?{_id: _id}:{},
+                ...mongoose.Types.ObjectId.isValid(_id)?{_id}:{},
                 ...user.organization?{organization: user.organization}:{},
                 ...'менеджер'===user.role?{manager: user.employment}:{},
                 ...['агент', 'суперагент'].includes(user.role)?{agent: user.employment}:{},
-            })
+           })
                 .populate({
                     path: 'agent',
                     select: 'name _id'
+               })
+                .populate({
+                    path: 'client',
+                    select: '_id image createdAt name address lastActive device notification city phone user category',
+                    populate: [{path: 'user', select: 'status'}]
                 })
-                .populate({path: 'client', select: '_id image createdAt name address lastActive device notification city phone user category', populate: [{path: 'user', select: 'status'}]})
                 .populate({
                     path: 'ecspeditor',
                     select: 'name _id'
-                })
+               })
                 .populate({
                     path: 'organization',
                     select: 'name _id cities'
-                })
+               })
                 .populate({
                     path: 'manager',
                     select: 'name _id'
-                })
+               })
                 .populate({
                     path: 'warehouse',
                     select: 'name _id'
-                })
+               })
                 .lean()
-        }
-    },
+       }
+   },
+    //район клиента
     clientDistrict: async(parent, {organization}, {user}) => {
         if('client'===user.role) {
-            let subBrand = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
+            let subBrand = await SubBrandAzyk.findById(organization).select('organization').lean()
             if(subBrand) organization = subBrand.organization
-            const res = await DistrictAzyk.findOne({
+            return await DistrictAzyk.findOne({
                 client: user.client,
                 organization
-            })
+           })
                 .select('organization agent manager ecspeditor')
                 .populate({
                     path: 'agent',
                     select: 'name phone'
-                })
+               })
                 .populate({
                     path: 'manager',
                     select: 'name phone'
-                })
+               })
                 .populate({
                     path: 'ecspeditor',
                     select: 'name phone'
-                })
+               })
                 .lean()
-            return res
-        }
-    },
-    sortDistrict: async() => {
-        let sort = [
-            {
-                name: 'Имя',
-                field: 'name'
-            }
-        ]
-        return sort
-    },
+       }
+   }
 };
 
 const resolversMutation = {
     addDistrict: async(parent, {organization, client, name, agent, ecspeditor, manager, warehouse}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
-            let _object = new DistrictAzyk({
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+            const createdObject = await DistrictAzyk.create({
                 name,
                 client,
                 agent,
                 ecspeditor,
                 warehouse,
-                organization: user.organization?user.organization:organization!=='super'?organization:undefined,
+                organization: user.organization||(organization!=='super'?organization:null),
                 manager,
-            });
-            await DistrictAzyk.create(_object)
+           })
+            unawaited(() => addHistory({user, type: historyTypes.create, model: 'DistrictAzyk', name, object: createdObject._id}))
+            return createdObject._id;
         }
-        return {data: 'OK'};
-    },
+   },
     setDistrict: async(parent, {_id, client, ecspeditor, name, agent, manager, warehouse}, {user}) => {
-        let object = await DistrictAzyk.findById(_id)
-        if(object&&['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)){
-            if(name)object.name = name
-            if(client){
-                let objectAgentRouteAzyk = await AgentRouteAzyk.findOne({district: object._id})
-                if(objectAgentRouteAzyk){
-                    for(let i=0; i<object.client.length; i++) {
-                        if(!client.includes(object.client[i].toString())){
-                            for(let i2=0; i2<7; i2++) {
-                                let index = objectAgentRouteAzyk.clients[i2].indexOf(object.client[i].toString())
-                                if(index!==-1)
-                                    objectAgentRouteAzyk.clients[i2].splice(index, 1)
-                            }
-                            await objectAgentRouteAzyk.save()
-                        }
-                    }
-                }
+        if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+            let object = await DistrictAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
+            unawaited(() => addHistory({user, type: historyTypes.set, model: 'DistrictAzyk', name: object.name, object: _id, data: {client: `${object.client.length}->${client.length}`, ecspeditor, name, agent, manager, warehouse}}))
+            if(name) object.name = name
+            if(client) {
+                // Приводим старых клиентов преобразуем в строку
+                let oldClientsSet = object.client.map(client => client.toString());
+                // Приводим новых клиентов
+                let newClientsSet = client.map(client => client.toString());
+                // Получаем список клиентов, которых нужно удалить из маршрутов (те кто есть в старом списке, но нет в новом)
+                let clientsToRemove = oldClientsSet.filter(client => !newClientsSet.includes(client));
+                if(clientsToRemove.length) {
+                    let agentRouteAzyk = await AgentRouteAzyk.findOne({district: object._id})
+                    if (agentRouteAzyk) {
+                        let changed = false
+                        // Проходим по всем дням недели (индекс 0-6)
+                        for(let i = 0; i < 7; i++) {
+                            // Проверяем есть ли клиенты на удаление в каждом дне
+                            if(agentRouteAzyk.clients[i].some(client => clientsToRemove.includes(client.toString()))) {
+                                // Очищаем таких клиентов
+                                agentRouteAzyk.clients[i] = agentRouteAzyk.clients[i].filter(client => !clientsToRemove.includes(client.toString()));
+                                changed = true;
+                           }
+                       }
+                        // Если были изменения — сохраняем
+                        if (changed) {
+                            agentRouteAzyk.markModified('clients');
+                            await agentRouteAzyk.save()
+                       }
+                   }
+               }
                 object.client = client
                 object.markModified('client');
-            }
-            if(warehouse)object.warehouse = warehouse
-            if(agent)object.agent = agent
-            if(ecspeditor)object.ecspeditor = ecspeditor
-            if(manager)object.manager = manager
+           }
+            if(warehouse) object.warehouse = warehouse
+            if(agent) object.agent = agent
+            if(ecspeditor) object.ecspeditor = ecspeditor
+            if(manager) object.manager = manager
             await object.save();
-        }
-        return {data: 'OK'}
-    },
-    deleteDistrict: async(parent, { _id }, {user}) => {
+       }
+        return 'OK'
+   },
+    deleteDistrict: async(parent, {_id}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
-            let objects = await DistrictAzyk.find({
-                _id: {$in: _id},
-                ...user.organization?{organization: user.organization}:{}
-            }).select('_id').lean()
-            for(let i=0; i<objects.length; i++){
-                await DistrictAzyk.deleteOne({_id: objects[i]._id})
-                await AgentRouteAzyk.deleteMany({district: objects[i]._id})
-                await OutXMLAdsShoroAzyk.deleteMany({district: objects[i]._id})
-            }
-        }
+            const district = await DistrictAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}}).select('name').lean()
+            // eslint-disable-next-line no-undef
+            await Promise.all([
+                DistrictAzyk.deleteOne({_id, ...user.organization?{organization: user.organization}:{}}),
+                AgentRouteAzyk.deleteMany({district: _id, ...user.organization?{organization: user.organization}:{}}),
+                SingleOutXMLAdsAzyk.deleteMany({district: _id}),
+            ])
+            unawaited(() => addHistory({user, type: historyTypes.delete, model: 'DistrictAzyk', name: district.name, object: _id}))
+       }
 
-        return {data: 'OK'}
-    }
+        return 'OK'
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

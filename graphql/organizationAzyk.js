@@ -1,20 +1,14 @@
 const mongoose = require('mongoose');
 const OrganizationAzyk = require('../models/organizationAzyk');
-const AutoAzyk = require('../models/autoAzyk');
-const RepairEquipmentAzyk = require('../models/repairEquipmentAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const DeliveryDateAzyk = require('../models/deliveryDateAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
-const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const BasketAzyk = require('../models/basketAzyk');
-const UserAzyk = require('../models/userAzyk');
-const AdsAzyk = require('../models/adsAzyk');
-const PlanAzyk = require('../models/planAzyk');
-const ModelsErrorAzyk = require('../models/errorAzyk');
-const { saveImage, saveFile, deleteFile, urlMain, isTestUser, isNotTestUser, reductionSearch} = require('../module/const');
+const {saveImage, saveFile, deleteFile, urlMain, isTestUser, isNotTestUser, reductionSearch, isNotEmpty, unawaited} = require('../module/const');
+const {deleteOrganizations} = require('../module/organizations');
+const {addHistory, historyTypes} = require('../module/history');
 
 const type = `
   type Organization {
@@ -33,13 +27,11 @@ const type = `
     image: String
     warehouse: String
     minimumOrder: Int
-    accessToClient: Boolean
     unite: Boolean
     agentSubBrand: Boolean
     clientSubBrand: Boolean
     addedClient: Boolean
     superagent: Boolean
-    consignation: Boolean
     refusal: Boolean
     onlyDistrict: Boolean
     dateDelivery: Boolean
@@ -53,34 +45,34 @@ const type = `
     del: String
     priotiry: Int
     pass: String
-    autoIntegrate: Boolean
+    organization: Organization
     
+    consignation: Boolean
+    autoIntegrate: Boolean
+    accessToClient: Boolean
     reiting: Int
-  }
+ }
 `;
 
 const query = `
     brandOrganizations(search: String!, filter: String!, city: String): [Organization]
     organizations(search: String!, filter: String!, city: String): [Organization]
-    organizationsTrash(search: String!): [Organization]
     organization(_id: ID!): Organization
-    filterOrganization: [Filter]
 `;
 
 const mutation = `
-    addOrganization(cities: [String]!, autoIntegrate: Boolean!, catalog: Upload, pass: String, warehouse: String!, miniInfo: String!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload!, name: String!, address: [String]!, email: [String]!, phone: [String]!, info: String!, accessToClient: Boolean!, consignation: Boolean!, refusal: Boolean!, addedClient: Boolean!, agentSubBrand: Boolean!, clientSubBrand: Boolean!, unite: Boolean!, superagent: Boolean!, onlyDistrict: Boolean!, dateDelivery: Boolean!, onlyIntegrate: Boolean!, autoAcceptAgent: Boolean!, autoAcceptNight: Boolean!, clientDuplicate: Boolean!, calculateStock: Boolean!, divideBySubBrand: Boolean!): Data
-    setOrganization(cities: [String], pass: String, autoIntegrate: Boolean, catalog: Upload, warehouse: String, miniInfo: String, _id: ID!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload, name: String, address: [String], email: [String], phone: [String], info: String, accessToClient: Boolean, consignation: Boolean, refusal: Boolean, addedClient: Boolean, agentSubBrand: Boolean, clientSubBrand: Boolean, unite: Boolean, superagent: Boolean, onlyDistrict: Boolean, dateDelivery: Boolean, onlyIntegrate: Boolean, autoAcceptAgent: Boolean, autoAcceptNight: Boolean, clientDuplicate: Boolean, calculateStock: Boolean, divideBySubBrand: Boolean): Data
-    restoreOrganization(_id: [ID]!): Data
-    deleteOrganization(_id: [ID]!): Data
-    onoffOrganization(_id: [ID]!): Data
+    addOrganization(cities: [String]!, catalog: Upload, pass: String, warehouse: String!, miniInfo: String!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload!, name: String!, address: [String]!, email: [String]!, phone: [String]!, info: String!, refusal: Boolean!, addedClient: Boolean!, agentSubBrand: Boolean!, clientSubBrand: Boolean!, unite: Boolean!, superagent: Boolean!, onlyDistrict: Boolean!, dateDelivery: Boolean!, onlyIntegrate: Boolean!, autoAcceptAgent: Boolean!, autoAcceptNight: Boolean!, clientDuplicate: Boolean!, calculateStock: Boolean!, divideBySubBrand: Boolean!): ID
+    setOrganization(cities: [String], pass: String, catalog: Upload, warehouse: String, miniInfo: String, _id: ID!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload, name: String, address: [String], email: [String], phone: [String], info: String, refusal: Boolean, addedClient: Boolean, agentSubBrand: Boolean, clientSubBrand: Boolean, unite: Boolean, superagent: Boolean, onlyDistrict: Boolean, dateDelivery: Boolean, onlyIntegrate: Boolean, autoAcceptAgent: Boolean, autoAcceptNight: Boolean, clientDuplicate: Boolean, calculateStock: Boolean, divideBySubBrand: Boolean): String
+    deleteOrganization(_id: ID!): String
+    onoffOrganization(_id: ID!): String
 `;
 
 const resolvers = {
-    brandOrganizations: async (parent, { search, filter, city }, { user }) => {
+    brandOrganizations: async (parent, {search, filter, city}, {user}) => {
         // Разрешаем выполнение только для указанных ролей
         if (!['admin', 'экспедитор', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент', 'суперэкспедитор', 'client'].includes(user.role)) {
             return [];
-        }
+       }
 
         // Фильтр по городу - либо из аргументов, либо из данных пользователя
         const cityFilter = city || user.city;
@@ -92,90 +84,81 @@ const resolvers = {
 
         // Получаем все элементы (товары или позиции) из коллекции ItemAzyk с учетом города, статуса и удаления
         const brandItems = await ItemAzyk.find({
-            ...(user.organization ? { organization: user.organization } : {}),
-            ...(cityFilter ? { city: cityFilter } : {}),
-            del: { $ne: 'deleted' }, // исключаем удалённые
-            ...(isAdmin ? {} : { status: 'active' }), // если не админ - только активные
-        })
+            ...(user.organization ? {organization: user.organization} : {}),
+            ...(cityFilter ? {city: cityFilter} : {}),
+            del: {$ne: 'deleted'}, // исключаем удалённые
+            ...(isAdmin ? {} : {status: 'active'}), // если не админ - только активные
+       })
             .select('organization subBrand')
             .lean();
 
         // Множества для хранения уникальных организаций и суббрендов
-        // eslint-disable-next-line no-undef
-        let organizationsSet = new Set();
-        // eslint-disable-next-line no-undef
-        const subBrandsSet = new Set();
+        let organizations = [];
+        let subBrands = [];
 
         // Для клиента отдельно выбираем организации, у которых clientSubBrand !== true (т.е. без суббрендов)
         // eslint-disable-next-line no-undef
-        const organizationsWithoutSubBrandClientSet = new Set();
+        let organizationsWithoutSubBrandClient = [];
 
         if (isClient) {
-            const clientOrgs = await OrganizationAzyk.find({
-                ...(cityFilter ? { cities: cityFilter } : {}),
+            organizationsWithoutSubBrandClient = await OrganizationAzyk.find({
+                ...(cityFilter ? {cities: cityFilter} : {}),
                 status: 'active',
-                del: { $ne: 'deleted' },
-                clientSubBrand: { $ne: true }
-            }).distinct('_id').lean();
-
-            clientOrgs.forEach(id => organizationsWithoutSubBrandClientSet.add(id.toString()));
+                del: {$ne: 'deleted'},
+                clientSubBrand: {$ne: true}
+           }).distinct('_id');
+            organizationsWithoutSubBrandClient = organizationsWithoutSubBrandClient.map(_id => _id.toString())
         }
+
 
         // Формируем множества организаций и суббрендов из brandItems
         brandItems.forEach(item => {
-            const orgId = item.organization.toString();
+            const organizationId = item.organization.toString();
+            const subBrandId = item.subBrand&&item.subBrand.toString();
+            const isWithoutSubBrandClient = organizationsWithoutSubBrandClient.includes(organizationId)
 
             // Добавляем организацию, если:
             // - пользователь не клиент, либо
             // - у организации нет суббренда, либо
             // - организация есть в списке организаций без суббрендов для клиента
-            if (!isClient || !item.subBrand || organizationsWithoutSubBrandClientSet.has(orgId)) {
-                organizationsSet.add(orgId);
-            }
+            // - если это админ
+            if (!organizations.includes(organizationId)&&(!isClient || !subBrandId || isWithoutSubBrandClient))
+                organizations.push(organizationId);
 
-            // Отдельно собираем суббренды, исключая организации без суббрендов
-            if ((!isClient || !organizationsWithoutSubBrandClientSet.has(orgId)) && item.subBrand) {
-                subBrandsSet.add(item.subBrand.toString());
-            }
-        });
+            // Отдельно собираем суббренды, исключая организации без суббрендов, но не для админа
+            if (item.subBrand&&!subBrands.includes(subBrandId)&&!isAdmin&&(!isClient || !isWithoutSubBrandClient)) {
+                subBrands.push(subBrandId);
+           }
+       });
 
-        // Запрашиваем организации с фильтрами и сортируем по приоритету
-        const organizations = organizationsSet.size>0?await OrganizationAzyk.find({
-            _id: { $in: Array.from(organizationsSet) },
-            name: { $regex: reductionSearch(search), $options: 'i' },
+        //filter поиска
+        const getFilter = (_ids) => ({
+            _id: {$in: _ids},
+            name: {$regex: reductionSearch(search), $options: 'i'},
             status:
                 (isAdmin || isTestUser(user))
                     ? filter.length === 0
-                        ? { $regex: filter, $options: 'i' }
+                        ? {$regex: filter, $options: 'i'}
                         : filter
                     : 'active',
-            ...(cityFilter ? { cities: cityFilter } : {}),
-            del: { $ne: 'deleted' },
-            ...(isSuperAgent ? { superagent: true } : {}),
+            ...(cityFilter ? {cities: cityFilter} : {}),
+            del: {$ne: 'deleted'},
+            ...(isSuperAgent ? {superagent: true} : {})
         })
-            .select('name autoAcceptAgent _id image miniInfo unite onlyIntegrate onlyDistrict priotiry catalog')
-            .sort('-priotiry')
+
+        // Запрашиваем организации с фильтрами и сортируем по приоритету
+        organizations = organizations.length?await OrganizationAzyk.find(getFilter(organizations))
+            .select('name autoAcceptAgent organization _id image miniInfo unite onlyIntegrate onlyDistrict priotiry catalog')
+            .sort('name')
             .lean():[];
 
         // Запрашиваем суббренды с учетом фильтров и с заполнением организации (populate)
-        const subBrands = subBrandsSet.size>0?await SubBrandAzyk.find({
-            _id: { $in: Array.from(subBrandsSet) },
-            name: { $regex: reductionSearch(search), $options: 'i' },
-            status:
-                (isAdmin || isTestUser(user))
-                    ? filter.length === 0
-                        ? { $regex: filter, $options: 'i' }
-                        : filter
-                    : 'active',
-            ...(cityFilter ? { cities: cityFilter } : {}),
-            del: { $ne: 'deleted' },
-            ...(user.organization ? { organization: user.organization } : {})
-        })
+        subBrands = subBrands.length?await SubBrandAzyk.find(getFilter(subBrands))
             .populate({
                 path: 'organization',
-                select: 'autoAcceptAgent _id unite onlyIntegrate onlyDistrict'
-            })
-            .sort('-priotiry')
+                select: 'autoAcceptAgent organization _id unite onlyIntegrate onlyDistrict'
+           })
+            .sort('name')
             .lean():[];
 
         // Добавляем в каждый суббренд дополнительные поля из организации и тип для отличия
@@ -185,133 +168,87 @@ const resolvers = {
             subBrand.unite = subBrand.organization.unite;
             subBrand.onlyIntegrate = subBrand.organization.onlyIntegrate;
             subBrand.onlyDistrict = subBrand.organization.onlyDistrict;
-        });
+       });
 
         // Объединяем суббренды и организации в один массив и сортируем по приоритету
         let organizationsRes = [...subBrands, ...organizations].sort((a, b) => b.priotiry - a.priotiry);
 
         // Для роли клиента фильтруем организации, учитывая только интеграцию и район клиента
         if (isClient) {
-            // eslint-disable-next-line no-undef
-            const filtered = await Promise.all(
-                organizationsRes.map(async (org) => {
-                    // Если это суббренд, берем данные организации из поля organization
-                    const orgData = org.organization || org;
-
-                    // Проверяем условия только интеграции и только района
-                    const onlyIntegrate = orgData.onlyIntegrate;
-                    const onlyDistrict = orgData.onlyDistrict;
-                    const orgId = orgData._id;
-
-                    // Проверяем наличие района и интеграции для клиента (если они нужны)
-                    const districtPromise = onlyDistrict
-                        ? DistrictAzyk.findOne({ client: user.client, organization: orgId }).select('_id').lean()
-                        // eslint-disable-next-line no-undef
-                        : Promise.resolve(true);
-                    const integratePromise = onlyIntegrate
-                        ? Integrate1CAzyk.findOne({ client: user.client, organization: orgId }).select('_id').lean()
-                        // eslint-disable-next-line no-undef
-                        : Promise.resolve(true);
-
-                    // eslint-disable-next-line no-undef
-                    const [district, integrate] = await Promise.all([districtPromise, integratePromise]);
-
-                    // Возвращаем организацию, только если все условия выполнены
-                    if ((onlyIntegrate && !integrate) || (onlyDistrict && !district)) {
-                        return null;
-                    }
-                    return org;
-                })
-            );
-
+            let districts = await DistrictAzyk.find({client: user.client, organization: {$ne: null}}).distinct('organization').lean()
+            districts = districts.map(district => district.toString())
+            let integrates = await Integrate1CAzyk.find({client: user.client, organization: {$ne: null}}).distinct('organization').lean()
+            integrates = integrates.map(integrate => integrate.toString())
+            const filteredOrganizations = []
+            for(const organization of organizationsRes) {
+                // Если это суббренд, берем данные организации из поля organization
+                const organizationId = (organization.organization?organization.organization._id:organization._id).toString();
+                // Возвращаем организацию, только если все условия выполнены
+                if (
+                    !organization.onlyIntegrate||integrates.includes(organizationId)&&
+                    !organization.onlyDistrict||districts.includes(organizationId)
+                ) filteredOrganizations.push(organization)
+            }
             // Фильтруем null значения
-            organizationsRes = filtered.filter(Boolean);
-        }
-
+            organizationsRes = filteredOrganizations;
+       }
         return organizationsRes;
-    },
+   },
     organizations: async(parent, {search, filter, city}, {user}) => {
         return await OrganizationAzyk.find({
-            name: {'$regex': reductionSearch(search), '$options': 'i'},
-            ...(isNotTestUser(user)&&user.role!=='admin')?{status:'active'}:filter.length?{status: filter}:{},
+            name: {$regex: reductionSearch(search), $options: 'i'},
+            ...(isNotTestUser(user)&&user.role!=='admin')?{status:'active'}:filter?{status: filter}:{},
             ...city?{cities: city}:{},
+            ...user.organization?{_id: user.organization}:{},
             del: {$ne: 'deleted'}
-        })
-            .select('name _id image miniInfo')
+       })
+            .select('name _id image miniInfo cities')
             .sort('-priotiry')
             .lean()
-    },
-    organizationsTrash: async(parent, {search}, {user}) => {
-        if(user.role==='admin'){
-            return await OrganizationAzyk.find({
-                name: {'$regex': reductionSearch(search), '$options': 'i'},
-                del: 'deleted'
-            })
-                .select('name _id image miniInfo')
-                .sort('-createdAt')
-                .lean()
-        }
-    },
+   },
     organization: async(parent, {_id}) => {
         if(mongoose.Types.ObjectId.isValid(_id)) {
-            let subBrand = await SubBrandAzyk.findOne({_id: _id}).select('organization name minimumOrder').lean()
+            let subBrand = await SubBrandAzyk.findById(_id).select('organization name minimumOrder').lean()
             let organization = await OrganizationAzyk.findOne({
                 _id: subBrand?subBrand.organization:_id
-            })
+           })
                 .lean()
             if(subBrand) {
                 organization.name = `${subBrand.name} (${organization.name})`
                 if(subBrand.minimumOrder) organization.minimumOrder = subBrand.minimumOrder
-            }
+           }
             return organization
-        }
-    },
-    filterOrganization: async(parent, ctx, {user}) => {
-        if(user.role==='admin')
-            return await [
-                {
-                    name: 'Все',
-                    value: ''
-                },
-                {
-                    name: 'Активные',
-                    value: 'active'
-                },
-                {
-                    name: 'Неактивные',
-                    value: 'deactive'
-                }
-            ]
-        else
-            return await []
-    },
+       }
+   }
 };
 
 const resolversMutation = {
-    addOrganization: async(parent, {cities, autoIntegrate, catalog, addedClient, agentSubBrand, clientSubBrand, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, accessToClient, consignation, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
-        if(user.role==='admin'){
-            let { stream, filename } = await image;
-            filename = await saveImage(stream, filename)
-            let objectOrganization = new OrganizationAzyk({
-                image: urlMain+filename,
-                name: name,
+    addOrganization: async(parent, {cities, catalog, addedClient, agentSubBrand, clientSubBrand, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
+        if(user.role==='admin') {
+            let {stream, filename} = await image;
+            image = urlMain + await saveImage(stream, filename)
+            if(catalog) {
+                let {stream, filename} = await catalog;
+                catalog = urlMain + await saveFile(stream, filename)
+           }
+            const createdObject = await OrganizationAzyk.create({
+                image,
+                name,
                 status: 'active',
-                address: address,
-                email: email,
-                phone: phone,
-                info: info,
-                minimumOrder: minimumOrder,
-                accessToClient: accessToClient,
-                consignation: consignation,
-                refusal: refusal,
-                priotiry: priotiry,
-                onlyDistrict: onlyDistrict,
-                unite: unite,
-                superagent: superagent,
-                onlyIntegrate: onlyIntegrate,
-                miniInfo: miniInfo,
-                warehouse: warehouse,
-                cities: cities,
+                address,
+                email,
+                phone,
+                info,
+                minimumOrder,
+                refusal,
+                priotiry,
+                onlyDistrict,
+                unite,
+                superagent,
+                onlyIntegrate,
+                miniInfo,
+                warehouse,
+                cities,
                 autoAcceptAgent,
                 autoAcceptNight,
                 clientDuplicate,
@@ -321,118 +258,94 @@ const resolversMutation = {
                 addedClient,
                 agentSubBrand,
                 clientSubBrand,
-                autoIntegrate,
-                agentHistory
-            });
-            if(catalog){
-                let { stream, filename } = await catalog;
-                objectOrganization.catalog = urlMain+(await saveFile(stream, filename))
-            }
-            if(pass)
-                objectOrganization.pass = pass
-            objectOrganization = await OrganizationAzyk.create(objectOrganization)
-        }
-        return {data: 'OK'};
-    },
-    setOrganization: async(parent, {catalog, cities, addedClient, agentSubBrand, clientSubBrand, autoIntegrate, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, _id, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, accessToClient, refusal, consignation, onlyDistrict, onlyIntegrate}, {user}) => {
+                agentHistory,
+                catalog,
+                pass
+           })
+            unawaited(() => addHistory({user, type: historyTypes.create, model: 'OrganizationAzyk', name, object: createdObject._id}))
+            return createdObject._id;
+       }
+   },
+    setOrganization: async(parent, {catalog, cities, addedClient, agentSubBrand, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, _id, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
         if(user.role==='admin'||(['суперорганизация', 'организация'].includes(user.role)&&user.organization.toString()===_id.toString())) {
             let object = await OrganizationAzyk.findById(_id)
+            unawaited(() => addHistory({user, type: historyTypes.set, model: 'OrganizationAzyk', name: object.name, object: _id, data: {catalog, cities, addedClient, agentSubBrand, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}}))
             if (image) {
                 let {stream, filename} = await image;
-                await deleteFile(object.image)
-                filename = await saveImage(stream, filename)
-                object.image = urlMain + filename
+                // eslint-disable-next-line no-undef
+                const [savedFilename] = await Promise.all([
+                    saveImage(stream, filename),
+                    deleteFile(object.image)
+                ])
+                object.image = urlMain + savedFilename
+           }
+            if(catalog) {
+                let {stream, filename} = await catalog;
+                // eslint-disable-next-line no-undef
+                const [savedFilename] = await Promise.all([
+                    saveFile(stream, filename),
+                    deleteFile(object.catalog)
+                ])
+                object.catalog = urlMain+savedFilename
+           }
+            if(user.role==='admin'&&isNotEmpty(pass)) object.pass = pass
+            if(cities) {
+                object.cities = cities
+                await SubBrandAzyk.updateMany({organization: _id}, {cities})
+                await ItemAzyk.updateMany({organization: _id}, {city: cities[0]})
             }
-            if(catalog){
-                if(object.catalog)
-                    await deleteFile(object.catalog)
-                let { stream, filename } = await catalog;
-                object.catalog = urlMain+(await saveFile(stream, filename))
-            }
-            if(user.role==='admin'&&pass!==undefined) object.pass = pass
-            if(cities) object.cities = cities
             if(name) object.name = name
             if(info) object.info = info
             if(phone) object.phone = phone
             if(email) object.email = email
             if(address) object.address = address
             if(warehouse) object.warehouse = warehouse
-            if(superagent!=undefined) object.superagent = superagent
-            if(unite!=undefined) object.unite = unite
-            if(onlyDistrict!=undefined) object.onlyDistrict = onlyDistrict
-            if(autoAcceptAgent!=undefined) object.autoAcceptAgent = autoAcceptAgent
-            if(clientDuplicate!=undefined) object.clientDuplicate = clientDuplicate
-            if(calculateStock!=undefined) object.calculateStock = calculateStock
-            if(autoAcceptNight!=undefined) {
-                let _object = new ModelsErrorAzyk({
-                    err: `autoAcceptNight: ${object.autoAcceptNight} => ${autoAcceptNight}`,
-                    path: 'setOrganization'
-                });
-                ModelsErrorAzyk.create(_object)
-                object.autoAcceptNight = autoAcceptNight
-            }
-            if(divideBySubBrand!=undefined) object.divideBySubBrand = divideBySubBrand
-            if(dateDelivery!=undefined) object.dateDelivery = dateDelivery
-            if(onlyIntegrate!=undefined) object.onlyIntegrate = onlyIntegrate
-            if(priotiry!=undefined) object.priotiry = priotiry
-            if(consignation!=undefined) object.consignation = consignation
-            if(refusal!=undefined) object.refusal = refusal
-            if(accessToClient!=undefined) object.accessToClient = accessToClient
-            if(minimumOrder!=undefined) object.minimumOrder = minimumOrder
-            if(miniInfo!=undefined) object.miniInfo = miniInfo
-            if(addedClient!=undefined) object.addedClient = addedClient
-            if(agentSubBrand!=undefined) object.agentSubBrand = agentSubBrand
-            if(clientSubBrand!=undefined) object.clientSubBrand = clientSubBrand
-            if(autoIntegrate!=undefined) object.autoIntegrate = autoIntegrate
-            if(agentHistory!=undefined) object.agentHistory = agentHistory
+            if(isNotEmpty(superagent)) object.superagent = superagent
+            if(isNotEmpty(unite)) object.unite = unite
+            if(isNotEmpty(onlyDistrict)) object.onlyDistrict = onlyDistrict
+            if(isNotEmpty(autoAcceptAgent)) object.autoAcceptAgent = autoAcceptAgent
+            if(isNotEmpty(clientDuplicate)) object.clientDuplicate = clientDuplicate
+            if(isNotEmpty(calculateStock)) object.calculateStock = calculateStock
+            if(isNotEmpty(autoAcceptNight)) object.autoAcceptNight = autoAcceptNight
+            if(isNotEmpty(divideBySubBrand)) object.divideBySubBrand = divideBySubBrand
+            if(isNotEmpty(dateDelivery)) object.dateDelivery = dateDelivery
+            if(isNotEmpty(onlyIntegrate)) object.onlyIntegrate = onlyIntegrate
+            if(isNotEmpty(priotiry)) object.priotiry = priotiry
+            if(isNotEmpty(refusal)) object.refusal = refusal
+            if(isNotEmpty(minimumOrder)) object.minimumOrder = minimumOrder
+            if(isNotEmpty(miniInfo)) object.miniInfo = miniInfo
+            if(isNotEmpty(addedClient)) object.addedClient = addedClient
+            if(isNotEmpty(agentSubBrand)) object.agentSubBrand = agentSubBrand
+            if(isNotEmpty(clientSubBrand)) object.clientSubBrand = clientSubBrand
+            if(isNotEmpty(agentHistory)) object.agentHistory = agentHistory
             await object.save();
-        }
-        return {data: 'OK'}
-    },
-    restoreOrganization: async(parent, { _id }, {user}) => {
-        if(user.role==='admin'){
-            await OrganizationAzyk.updateMany({_id: {$in: _id}}, {del: null, status: 'active'})
-        }
-        return {data: 'OK'}
-    },
-    deleteOrganization: async(parent, { _id }, {user}) => {
-        if(user.role==='admin'){
-            for(let i=0; i<_id.length; i++) {
-                let items = await ItemAzyk.find({organization: _id[i]}).distinct('_id').lean()
-                await BasketAzyk.deleteMany({item: {$in: items}})
-                await ItemAzyk.updateMany({organization: _id[i]}, {del: 'deleted', status: 'deactive'})
-                let users = await EmploymentAzyk.find({organization: _id[i]}).distinct('user').lean()
-                await UserAzyk.updateMany({_id: {$in: users}}, {status: 'deactive'})
-                await EmploymentAzyk.updateMany({organization: _id[i]}, {del: 'deleted'})
-                await SubBrandAzyk.deleteMany({organization: _id[i]})
-                await Integrate1CAzyk.deleteMany({organization: _id[i]})
-                await AgentRouteAzyk.deleteMany({organization: _id[i]})
-                await DistrictAzyk.deleteMany({organization: _id[i]})
-                await AutoAzyk.deleteMany({organization: _id[i]})
-                await RepairEquipmentAzyk.deleteMany({organization: _id[i]})
-                await OrganizationAzyk.updateOne({_id: _id[i]}, {del: 'deleted', status: 'deactive'})
-                await AdsAzyk.updateMany({organization: _id[i]}, {del: 'deleted'})
-                await PlanAzyk.deleteMany({organization: _id[i]})
-                await DeliveryDateAzyk.deleteMany({organization: _id[i]})
-            }
-        }
-        return {data: 'OK'}
-    },
-    onoffOrganization: async(parent, { _id }, {user}) => {
-        if(user.role==='admin'){
-            let objects = await OrganizationAzyk.find({_id: {$in: _id}})
-            for(let i=0; i<objects.length; i++){
-                objects[i].status = objects[i].status==='active'?'deactive':'active'
-                await SubBrandAzyk.updateMany({organization: objects[i]._id}, {status: objects[i].status})
-                await EmploymentAzyk.updateMany({organization: objects[i]._id}, {status: objects[i].status})
-                let items = await ItemAzyk.find({organization: objects[i]._id}).distinct('_id').lean()
-                await BasketAzyk.deleteMany({item: {$in: items}})
-                await ItemAzyk.updateMany({organization: objects[i]._id}, {status: objects[i].status})
-                await objects[i].save()
-            }
-        }
-        return {data: 'OK'}
-    }
+       }
+        return 'OK'
+   },
+    deleteOrganization: async(parent, {_id}, {user}) => {
+        if(user.role==='admin') {
+            let organization = await OrganizationAzyk.findById(_id).select('name').lean()
+            await deleteOrganizations([_id])
+            unawaited(() => addHistory({user, type: historyTypes.delete, model: 'OrganizationAzyk', name: organization.name, object: _id}))
+       }
+        return 'OK'
+   },
+    onoffOrganization: async(parent, {_id}, {user}) => {
+        if(user.role==='admin') {
+            const organization = await OrganizationAzyk.findById(_id).select('name status').lean()
+            const newStatus = organization.status==='active'?'deactive':'active'
+            let items = await ItemAzyk.find({organization: organization._id}).distinct('_id')
+            // eslint-disable-next-line no-undef
+            await Promise.all([
+                OrganizationAzyk.updateOne({_id}, {status: newStatus}),
+                EmploymentAzyk.updateMany({organization: _id}, {status: newStatus}),
+                BasketAzyk.deleteMany({item: {$in: items}}),
+                ItemAzyk.updateMany({_id: {$in: items}}, {status: newStatus})
+            ])
+            unawaited(() => addHistory({user, type: historyTypes.set, model: 'OrganizationAzyk', name: organization.name, object: _id, data: {status: newStatus}}))
+       }
+        return 'OK'
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

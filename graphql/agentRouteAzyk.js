@@ -8,9 +8,9 @@ const type = `
       _id: ID
       createdAt: Date
       organization: Organization
-      clients: [[ID]],
+      clients: [[ID]]
       district: District
-  }
+ }
 `;
 
 const query = `
@@ -20,123 +20,98 @@ const query = `
 `;
 
 const mutation = `
-    addAgentRoute(organization: ID, clients: [[ID]]!, district: ID): Data
-    setAgentRoute(_id: ID!, clients: [[ID]]): Data
-    deleteAgentRoute(_id: [ID]!): Data
+    addAgentRoute(organization: ID, clients: [[ID]]!, district: ID): ID
+    setAgentRoute(_id: ID!, clients: [[ID]]): String
+    deleteAgentRoute(_id: ID!): String
 `;
 
 const resolvers = {
     agentRoutes: async(parent, {organization, search}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'admin' ].includes(user.role)) {
-            let _districts;
-            if (search.length > 0) {
-                _districts = await DistrictAzyk.find({
-                    name: {'$regex': reductionSearch(search), '$options': 'i'}
-                }).distinct('_id').lean()
-            }
-            let districts
-            if ('менеджер' === user.role) {
-                districts = await DistrictAzyk
-                    .find({manager: user.employment})
-                    .distinct('_id')
-                    .lean()
-            }
+            // eslint-disable-next-line no-undef
+            const [searchedDistricts, employmentDistricts] = await Promise.all([
+                search?DistrictAzyk.find({name: {$regex: reductionSearch(search), $options: 'i'}}).distinct('_id'):null,
+                user.role==='менеджер'?DistrictAzyk.find({manager: user.employment}).distinct('_id'):null
+            ])
+            organization = user.organization||(organization === 'super'?null:organization)
             return await AgentRouteAzyk
                 .find({
-                    organization: user.organization ? user.organization : organization === 'super' ? null : organization,
-                    ...'менеджер' === user.role ? {district: {$in: districts}} : {},
-                    ...(search.length > 0 ? {district: {$in: _districts}} : {})
-                })
+                    organization,
+                    ...employmentDistricts? {district: {$in: employmentDistricts}} : {},
+                    ...(search ? {district: {$in: searchedDistricts}} : {})
+               })
                 .select('_id createdAt organization district')
                 .populate({
                     path: 'district',
                     select: 'name _id'
-                })
+               })
                 .populate({
                     path: 'organization',
                     select: 'name _id'
-                })
+               })
                 .lean()
-        }
-    },
-    districtsWithoutAgentRoutes: async(parent, { organization }, {user}) => {
+       }
+   },
+    districtsWithoutAgentRoutes: async(parent, {organization}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'admin' ].includes(user.role)) {
+            organization = organization==='super'?null:organization
             let districts = await AgentRouteAzyk
-                .find({organization: organization === 'super' ? null : organization})
+                .find({organization})
                 .distinct('district')
-                .lean()
             districts = await DistrictAzyk
                 .find({
                     ...'менеджер' === user.role ? {manager: user.employment} : {},
                     _id: {$nin: districts},
-                    organization: user.organization ? user.organization : organization === 'super' ? null : organization
-                })
-                .select('_id createdAt organization client')
+                    organization
+               })
+                .select('_id createdAt name organization client')
                 .populate({path: 'client', select: '_id image createdAt name address lastActive device notification city phone user', populate: [{path: 'user', select: 'status'}]})
                 .populate({path: 'organization', select: 'name _id'})
                 .sort('-createdAt')
                 .lean()
             return districts
-        }
-    },
+       }
+   },
     agentRoute: async(parent, {_id}, {user}) => {
         if(['суперорганизация', 'организация', 'агент', 'суперагент', 'менеджер', 'admin', ].includes(user.role)) {
-            let districts
-            if ('менеджер' === user.role) {
-                districts = await DistrictAzyk
-                    .find({manager: user.employment})
+            let employmentDistricts
+            if (['агент', 'суперагент', 'менеджер'].includes(user.role)) {
+                employmentDistricts = await DistrictAzyk
+                    .find('менеджер' === user.role?{manager: user.employment}:{agent: user.employment})
                     .distinct('_id')
                     .lean()
-            }
-            else if (['агент', 'суперагент'].includes(user.role)) {
-                districts = await DistrictAzyk
-                    .findOne({agent: user.employment})
-                    .select('_id')
-                    .lean()
-            }
+           }
             return await AgentRouteAzyk.findOne({
-                ...mongoose.Types.ObjectId.isValid(_id)?{_id: _id}:{},
+                ...mongoose.Types.ObjectId.isValid(_id)?{_id}:{},
                 ...user.organization ? {organization: user.organization} : {},
-                ...'менеджер' === user.role ?
-                    {district: {$in: districts}}
-                    :
-                    ['агент', 'суперагент'].includes(user.role) ?
-                        {district: districts._id}
-                        :
-                        {}
-            })
+                ...employmentDistricts ? {district: {$in: employmentDistricts}} : {}
+           })
                 .populate({path: 'district', select: 'name _id client', populate: [{path: 'client', select: '_id image createdAt name address lastActive device notification city phone user category', populate: [{path: 'user', select: 'status'}]}]})
                 .populate({path: 'organization', select: 'name _id'})
                 .lean()
-        }
-    }
+       }
+   }
 };
 
 const resolversMutation = {
     addAgentRoute: async(parent, {organization, clients, district}, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
-            let _object = new AgentRouteAzyk({
-                district: district,
-                organization: organization!=='super'?organization:undefined,
-                clients: clients,
-            });
-            await AgentRouteAzyk.create(_object)
-        }
-        return {data: 'OK'};
-    },
+            const createdObject = await AgentRouteAzyk.create({district, clients, organization: organization!=='super'?organization:null})
+            return createdObject._id;
+       }
+   },
     setAgentRoute: async(parent, {_id, clients}, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
-            let object = await AgentRouteAzyk.findById(_id)
-            if(clients)object.clients = clients
-            await object.save();
-        }
-        return {data: 'OK'}
-    },
-    deleteAgentRoute: async(parent, { _id }, {user}) => {
-        if(['admin', 'суперорганизация', 'организация', 'менеджер'].includes(user.role))
-            await AgentRouteAzyk.deleteMany({_id: {$in: _id}, ...user.organization?{organization: user.organization}:{}})
-        return {data: 'OK'}
-    }
+            await AgentRouteAzyk.updateOne({_id, ...user.organization?{organization: user.organization}:{}}, {clients})
+            return 'OK'
+       }
+   },
+    deleteAgentRoute: async(parent, {_id}, {user}) => {
+        if(['admin', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+            await AgentRouteAzyk.deleteOne({_id, ...user.organization ? {organization: user.organization} : {}})
+            return 'OK'
+       }
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

@@ -2,7 +2,7 @@ const MerchandisingAzyk = require('../models/merchandisingAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
-const {saveBase64ToFile, urlMain, deleteFile, reductionSearch} = require('../module/const');
+const {saveBase64ToFile, urlMain, deleteFile, reductionSearch, unawaited, isNotEmpty} = require('../module/const');
 const {sendWebPush} = require('../module/webPush');
 const EmploymentAzyk = require('../models/employmentAzyk');
 
@@ -27,7 +27,7 @@ const type = `
       geo: String
       reviewerScore: Int
       reviewerComment: String
-  }
+ }
   type Fho {
       type: String
       images: [String]
@@ -35,7 +35,7 @@ const type = `
       state: Int
       foreignProducts: Boolean
       filling: Int
-  }
+ }
   input InputFho {
       type: String
       images: [Upload]
@@ -43,132 +43,93 @@ const type = `
       state: Int
       foreignProducts: Boolean
       filling: Int
-  }
+ }
 `;
 
 const query = `
     merchandisings(organization: ID!, agent: ID, client: ID, date: String, search: String!, sort: String!, filter: String!, skip: Int): [Merchandising]
     merchandising(_id: ID!): Merchandising
-    sortMerchandising: [Sort]
-    filterMerchandising: [Filter]
 `;
 
 const mutation = `
-    addMerchandising(organization: ID!, type: String!, geo: String, client: ID!, productAvailability: [String]!, productInventory: Boolean!, productConditions: Int!, productLocation: Int!, images: [Upload]!, fhos: [InputFho]!, needFho: Boolean!, stateProduct: Int!, comment: String!): Data
-    checkMerchandising(_id: ID!, reviewerScore: Int, reviewerComment: String): Data
-    deleteMerchandising(_id: [ID]!): Data
+    addMerchandising(organization: ID!, type: String!, geo: String, client: ID!, productAvailability: [String]!, productInventory: Boolean!, productConditions: Int!, productLocation: Int!, images: [Upload]!, fhos: [InputFho]!, needFho: Boolean!, stateProduct: Int!, comment: String!): ID
+    checkMerchandising(_id: ID!, reviewerScore: Int, reviewerComment: String): String
+    deleteMerchandising(_id: ID!): String
 `;
 
 const resolvers = {
     merchandisings: async(parent, {organization, agent, search, date, client, sort, filter, skip}, {user}) => {
-        if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)){
-            let clients
+        if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
             let dateStart;
             let dateEnd;
-            if(date&&date!==''){
+            if(date&&date!=='') {
                 dateStart = new Date(date)
                 dateStart.setHours(0, 0, 0, 0)
                 dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
-            }
-            if (['суперагент', 'агент', 'менеджер'].includes(user.role))
-                clients = await DistrictAzyk
+           }
+            // eslint-disable-next-line no-undef
+            const [districtClients, searchedClients] = await Promise.all([
+                ['суперагент', 'агент', 'менеджер'].includes(user.role)?DistrictAzyk
                     .find({$or: [{manager: user.employment}, {agent: user.employment}]})
-                    .distinct('client')
-                    .lean()
-            let _clients;
-            if (search.length > 0) {
-                _clients = await ClientAzyk.find({
-                    $or: [
-                        {name: {'$regex': reductionSearch(search), '$options': 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {'$regex': reductionSearch(search), '$options': 'i'}}}}
-                    ]
-                }).distinct('_id').lean()
-            }
+                    .distinct('client'):null,
+                search?ClientAzyk.find({$or: [
+                    {name: {$regex: reductionSearch(search), $options: 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                ]}).distinct('_id'):null
+            ])
             return await MerchandisingAzyk.find({
                 ...client?{client: client}:{},
                 ...agent?{employment: agent}:{},
-                organization: user.organization?user.organization:organization==='super'?null:organization,
+                organization: user.organization||(organization==='super'?null:organization),
                 ...filter?
                     filter==='обработка'?{check: false}:{type: filter}
                     :{},
+                ...date?{date: {$gte: dateStart, $lt:dateEnd}}:{},
                 $and: [
-                    {...['суперагент', 'агент'].includes(user.role) && clients.length||user.role==='менеджер'?{client: {$in: clients}}:['суперагент', 'агент', 'мерчендайзер'].includes(user.role)?{employment: user.employment}:{}},
-                    {...search.length>0?{client: {$in: _clients}}:{}},
-                    ...(!date||date===''?[]:[{date: {$gte: dateStart}}, {date: {$lt:dateEnd}}]),
+                    {...['суперагент', 'агент'].includes(user.role) && districtClients.length||user.role==='менеджер'?{client: {$in: districtClients}}:['суперагент', 'агент', 'мерчендайзер'].includes(user.role)?{employment: user.employment}:{}},
+                    {...search?{client: {$in: searchedClients}}:{}},
                 ]
-            })
+           })
                 .select('_id client type employment date stateProduct check fhos')
                 .populate({
                     path: 'client',
                     select: '_id name address'
-                })
+               })
                 .populate({
                     path: 'employment',
                     select: '_id name'
-                })
+               })
                 .sort(sort)
-                .skip(skip != undefined ? skip : 0)
-                .limit(skip != undefined ? 200 : 10000000000)
+                .skip(isNotEmpty(skip) ? skip : 0)
+                .limit(isNotEmpty(skip) ? 200 : 10000000000)
                 .lean()
-        }
-    },
+       }
+   },
     merchandising: async(parent, {_id}, {user}) => {
         if(mongoose.Types.ObjectId.isValid(_id)) {
             return await MerchandisingAzyk.findOne({
                 ...user.organization?{organization: user.organization}:{},
-                _id: _id
-            })
+                _id
+           })
                 .populate({
                     path: 'client',
                     select: '_id name address'
-                })
+               })
                 .populate({
                     path: 'employment',
                     select: '_id name'
-                })
+               })
                 .lean()
-        } else return null
-    },
-    sortMerchandising: async() => {
-        return [
-            {
-                name: 'Дата',
-                field: 'date'
-            },
-            {
-                name: 'Оценка',
-                field: 'stateProduct'
-            },
-            {
-                name: 'Статус',
-                field: 'check'
-            }
-        ]
-    },
-    filterMerchandising: async() => {
-        let filter = [{
-            name: 'Все',
-            value: ''
-        },{
-            name: 'Обработка',
-            value: 'обработка'
-        },{
-            name: 'Холодные полки',
-            value: 'холодные полки'
-        },{
-            name: 'Теплые полки',
-            value: 'теплые полки'
-        }]
-        return filter
-    }
+       } else return null
+   }
 };
 
 const resolversMutation = {
     addMerchandising: async(parent, {organization, type, client, geo, productAvailability, productInventory, productConditions, productLocation, images, fhos, needFho, stateProduct, comment}, {user}) => {
-        if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)){
+        if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
             let _object = new MerchandisingAzyk({
-                organization: user.organization?user.organization:organization==='super'?null:organization,
+                organization: user.organization||(organization==='super'?null:organization),
                 employment: user.employment?user.employment:null,
                 client: user.client?user.client:client,
                 date: new Date(),
@@ -184,55 +145,50 @@ const resolversMutation = {
                 fhos: [],
                 geo: geo,
                 check: false
-            });
+           });
             for(let i=0; i<images.length; i++) {
                 _object.images.push(urlMain + await saveBase64ToFile(images[i]))
-            }
+           }
             for(let i=0; i<fhos.length; i++) {
                 _object.fhos.push(fhos[i])
-            }
-            await MerchandisingAzyk.create(_object)
-        }
-        return {data: 'OK'};
-    },
+           }
+            const createdObject = await MerchandisingAzyk.create(_object)
+            return createdObject._id;
+       }
+   },
     checkMerchandising: async(parent, {_id, reviewerScore, reviewerComment}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)){
-            let object = await MerchandisingAzyk.findOne({
-                _id: _id,
-                ...user.organization?{organization: user.organization}:{}
-            })
+        if(['admin', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+            let object = await MerchandisingAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
             object.check = true
             object.reviewerScore = reviewerScore
             object.reviewerComment = reviewerComment
             await object.save();
-            try{
-                const clientName = ((await ClientAzyk.findById(object.client)).address)[0][2]
-                const employmentUser = (await EmploymentAzyk.findById(object.employment)).user
-                sendWebPush({
-                    title: 'Мерчендайзинг',
-                    message: `${clientName}\nОценка: ${reviewerScore}${reviewerComment?`\nКомментарий: ${reviewerComment}`:''}`,
-                    user: employmentUser,
-                    url: `https://azyk.store/merchandising/${_id}`
-                })
-            } catch (err) {/**/}
-        }
-        return {data: 'OK'}
-    },
-    deleteMerchandising: async(parent, { _id }, {user}) => {
-        if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)){
-            let merchandisings = await MerchandisingAzyk.find({...user.organization?{organization: user.organization}:{}, _id: {$in: _id}}).select('images').lean()
-            for(let i=0; i<merchandisings.length; i++) {
-                for(let i1=0; i1<merchandisings[i].images.length; i1++) {
-                    await deleteFile(merchandisings[i].images[i1])
-                }
-            }
-            await MerchandisingAzyk.deleteMany({
-                ...user.organization?{organization: user.organization}:{},
-                _id: {$in: _id}
+            unawaited(async () => {
+                // eslint-disable-next-line no-undef
+                const [client, employment] = await Promise.all([
+                    ClientAzyk.findById(object.client).select('address').lean(),
+                    EmploymentAzyk.findById(object.employment).select('user').lean(),
+                ])
+                if(employment)
+                    await sendWebPush({
+                        title: 'Мерчендайзинг',
+                        message: `${client.address && client.address[0] && client.address[0][2] ? client.address[0][2] : ''}\nОценка: ${reviewerScore}${reviewerComment ? `\nКомментарий: ${reviewerComment}` : ''}`,
+                        users: [employment.user],
+                        url: `https://azyk.store/merchandising/${_id}`
+                    })
             })
-        }
-        return {data: 'OK'}
-    }
+       }
+        return 'OK'
+   },
+    deleteMerchandising: async(parent, {_id}, {user}) => {
+        if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
+            const merchandisingImages = await MerchandisingAzyk.findOne({...user.organization?{organization: user.organization}:{}, _id}).select('images').lean()
+            // eslint-disable-next-line no-undef
+            await Promise.all(merchandisingImages.images.map(image => deleteFile(image)));
+            await MerchandisingAzyk.deleteOne({_id, ...user.organization?{organization: user.organization}:{}})
+       }
+        return 'OK'
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

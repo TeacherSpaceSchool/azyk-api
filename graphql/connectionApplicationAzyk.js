@@ -1,4 +1,5 @@
 const ConnectionApplicationAzyk = require('../models/connectionApplicationAzyk');
+const {isNotEmpty} = require('../module/const');
 
 const type = `
   type ConnectionApplication {
@@ -9,19 +10,18 @@ const type = `
     address: String
     whereKnow: String
     taken: Boolean
-  }
+ }
 `;
 
 const query = `
     connectionApplications(skip: Int, filter: String): [ConnectionApplication]
-    filterConnectionApplication: [Filter]
     connectionApplicationsSimpleStatistic(filter: String): Int
 `;
 
 const mutation = `
-    addConnectionApplication(name: String!, phone: String!, address: String!, whereKnow: String!): Data
-    acceptConnectionApplication(_id: ID!): Data
-    deleteConnectionApplication(_id: [ID]!): Data
+    addConnectionApplication(name: String!, phone: String!, address: String!, whereKnow: String!): ConnectionApplication
+    acceptConnectionApplication(_id: ID!): String
+    deleteConnectionApplication(_id: ID!): String
 `;
 
 const resolvers = {
@@ -32,65 +32,49 @@ const resolvers = {
                     {
                         $match: {
                             ...(filter === 'обработка' ? {taken: false} : {})
-                        }
-                    },
+                       }
+                   },
                     {$sort: {'createdAt': -1}},
-                    {$skip: skip != undefined ? skip : 0},
-                    {$limit: skip != undefined ? 15 : 10000000000}
+                    {$skip: isNotEmpty(skip) ? skip : 0},
+                    {$limit: isNotEmpty(skip) ? 15 : 10000000000}
                 ])
-        }
-    },
+       }
+   },
     connectionApplicationsSimpleStatistic: async(parent, {filter}, {user}) => {
         if('admin'===user.role)
             return await ConnectionApplicationAzyk.countDocuments({
                 ...(filter === 'обработка' ? {taken: false} : {})
-            }).lean()
-    },
-    filterConnectionApplication: async(parent, ctx, {user}) => {
-        if('admin'===user.role) {
-            let filter = [
-                {
-                    name: 'Все',
-                    value: ''
-                },
-                {
-                    name: 'Обработка',
-                    value: 'обработка'
-                }
-            ]
-            return filter
-        }
-    },
+           }).lean()
+   },
 };
 
 const resolversMutation = {
     addConnectionApplication: async(parent, {name, phone, address, whereKnow}, {user}) => {
-        if(!user.role){
-            let _object = new ConnectionApplicationAzyk({
+        if(!user.role) {
+            const createdObject = await ConnectionApplicationAzyk.create({
                 name,
                 phone,
                 address,
                 whereKnow,
                 taken: false
-            });
-            await ConnectionApplicationAzyk.create(_object)
-            return {data: 'OK'}
-        }
-    },
+            })
+            return createdObject
+       }
+   },
     acceptConnectionApplication: async(parent, {_id}, {user}) => {
         if('admin'===user.role) {
             let object = await ConnectionApplicationAzyk.findById(_id)
             object.taken = true
             await object.save();
-        }
-        return {data: 'OK'}
-    },
-    deleteConnectionApplication: async(parent, { _id }, {user}) => {
-        if(user.role==='admin'){
-            await ConnectionApplicationAzyk.deleteMany({_id: {$in: _id}})
-        }
-        return {data: 'OK'}
-    }
+       }
+        return 'OK'
+   },
+    deleteConnectionApplication: async(parent, {_id}, {user}) => {
+        if(user.role==='admin') {
+            await ConnectionApplicationAzyk.deleteOne({_id})
+       }
+        return 'OK'
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

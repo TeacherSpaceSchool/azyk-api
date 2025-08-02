@@ -1,5 +1,5 @@
 const FaqAzyk = require('../models/faqAzyk');
-const { saveFile, deleteFile, urlMain, reductionSearch} = require('../module/const');
+const {saveFile, deleteFile, urlMain, reductionSearch, saveImage} = require('../module/const');
 
 const type = `
   type Faq {
@@ -9,7 +9,7 @@ const type = `
     video: String
     typex: String
     createdAt: Date
-  }
+ }
 `;
 
 const query = `
@@ -18,68 +18,67 @@ const query = `
 
 const mutation = `
     addFaq(file: Upload, title: String!, typex: String!, video: String): Faq
-    setFaq(_id: ID!, file: Upload, title: String, typex: String, video: String): Data
-    deleteFaq(_id: [ID]!): Data
+    setFaq(_id: ID!, file: Upload, title: String, typex: String, video: String): String
+    deleteFaq(_id: ID!): String
 `;
 
 const resolvers = {
     faqs: async(parent, {search}, {user}) => {
-        /*let typex = ''
-        if(user.role==='client')
-            typex='клиенты'
-        else if(['суперорганизация', 'организация', 'менеджер', 'экспедитор', 'агент'].includes(user.role))
-            typex='сотрудники'*/
-        return await FaqAzyk.find({
-            title: {'$regex': reductionSearch(search), '$options': 'i'},
-            typex: {'$regex': reductionSearch(search), '$options': 'i'},
-        }).sort('title').lean()
-    }
+        if(user.role) {
+            let typex = ''
+            if (user.role === 'client')
+                typex = 'клиенты'
+            else if (user.role!=='admin')
+                typex = 'сотрудники'
+            return await FaqAzyk.find({
+                ...search?{title: {$regex: reductionSearch(search), $options: 'i'}}:{},
+                ...typex?{typex}:{}
+           }).sort('title').lean()
+       }
+   }
 };
 
 const resolversMutation = {
     addFaq: async(parent, {file, title, video, typex}, {user}) => {
         if(user.role==='admin') {
-            let _object = new FaqAzyk({
-                title: title,
-                typex: typex
-            });
+            let url
             if (file) {
                 let {stream, filename} = await file;
-                filename = await saveFile(stream, filename)
-                _object.url = urlMain+filename
-            }
-            if(video)_object.video = video
-            _object = await FaqAzyk.create(_object)
-            return _object
-        }
-    },
+                url = urlMain + await saveFile(stream, filename)
+           }
+            return FaqAzyk.create({title, typex, video, url})
+       }
+   },
     setFaq: async(parent, {_id, file, title, video, typex}, {user}) => {
         if(user.role==='admin') {
             let object = await FaqAzyk.findById(_id)
             if (file) {
                 let {stream, filename} = await file;
-                if(object.url) await deleteFile(object.url)
-                 filename = await saveFile(stream, filename)
-                object.url = urlMain + filename
-            }
+                // eslint-disable-next-line no-undef
+                const [savedFilename] = await Promise.all([
+                    saveImage(stream, filename),
+                    deleteFile(object.url)
+                ])
+                object.url = urlMain + savedFilename
+           }
             if(title) object.title = title
             if(video) object.video = video
             if(typex) object.typex = typex
             await object.save();
-        }
-        return {data: 'OK'}
-    },
-    deleteFaq: async(parent, { _id }, {user}) => {
-        if(user.role==='admin'){
-            let objects = await FaqAzyk.find({_id: {$in: _id}}).select('file').lean()
-            for(let i=0; i<objects.length; i++){
-                if(objects[i].file)
-                    await deleteFile(objects[i].file)
-            }
-            await FaqAzyk.deleteMany({_id: {$in: _id}})
-        }
-        return {data: 'OK'}
-    }
+       }
+        return 'OK'
+   },
+    deleteFaq: async(parent, {_id}, {user}) => {
+        if(user.role==='admin') {
+            let objects = await FaqAzyk.findById(_id).select('file').lean()
+            // eslint-disable-next-line no-undef
+            await Promise.all([
+                deleteFile(objects.file),
+                FaqAzyk.deleteOne({_id})
+            ])
+       }
+        return 'OK'
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;

@@ -6,7 +6,7 @@ const SubscriberAzykSchema = mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'UserAzyk'
-    },
+   },
     number: String,
     status: String,
 }, {

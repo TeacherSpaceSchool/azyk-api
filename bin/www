@@ -10,10 +10,10 @@ const start = require('../module/start');
 if (cluster.isMaster) {
     start.start();
     let cpuCount = os.cpus().length
-    for (let i = 0; i < cpuCount; i += 1) {
+    for(let i = 0; i < cpuCount; i += 1) {
         cluster.fork();
         console.log('cluster '+i+' run')
-    }
+   }
 } else {
 /**
  * Module dependencies.
@@ -41,7 +41,7 @@ if (cluster.isMaster) {
     server.listen(port, () => {
         console.log(`? Server ready at http://${process.env.URL}:${port}${serverGQL.graphqlPath}`)
         console.log(`? Subscriptions ready at ws://${process.env.URL}:${port}${serverGQL.subscriptionsPath}`)
-    });
+   });
     server.on('error', onError);
     server.on('listening', onListening);
 
@@ -55,15 +55,15 @@ if (cluster.isMaster) {
         if (isNaN(port)) {
             // named pipe
             return val;
-        }
+       }
 
         if (port >= 0) {
             // port number
             return port;
-        }
+       }
 
         return false;
-    }
+   }
 
     /**
      * Event listener for HTTP server "error" event.
@@ -72,7 +72,7 @@ if (cluster.isMaster) {
     function onError(error) {
         if (error.syscall !== 'listen') {
             throw error;
-        }
+       }
 
         var bind = typeof port === 'string'
             ? 'Pipe ' + port
@@ -90,8 +90,8 @@ if (cluster.isMaster) {
                 break;
             default:
                 throw error;
-        }
-    }
+       }
+   }
     /**
      * Event listener for HTTP server "listening" event.
      */
@@ -102,6 +102,6 @@ if (cluster.isMaster) {
             ? 'pipe ' + addr
             : 'port ' + addr.port;
         debug('Listening on ' + bind);
-    }
+   }
 
 }

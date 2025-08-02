@@ -4,7 +4,7 @@ const HistoryOrderAzykSchema = mongoose.Schema({
     invoice: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'InvoiceAzyk'
-    },
+   },
     orders: mongoose.Schema.Types.Mixed,
     editor: String,
 }, {

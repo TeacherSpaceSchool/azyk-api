@@ -2,7 +2,8 @@ const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const { saveImage, deleteFile, urlMain, isNotTestUser, reductionSearch} = require('../module/const');
+const {saveImage, deleteFile, urlMain, isNotTestUser, reductionSearch, isNotEmpty} = require('../module/const');
+const ItemAzyk = require('../models/itemAzyk');
 
 const type = `
   type Ads {
@@ -21,45 +22,42 @@ const type = `
     multiplier: Boolean
     targetType: String
     xidNumber: Int
-  }
+ }
   type TargetItem {
         xids: [ID]
         count: Int
         sum: Boolean
         type: String
         targetPrice: Int
-  }
+ }
   input TargetItemInput {
         xids: [ID]
         count: Int
         sum: Boolean
         type: String
         targetPrice: Int
-  }
+ }
 `;
 
 const query = `
-    adss(search: String!, organization: ID!): [Ads]
-    adssTrash(search: String!): [Ads]
+    adss(search: String!, organization: ID!, skip: Int): [Ads]
     adsOrganizations: [Organization]
-    ads: Ads
 `;
 
 const mutation = `
     addAds(xidNumber: Int, xid: String, image: Upload!, url: String!, title: String!, organization: ID!, item: ID, count: Int, targetItems: [TargetItemInput], targetPrice: Int, multiplier: Boolean, targetType: String): Ads
-    setAds(xidNumber: Int, xid: String, _id: ID!, image: Upload, url: String, title: String, item: ID, count: Int, targetItems: [TargetItemInput], targetPrice: Int, multiplier: Boolean, targetType: String): Data
-    restoreAds(_id: [ID]!): Data
-    deleteAds(_id: [ID]!): Data
+    setAds(xidNumber: Int, xid: String, _id: ID!, image: Upload, url: String, title: String, item: ID, count: Int, targetItems: [TargetItemInput], targetPrice: Int, multiplier: Boolean, targetType: String): String
+    deleteAds(_id: ID!): String
 `;
 
 const checkAdss = async(invoice, canceled) => {
     //Ищется заказ
-    invoice = await InvoiceAzyk.findOne({_id: invoice})
+    invoice = await InvoiceAzyk.findById(invoice)
         .select('_id createdAt returnedPrice organization allPrice orders client')
         .populate({
             path: 'orders',
             select: 'count returned item allPrice'
-        })
+       })
         .lean()
     //Рассчитывается дата
     const dateStart = new Date(invoice.createdAt)
@@ -70,31 +68,25 @@ const checkAdss = async(invoice, canceled) => {
     dateEnd.setDate(dateEnd.getDate() + 1)
     //Удаляются все акции у заказов
     await InvoiceAzyk.updateMany({
-        $and: [
-            {organization: invoice.organization},
-            {createdAt: {$gte: dateStart}},
-            {createdAt: {$lt: dateEnd}},
-            {client: invoice.client}
-        ]
-    }, {
+        createdAt: {$gte: dateStart, $lt: dateEnd},
+        organization: invoice.organization,
+        client: invoice.client
+   }, {
         adss: []
-    })
+   })
     //Ищутся все принятые заказы за этот день кроме заказа с сортировкой по дате
     let invoices = await InvoiceAzyk.find({
-        $and: [
-            {organization: invoice.organization},
-            {createdAt: {$gte: dateStart}},
-            {createdAt: {$lt: dateEnd}},
-            {_id: {$ne: invoice._id}},
-            {taken: true},
-            {client: invoice.client}
-        ]
-    })
+        organization: invoice.organization,
+        createdAt: {$gte: dateStart, $lt: dateEnd},
+        _id: {$ne: invoice._id},
+        taken: true,
+        client: invoice.client
+   })
         .select('_id createdAt returnedPrice organization allPrice orders')
         .populate({
             path: 'orders',
             select: 'count returned item allPrice'
-        })
+       })
         .sort('-createdAt')
         .lean()
     //Если не отменен
@@ -103,16 +95,17 @@ const checkAdss = async(invoice, canceled) => {
         invoices = [...invoices, invoice]
         //Сортировка по дате
         invoices = invoices.sort((a, b) => b.createdAt - a.createdAt)
-    }
+   }
     //Если есть заказы
     if(invoices.length) {
         //Переменные
         let resAdss = []
         let idAds = {}
+        //актуальные акции компании
         let adss = await AdsAzyk.find({
             del: {$ne: 'deleted'},
             organization: invoice.organization
-        })
+       })
             .sort('-createdAt')
             .lean()
         //Создается большой заказ
@@ -120,17 +113,17 @@ const checkAdss = async(invoice, canceled) => {
             returnedPrice: 0,
             allPrice: 0,
             orders: []
-        }
+       }
         //Перебираются invoices
-        for (let i = 0; i < invoices.length; i++) {
+        for(let i = 0; i < invoices.length; i++) {
             //Суммируются общая сумма
             invoice.returnedPrice += invoices[i].returnedPrice
             invoice.allPrice += invoices[i].allPrice
             //Перебираются orders в invoices
-            for (let i1 = 0; i1 < invoices[i].orders.length; i1++) {
+            for(let i1 = 0; i1 < invoices[i].orders.length; i1++) {
                 let found = false
                 //Перебираются orders в большом заказе
-                for (let i2 = 0; i2 < invoice.orders.length; i2++) {
+                for(let i2 = 0; i2 < invoice.orders.length; i2++) {
                     //Если найден
                     if (invoices[i].orders[i1].item.toString() === invoice.orders[i2].item.toString()) {
                         //Плюсуются
@@ -138,124 +131,147 @@ const checkAdss = async(invoice, canceled) => {
                         invoice.orders[i2].count += invoices[i].orders[i1].count
                         invoice.orders[i2].returned += invoices[i].orders[i1].returned
                         invoice.orders[i2].allPrice += invoices[i].orders[i1].allPrice
-                    }
-                }
+                   }
+               }
                 //Если не найден
                 if (!found) {
                     //order добавляется к invoice
                     invoice.orders = [...invoice.orders, invoices[i].orders[i1]]
-                }
-            }
-        }
+               }
+           }
+       }
         //Подбираются акции
-        for (let i = 0; i < adss.length; i++) {
+        for(let i = 0; i < adss.length; i++) {
+            // Если тип цели — "Цена" и задана целевая цена больше 0
             if (adss[i].targetType === 'Цена' && adss[i].targetPrice && adss[i].targetPrice > 0) {
+                // Проверяем, что итоговая сумма по счету минус возвраты >= целевой цене
                 if ((invoice.allPrice - invoice.returnedPrice) >= adss[i].targetPrice) {
-                    if (!(adss[i].xid && adss[i].xid.length > 0) || !idAds[adss[i].xid] || idAds[adss[i].xid].xidNumber < adss[i].xidNumber) {
-                        if (adss[i].xid && adss[i].xid.length > 0) {
+                    // Проверяем, есть ли у текущего adss[i] xid и удовлетворяет ли условию "новее" (по xidNumber)
+                    if (
+                        !(adss[i].xid && adss[i].xid.length) // если xid нет,
+                        || !idAds[adss[i].xid]                   // или в idAds нет записи с таким xid,
+                        || idAds[adss[i].xid].xidNumber < adss[i].xidNumber // или текущий xidNumber больше сохранённого,
+                    ) {
+                        // Если xid есть и он уже в idAds — удаляем старую запись из результата по индексу
+                        if (adss[i].xid && adss[i].xid.length) {
                             if (idAds[adss[i].xid])
+                                // удаляем старый элемент по индексу
                                 resAdss.splice(idAds[adss[i].xid].index, 1)
+                            // Обновляем idAds с новым xidNumber и индексом нового элемента (будет добавлен в resAdss)
                             idAds[adss[i].xid] = {xidNumber: adss[i].xidNumber, index: resAdss.length}
-                        }
+                       }
+                        // Добавляем _id текущего adss в результирующий массив
                         resAdss.push(adss[i]._id)
-                    }
-                }
-            }
-            else if (adss[i].targetType === 'Товар' && adss[i].targetItems && adss[i].targetItems.length > 0) {
+                   }
+               }
+           }
+            // Если тип цели — "Товар" и задан список targetItems (целевых товаров)
+            else if (adss[i].targetType === 'Товар' && adss[i].targetItems && adss[i].targetItems.length) {
+                // флаг для проверки, подходят ли все targetItems
                 let check = true
+                // массив для хранения результата проверки по каждому targetItem
                 let checkItemsCount = []
-                for (let i1 = 0; i1 < adss[i].targetItems.length; i1++) {
+                // перебор целевых товаров
+                for(let i1 = 0; i1 < adss[i].targetItems.length; i1++) {
+                    // Если у targetItem есть параметр sum (некоторая сумма для сравнения)
                     if (adss[i].targetItems[i1].sum) {
                         checkItemsCount[i1] = 0
-                        for (let i2 = 0; i2 < invoice.orders.length; i2++) {
+                        // Итерируемся по всем заказам invoice
+                        for(let i2 = 0; i2 < invoice.orders.length; i2++) {
+                            // Если xids targetItem содержит item из заказа
                             if (adss[i].targetItems[i1].xids.toString().includes(invoice.orders[i2].item.toString())) {
+                                // Если тип сравнения — "Количество"
                                 checkItemsCount[i1] += adss[i].targetItems[i1].type === 'Количество' ?
                                     invoice.orders[i2].count - invoice.orders[i2].returned
                                     :
+                                    // Иначе суммируем стоимость заказанных с учётом возвратов
                                     (invoice.orders[i2].allPrice / invoice.orders[i2].count * (invoice.orders[i2].count - invoice.orders[i2].returned))
-                            }
-                        }
+                           }
+                       }
+                        // Проверяем, что сумма или количество достигли/превысили целевой уровень
                         checkItemsCount[i1] = checkItemsCount[i1] >= (adss[i].targetItems[i1].type === 'Количество' ? adss[i].targetItems[i1].count : adss[i].targetItems[i1].targetPrice);
-                    } else {
+                   }
+                    // Если sum не задан (или false), проверяем есть ли хотя бы один заказ, удовлетворяющий условию
+                    else {
                         checkItemsCount[i1] = false
-                        for (let i2 = 0; i2 < invoice.orders.length; i2++) {
+                        for(let i2 = 0; i2 < invoice.orders.length; i2++) {
+                            // Если тип "Количество" — проверяем, что количество (с учетом возврата) >= нужного
                             if (adss[i].targetItems[i1].type === 'Количество')
                                 checkItemsCount[i1] = (adss[i].targetItems[i1].xids.toString().includes(invoice.orders[i2].item.toString()) && (invoice.orders[i2].count - invoice.orders[i2].returned) >= adss[i].targetItems[i1].count)
+                            // Иначе проверяем, что стоимость заказа (с учетом возврата) >= целевой цене
                             else {
                                 checkItemsCount[i1] = (
                                     adss[i].targetItems[i1].xids.toString().includes(invoice.orders[i2].item.toString())
                                     &&
                                     (invoice.orders[i2].allPrice / invoice.orders[i2].count * (invoice.orders[i2].count - invoice.orders[i2].returned)) >= adss[i].targetItems[i1].targetPrice
                                 )
-                            }
-                        }
-                    }
-                }
+                           }
+                       }
+                   }
+               }
+                // Проверяем, что все targetItems прошли проверки
                 if (checkItemsCount.length) {
-                    for (let i1 = 0; i1 < checkItemsCount.length; i1++) {
+                    for(let i1 = 0; i1 < checkItemsCount.length; i1++) {
+                        // Если хоть один не прошел — сбрасываем флаг
                         if (!checkItemsCount[i1])
                             check = false
-                    }
-                } else
+                   }
+               }
+                // Если целевых товаров нет, считаем что проверка не пройдена
+                else
                     check = false
+                // Если все условия пройдены и xid у текущего adss либо нет, либо он "новее" записанного
                 if (check &&
                     (
-                        !(adss[i].xid && adss[i].xid.length > 0)
+                        !(adss[i].xid && adss[i].xid.length)
                         ||
                         !idAds[adss[i].xid]
                         ||
                         idAds[adss[i].xid].xidNumber < adss[i].xidNumber
                     )) {
-                    if (adss[i].xid && adss[i].xid.length > 0) {
+                    if (adss[i].xid && adss[i].xid.length) {
+                        // Если xid уже есть в idAds — удаляем старую запись из результата
                         if (idAds[adss[i].xid])
                             resAdss.splice(idAds[adss[i].xid].index, 1)
+                        // Записываем текущий xid с новым индексом и номером
                         idAds[adss[i].xid] = {xidNumber: adss[i].xidNumber, index: resAdss.length}
-                    }
+                   }
+                    // Добавляем _id текущего adss в результат
                     resAdss.push(adss[i]._id)
-                }
-            }
-        }
+               }
+           }
+       }
         //Акции записываются к последнему заказу
         await InvoiceAzyk.updateOne({
             _id: invoices[0]._id
-        }, {
+       }, {
             adss: resAdss
-        })
-    }
+       })
+   }
 }
 
 const resolvers = {
-    adssTrash: async(parent, {search}, {user}) => {
-        if(user.role==='admin') {
-            return await AdsAzyk.find({
-                del: 'deleted',
-                title: {'$regex': reductionSearch(search), '$options': 'i'}
-            })
-                .populate({
-                    path: 'item',
-                    select: 'name _id'
-                })
-                .sort('-createdAt')
-                .lean()
-        }
-    },
-    adss: async(parent, {search, organization}, {user}) => {
+    adss: async(parent, {search, organization, skip}, {user}) => {
         if(user.role) {
-            let _organization = await SubBrandAzyk.findOne({_id: organization}).select('organization').lean()
-            let res = await AdsAzyk.find({
+            const subbrand = await SubBrandAzyk.findById(organization).select('organization').lean()
+            if(subbrand)
+                organization = subbrand.organization
+            organization = user.organization||organization
+            return await AdsAzyk.find({
                 del: {$ne: 'deleted'},
-                title: {'$regex': reductionSearch(search), '$options': 'i'},
-                organization: _organization?_organization.organization:organization
-            })
+                ...search?{title: {$regex: reductionSearch(search), $options: 'i'}}:{},
+                organization
+           })
+                .skip(isNotEmpty(skip)?skip:0)
+                .limit(isNotEmpty(skip)?15:10000000000)
                 .populate({
                     path: 'item',
                     select: 'name _id'
-                })
+               })
                 .sort('-createdAt')
                 .lean()
-            return res
-        }
-    },
+       }
+   },
     adsOrganizations: async(parent, ctx, {user}) => {
         if(user.role) {
             if (user.organization) {
@@ -263,94 +279,79 @@ const resolvers = {
                     .find({_id: user.organization})
                     .select('image name miniInfo _id')
                     .lean()
-            }
+           }
             else {
-                let organizations = await AdsAzyk.find({del: {$ne: 'deleted'}}).distinct('organization').lean()
+                let organizations = await AdsAzyk.find({del: {$ne: 'deleted'}}).distinct('organization')
                 organizations = await OrganizationAzyk.find({
                     _id: {$in: organizations},
                     ...isNotTestUser(user)?{status: 'active'}:{},
                     ...user.city ? {cities: user.city} : {},
                     del: {$ne: 'deleted'}
-                })
+               })
                     .select('image name miniInfo _id')
                     .sort('name')
                     .lean()
                 return organizations
-            }
-        }
-    },
-    ads: async(parent, ctx, {user}) => {
-        if(user.role) {
-            let ads = await AdsAzyk.findRandom().limit(1).lean()
-            return ads[0]
-        }
-    }
+           }
+       }
+   }
 };
 
 const resolversMutation = {
     addAds: async(parent, {xidNumber, xid, image, url, title, organization, item, count, targetItems, targetPrice, multiplier, targetType}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin'].includes(user.role)){
-            let { stream, filename } = await image;
-            filename = await saveImage(stream, filename)
-            let _object = new AdsAzyk({
-                image: urlMain+filename,
-                url: url,
-                title: title,
-                organization: user.organization?user.organization:organization,
-                item: item,
-                targetItems: targetItems,
-                targetPrice: targetPrice,
-                multiplier: multiplier,
-                xid: xid,
-                targetType: targetType,
-                xidNumber: xidNumber
-            });
-            if(count!=undefined)
-                _object.count = count
-            _object = await AdsAzyk.create(_object)
-            return _object
-        }
-    },
+        if(['суперорганизация', 'организация', 'admin'].includes(user.role)) {
+            let {stream, filename} = await image;
+            image = urlMain + await saveImage(stream, filename)
+            // eslint-disable-next-line no-undef
+            let [createdObject, itemData] = await Promise.all([
+                AdsAzyk.create({
+                    image, url, title, organization: user.organization||organization, item, targetItems, targetPrice,
+                    multiplier, xid, targetType, xidNumber, count
+               }),
+                ItemAzyk.findById(item).select('_id name').lean(),
+            ]);
+
+
+            return {...createdObject.toObject(), item: itemData}
+       }
+   },
     setAds: async(parent, {xidNumber, xid, _id, image, url, title, item, count, targetItems, targetPrice, multiplier, targetType}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin'].includes(user.role)){
+        if(['суперорганизация', 'организация', 'admin'].includes(user.role)) {
             let object = await AdsAzyk.findById(_id)
             object.item = item
             if (image) {
                 let {stream, filename} = await image;
-                await deleteFile(object.image)
-                filename = await saveImage(stream, filename)
-                object.image = urlMain + filename
-            }
+                // eslint-disable-next-line no-undef
+                const [savedFilename] = await Promise.all([
+                    saveImage(stream, filename),
+                    deleteFile(object.image)
+                ])
+                object.image = urlMain + savedFilename
+           }
             if(xid) object.xid = xid
             if(url) object.url = url
             if(title) object.title = title
-            if(xidNumber!=undefined) object.xidNumber = xidNumber
-            if(count!=undefined) object.count = count
+            if(isNotEmpty(xidNumber)) object.xidNumber = xidNumber
+            if(isNotEmpty(count)) object.count = count
             object.targetItems = targetItems
-            if(targetPrice!=undefined) object.targetPrice = targetPrice
-            if(multiplier!=undefined) object.multiplier = multiplier
+            if(isNotEmpty(targetPrice)) object.targetPrice = targetPrice
+            if(isNotEmpty(multiplier)) object.multiplier = multiplier
             if(targetType) object.targetType = targetType
             await object.save();
+            return 'OK'
         }
-        return {data: 'OK'}
-    },
-    restoreAds: async(parent, { _id }, {user}) => {
-        if('admin'===user.role){
-            await AdsAzyk.updateMany({_id: {$in: _id}}, {del: null})
+   },
+    deleteAds: async(parent, {_id}, {user}) => {
+        if(['суперорганизация', 'организация', 'admin'].includes(user.role)) {
+            let adsImage = await AdsAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}}).select('image').lean()
+            // eslint-disable-next-line no-undef
+            await Promise.all([
+                deleteFile(adsImage.image),
+                AdsAzyk.updateOne({_id}, {del: 'deleted'})
+            ])
+            return 'OK'
         }
-        return {data: 'OK'}
-    },
-    deleteAds: async(parent, { _id }, {user}) => {
-        if(['суперорганизация', 'организация', 'admin'].includes(user.role)){
-            let objects = await AdsAzyk.find({_id: {$in: _id}}).select('image').lean()
-            for(let i=0; i<objects.length; i++){
-                await deleteFile(objects[i].image)
-            }
-            await AdsAzyk.updateMany({_id: {$in: _id}}, {del: 'deleted'})
-
-        }
-        return {data: 'OK'}
-    }
+   }
 };
 
 module.exports.checkAdss = checkAdss;

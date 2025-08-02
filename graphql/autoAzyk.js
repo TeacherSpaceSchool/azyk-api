@@ -10,92 +10,83 @@ const type = `
     employment: Employment
     organization: Organization
     createdAt: Date
-  }
+ }
 `;
 
 const query = `
     autos(organization: ID!, search: String!, sort: String!): [Auto]
     auto(_id: ID!): Auto
     autoByEcspeditor(_id: ID!): Auto
-    sortAuto: [Sort]
-    filterAuto: [Filter]
 `;
 
 const mutation = `
     addAuto(number: String!, tonnage: Float!, employment: ID, organization: ID): Auto
-    setAuto(_id: ID!, number: String, tonnage: Float, employment: ID): Data
-    deleteAuto(_id: [ID]!): Data
+    setAuto(_id: ID!, number: String, tonnage: Float, employment: ID): String
+    deleteAuto(_id: ID!): String
 `;
 
 const resolvers = {
     autos: async(parent, {organization, search, sort}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)){
-            let _employments;
-            if(search.length>0){
-                _employments = await EmploymentAzyk.find({
-                    name: {'$regex': reductionSearch(search), '$options': 'i'}
-                }).distinct('_id').lean()
-            }
-
-                let autos = await AutoAzyk.find({
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
+            let searchedEmployments;
+            if(search) {
+                searchedEmployments = await EmploymentAzyk.find({
+                    name: {$regex: reductionSearch(search), $options: 'i'}
+               }).distinct('_id')
+           }
+            return await AutoAzyk.find({
                     organization: user.organization?user.organization:organization==='super'?null:organization,
-                    ...(search.length>0?{
+                    ...search ? {
                             $or: [
-                                {number: {'$regex': reductionSearch(search), '$options': 'i'}},
-                                {employment: {$in: _employments}},
+                                {number: {$regex: reductionSearch(search), $options: 'i'}},
+                                {employment: {$in: searchedEmployments}},
                             ]
-                        }
-                        :{})
-                })
+                       }
+                        : {}
+               })
                     .populate({
                         path: 'employment',
                         select: 'name _id'
-                    })
+                   })
                     .sort(sort)
                     .lean()
-                return autos
-        }
-    },
+       }
+   },
     auto: async(parent, {_id}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
             return await AutoAzyk.findOne({
-                $or: [{_id: _id}, {employment: _id}],
+                $or: [{_id}, {employment: _id}],
                 ...user.organization ? {organization: user.organization} : {},
-            })
+           })
                 .populate({
                     path: 'employment',
                     select: 'name _id'
-                })
+               })
                 .populate({
                     path: 'organization',
                     select: 'name _id'
-                })
+               })
                 .lean()
-        }
-    },
-    sortAuto: async() => {
-        return [
-            {
-                name: 'Тоннаж',
-                field: 'tonnage'
-            },
-        ]
-    },
+       }
+   }
 };
 
 const resolversMutation = {
     addAuto: async(parent, {number, tonnage, organization, employment}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
-            let _object = new AutoAzyk({
-                number: number,
-                tonnage: Math.round(tonnage),
-                organization: user.organization?user.organization:organization==='super'?null:organization,
-                employment: employment
-            });
-            _object = await AutoAzyk.create(_object)
-            return _object
-        }
-    },
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+            // eslint-disable-next-line no-undef
+            let [createdObject, employmentData] = await Promise.all([
+                AutoAzyk.create({
+                    number,
+                    tonnage: Math.round(tonnage),
+                    organization: user.organization?user.organization:organization==='super'?null:organization,
+                    employment
+               }),
+                employment?EmploymentAzyk.findById(employment).select('_id name').lean():null
+            ]);
+            return {...createdObject.toObject(), employment: employmentData}
+       }
+   },
     setAuto: async(parent, {_id, number, tonnage, employment}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
             let object = await AutoAzyk.findById(_id)
@@ -103,18 +94,15 @@ const resolversMutation = {
             if(tonnage)object.tonnage = tonnage
             if(employment)object.employment = employment
             await object.save();
-        }
-        return {data: 'OK'}
-    },
-    deleteAuto: async(parent, { _id }, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)){
-            await AutoAzyk.deleteMany({
-                _id: {$in: _id},
-                ...user.organization?{organization: user.organization}:{}
-            })
-        }
-        return {data: 'OK'}
-    }
+            return 'OK'
+       }
+   },
+    deleteAuto: async(parent, {_id}, {user}) => {
+        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+            await AutoAzyk.deleteOne({_id, ...user.organization?{organization: user.organization}:{}})
+            return 'OK'
+       }
+   }
 };
 
 module.exports.resolversMutation = resolversMutation;
