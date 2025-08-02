@@ -209,6 +209,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
        }
    }
     catch (err) {
+        console.log(err)
         unawaited(() => ModelsErrorAzyk.create({err: err.message, path: 'setSingleOutXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLAzyk'}))
    }
