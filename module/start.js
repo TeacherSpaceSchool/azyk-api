@@ -1,8 +1,6 @@
 const {createAdmin} = require('../module/user');
 const {Worker, isMainThread} = require('worker_threads');
 const {reductionContactAzyk} = require('./contact');
-const {reductionOldestDB, compactOldestDB} = require('./db');
-const {deleteDeprecatedOrganizations} = require('./deprecatedOrganizations');
 
 let startDeleteBD = async () => {
     if(isMainThread) {
@@ -74,13 +72,13 @@ let start = async () => {
     //reductions
     await reductionContactAzyk();
     //reduction DB
-    setTimeout(async () => {
+    /*setTimeout(async () => {
         console.time('reduction DB')
         await reductionOldestDB();
         await deleteDeprecatedOrganizations();
         await compactOldestDB()
         console.timeEnd('reduction DB')
-   }, 10000)
+   }, 10000)*/
 }
 
 module.exports.start = start;
