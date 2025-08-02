@@ -72,6 +72,7 @@ let start = async () => {
     //reductions
     await reductionContactAzyk();
     //reduction DB
+
     /*setTimeout(async () => {
         console.time('reduction DB')
         await reductionOldestDB();
