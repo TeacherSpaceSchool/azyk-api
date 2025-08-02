@@ -56,7 +56,7 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
             const district = await DistrictAzyk.findOne({
                 $or: [
                     {organization: returned.organization._id, client: returned.client._id, ...returned.agent?{agent: returned.agent._id}:{}},
-                    {organization: returned.organization._id, agent: returned.agent._id},
+                    ...returned.agent?[{organization: returned.organization._id, agent: returned.agent._id}]:[],
                     {organization: returned.organization._id, client: returned.client._id}
                 ]
            }).select('agent ecspeditor').lean()
@@ -164,7 +164,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
             const district = await DistrictAzyk.findOne({
                 $or: [
                     {organization: invoice.organization._id, client: invoice.client._id, ...invoice.agent?{agent: invoice.agent._id}:{}},
-                    {organization: invoice.organization._id, agent: invoice.agent._id},
+                    ...invoice.agent?[{organization: invoice.organization._id, agent: invoice.agent._id}]:[],
                     {organization: invoice.organization._id, client: invoice.client._id}
                 ]
            }).select('agent ecspeditor').lean()
@@ -209,7 +209,6 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
        }
    }
     catch (err) {
-        console.log(err)
         unawaited(() => ModelsErrorAzyk.create({err: err.message, path: 'setSingleOutXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLAzyk'}))
    }
