@@ -70,7 +70,7 @@ let start = async () => {
     await startOutXMLShoroAzyk();
     await startDeleteBD();
     //reductions
-    await reductionContactAzyk();
+    //await reductionContactAzyk();
     //reduction DB
 
     /*setTimeout(async () => {
