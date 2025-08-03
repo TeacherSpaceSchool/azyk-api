@@ -17,6 +17,7 @@ const query = `
 
 const mutation = `
     clearAllErrors: String
+    addError(err: String!, path: String!): String
 `;
 
 const resolvers = {
@@ -74,7 +75,7 @@ const resolvers = {
                 ...errorsStatistic
             ]
             return {
-                columns: ['ошибка', 'пути', 'количество'],
+                columns: ['ошибка', 'пользователи', 'количество'],
                 row: errorsStatistic
             };
        }
@@ -82,6 +83,12 @@ const resolvers = {
 };
 
 const resolversMutation = {
+    addError: async(parent, {err, path}, {user}) => {
+        if (user.role)
+            path += `, role: ${user.role}, login: ${user.login}${user.name ? `, name: ${user.name}` : ''}`
+        await ErrorAzyk.create({err, path})
+        return 'OK'
+    },
     clearAllErrors: async(parent, ctx, {user}) => {
         if('admin'===user.role) {
             await ErrorAzyk.deleteMany()
