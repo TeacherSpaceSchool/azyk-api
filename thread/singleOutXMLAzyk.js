@@ -9,7 +9,7 @@ const ModelsErrorAzyk = require('../models/errorAzyk');
 const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 const SingleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
 const {acceptOrders} = require('../graphql/orderAzyk');
-const {unawaited, sendPushToAdmin} = require('../module/const');
+const {unawaited, sendPushToAdmin, formatErrorDetails} = require('../module/const');
 
 connectDB.connect()
 if(!isMainThread) {
@@ -57,7 +57,7 @@ if(!isMainThread) {
             ])
        }
         catch (err) {
-            unawaited(() => ModelsErrorAzyk.create({err: err.message, path: 'singleOutXMLAzyk.js'}))
+            unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'singleOutXMLAzyk.js'}))
             unawaited(() =>  sendPushToAdmin({message: 'Ошибка singleOutXMLAzyk.js'}))
        }
    });

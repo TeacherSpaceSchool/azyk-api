@@ -230,6 +230,14 @@ module.exports.checkDate = (date) => {
 
 module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Боконбаева', 'Жалал-Абад', 'Кара-Балта', 'Каракол', 'Казарман', 'Кочкор', 'Кызыл-Кия', 'Нарын', 'Ош', 'Раззаков', 'Талас', 'Токмок', 'Чолпон-Ата', 'Москва'];
 
+module.exports.formatErrorDetails = (err) => {
+    const lines = err.stack.split('\n');
+    const locationLine = lines.find(line =>
+        line.match(/\.js:\d+:\d+/) && !line.includes('internal/')
+    );
+    return `${err.message}\n${locationLine}`;
+}
+
 module.exports.statsCollection = statsCollection;
 module.exports.getGeoDistance = getGeoDistance;
 module.exports.checkInt = checkInt;

@@ -3,7 +3,7 @@ const connectDB = require('../models/index');
 const cron = require('node-cron');
 const MerchandisingAzyk = require('../models/merchandisingAzyk');
 const NotificationStatistic = require('../models/notificationStatisticAzyk');
-const {deleteFile, unawaited, sendPushToAdmin} = require('../module/const');
+const {deleteFile, unawaited, sendPushToAdmin, formatErrorDetails} = require('../module/const');
 const {parallelPromise} = require('../module/parallel');
 const ModelsErrorAzyk = require('../models/errorAzyk');
 const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
@@ -39,7 +39,7 @@ if(!isMainThread) {
 
        }
         catch (err) {
-            unawaited(() => ModelsErrorAzyk.create({err: err.message, path: 'deleteBD.js'}))
+            unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'deleteBD.js'}))
             unawaited(() =>  sendPushToAdmin({message: 'Ошибка deleteBD.js'}))
        }
    });

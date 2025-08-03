@@ -11,7 +11,7 @@ const LimitItemClientAzyk = require('../models/limitItemClientAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const UserAzyk = require('../models/userAzyk');
 const randomstring = require('randomstring');
-const {checkFloat, checkInt, isNotEmpty, unawaited, sendPushToAdmin} = require('../module/const');
+const {checkFloat, checkInt, isNotEmpty, unawaited, sendPushToAdmin, formatErrorDetails} = require('../module/const');
 const DistrictAzyk = require('../models/districtAzyk');
 const StockAzyk = require('../models/stockAzyk');
 const WarehouseAzyk = require('../models/warehouseAzyk');
@@ -82,7 +82,7 @@ router.post('/:pass/put/subBrand', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/subBrand'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/subBrand'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/subBrand'}))
         console.error(err)
         res.status(501);
@@ -183,7 +183,7 @@ router.post('/:pass/put/item', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/item'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/item'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/item'}))
         console.error(err)
         res.status(501);
@@ -246,7 +246,7 @@ router.post('/:pass/put/warehouse', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/warehouse'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/warehouse'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/warehouse'}))
         console.error(err)
         res.status(501);
@@ -291,9 +291,11 @@ router.post('/:pass/put/stock', async (req, res, next) => {
                 //получаем склад
                 let warehouse
                 if (element.attributes.warehouse) warehouse = warehouseByGuid[element.attributes.warehouse]
-                const key = generateKey(itemByGuid[element.attributes.guid], warehouse)
                 const item =  itemByGuid[element.attributes.guid]
-                keys[key] = {item, warehouse}
+                if(item) {
+                    const key = generateKey(item, warehouse)
+                    keys[key] = {item, warehouse}
+                }
             }
             // eslint-disable-next-line no-undef
             const stocks = await Promise.all(Object.values(keys).map(async values => StockAzyk.findOne({
@@ -340,7 +342,7 @@ router.post('/:pass/put/stock', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/stock'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/stock'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/stock'}))
         console.error(err)
         res.status(501);
@@ -512,7 +514,7 @@ router.post('/:pass/put/client', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/client'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/client'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/client'}))
         console.error(err)
         res.status(501);
@@ -610,7 +612,7 @@ router.post('/:pass/put/employment', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/employment'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/employment'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/employment'}))
         console.error(err)
         res.status(501);
@@ -715,7 +717,7 @@ router.post('/:pass/put/specialpriceclient', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/specialpriceclient'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/specialpriceclient'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/specialpriceclient'}))
         console.error(err)
         res.status(501);
@@ -820,7 +822,7 @@ router.post('/:pass/put/limititemclient', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/limititemclient'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/limititemclient'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/limititemclient'}))
         console.error(err)
         res.status(501);
@@ -913,7 +915,7 @@ router.post('/:pass/put/specialpricecategory', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/specialpricecategory'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/specialpricecategory'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/specialpricecategory'}))
         console.error(err)
         res.status(501);
@@ -929,7 +931,7 @@ router.get('/:pass/out/client', async (req, res, next) => {
         await res.status(200);
         await res.end(await getSingleOutXMLClientAzyk(organization))
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/client'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/client'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/client'}))
         console.error(err)
         res.status(501);
@@ -945,7 +947,7 @@ router.get('/:pass/out/returned', async (req, res, next) => {
         await res.status(200);
         await res.end(await getSingleOutXMLReturnedAzyk(organization))
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/out/returned'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/out/returned'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/out/returned'}))
         console.error(err)
         res.status(501);
@@ -961,7 +963,7 @@ router.get('/:pass/out/sales', async (req, res, next) => {
         await res.status(200);
         await res.end(await getSingleOutXMLAzyk(organization))
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/out/sales'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/out/sales'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/out/sales'}))
         console.error(err)
         res.status(501);
@@ -991,7 +993,7 @@ router.post('/:pass/put/returned/confirm', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/returned/confirm'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/returned/confirm'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/returned/confirm'}))
         console.error(err)
         res.status(501);
@@ -1021,7 +1023,7 @@ router.post('/:pass/put/sales/confirm', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/sales/confirm'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/sales/confirm'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/sales/confirm'}))
         console.error(err)
         res.status(501);
@@ -1042,7 +1044,7 @@ router.post('/:pass/put/client/confirm', async (req, res, next) => {
         await res.status(200);
         await res.end('success')
     } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({err: err.message, path: '/:pass/put/client/confirm'}))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: '/:pass/put/client/confirm'}))
         unawaited(() => sendPushToAdmin({message: 'Сбой /:pass/put/client/confirm'}))
         console.error(err)
         res.status(501);

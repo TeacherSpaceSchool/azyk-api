@@ -3,7 +3,7 @@ const connectDB = require('../models/index');
 const {sendWebPush} = require('../module/webPush');
 const cron = require('node-cron');
 const ModelsErrorAzyk = require('../models/errorAzyk');
-const {unawaited, sendPushToAdmin} = require('../module/const');
+const {unawaited, sendPushToAdmin, formatErrorDetails} = require('../module/const');
 const UserAzyk = require('../models/userAzyk');
 connectDB.connect()
 if(!isMainThread) {
@@ -12,7 +12,7 @@ if(!isMainThread) {
             const adminUser = await UserAzyk.findOne({role: 'admin'}).select('_id').lean()
             unawaited(() => sendWebPush({title: 'AZYK.STORE', message: 'Не забудьте сделать свой заказ', excludedUsers: [adminUser._id]}))
         } catch (err) {
-            unawaited(() => ModelsErrorAzyk.create({err: err.message, path: 'reminderClient.js'}))
+            unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'reminderClient.js'}))
             unawaited(() =>  sendPushToAdmin({message: 'Ошибка reminderClient.js'}))
         }
    });

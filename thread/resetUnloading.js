@@ -4,7 +4,7 @@ const cron = require('node-cron');
 const app = require('../app');
 const fs = require('fs');
 const path = require('path');
-const {unawaited, sendPushToAdmin} = require('../module/const');
+const {unawaited, sendPushToAdmin, formatErrorDetails} = require('../module/const');
 const ModelsErrorAzyk = require('../models/errorAzyk');
 connectDB.connect();
 if(!isMainThread) {
@@ -16,7 +16,7 @@ if(!isMainThread) {
                }
            });
        } catch (err) {
-            unawaited(() => ModelsErrorAzyk.create({err: err.message, path: 'resetUnloading.js'}))
+            unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'resetUnloading.js'}))
             unawaited(() =>  sendPushToAdmin({message: 'Ошибка resetUnloading.js'}))
        }
    });

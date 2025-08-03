@@ -5,7 +5,7 @@ const SubscriberAzyk = require('../models/subscriberAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const passportEngine = require('../module/passport');
 const ModelsErrorAzyk = require('../models/errorAzyk');
-const {unawaited} = require('../module/const');
+const {unawaited, formatErrorDetails} = require('../module/const');
 
 router.post('/register', async (req, res) => {
     await passportEngine.getuser(req, res, async (user)=> {
@@ -46,10 +46,7 @@ router.post('/register', async (req, res) => {
                }
            });
        } catch (err) {
-            unawaited(() => ModelsErrorAzyk.create({
-                err: err.message,
-                path: 'register subscribe'
-           }))
+            unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'register subscribe'}))
             console.error(err)
             res.status(501);
             res.end('error')
@@ -70,10 +67,7 @@ router.post('/unregister', async (req, res) => {
             await subscriptionModel.save()
        }
    } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({
-            err: err.message,
-            path: 'unregister subscribe'
-       }))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'unregister subscribe'}))
         console.error(err)
         res.status(501);
         res.end('error')
@@ -92,10 +86,7 @@ router.post('/delete', async (req, res) => {
        }
         await SubscriberAzyk.deleteMany({number: req.body.number})
    } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({
-            err: err.message,
-            path: 'delete subscribe'
-       }))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'delete subscribe'}))
         console.error(err)
         res.status(501);
         res.end('error')

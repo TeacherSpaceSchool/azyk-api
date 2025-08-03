@@ -4,7 +4,7 @@ const {sendWebPush} = require('../module/webPush');
 const UserAzyk = require('../models/userAzyk');
 const NotificationStatisticAzyk = require('../models/notificationStatisticAzyk');
 const ModelsErrorAzyk = require('../models/errorAzyk');
-const {unawaited} = require('../module/const');
+const {unawaited, formatErrorDetails} = require('../module/const');
 
 router.get('/admin', async (req, res) => {
     try{
@@ -17,10 +17,7 @@ router.get('/admin', async (req, res) => {
             res.json('Push error');
        }
    } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({
-            err: err.message,
-            path: 'push admin'
-       }))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'push admin'}))
         console.error(err)
         res.status(501);
         res.end('error')
@@ -37,10 +34,7 @@ router.post('/clicknotification', async (req, res) => {
             await object.save()
        }
    } catch (err) {
-        unawaited(() => ModelsErrorAzyk.create({
-            err: err.message,
-            path: 'clicknotification'
-       }))
+        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'clicknotification'}))
         console.error(err)
         res.status(501);
         res.end('error')
