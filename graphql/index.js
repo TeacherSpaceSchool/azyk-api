@@ -5,7 +5,7 @@ module.exports.pubsub = pubsub;
 const {verifydeuserGQL} = require('../module/passport');
 const ModelsErrorAzyk = require('../models/errorAzyk');
 const {getTypeDefs, getResolvers} = require('./schema');
-const {unawaited} = require('../module/const');
+const {unawaited, formatErrorDetails} = require('../module/const');
 
 const run = (app)=>{
     const server = new ApolloServer({
@@ -54,7 +54,7 @@ const run = (app)=>{
                                 fieldName = match ? match[1] : null;
                            }
                             const path = `path: ${fieldName}${user.role?`, role: ${user.role}`:''}${user.login?`, login: ${user.login}`:''}${user.name?`, name: ${user.name}`:''}`
-                            unawaited(() => ModelsErrorAzyk.create({err: `gql: ${err.message}`, path: path.toString()}))
+                            unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: path.toString()}))
                        }
                    } catch (e) {/**/}
                }
