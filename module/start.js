@@ -1,7 +1,5 @@
 const {createAdmin} = require('../module/user');
 const {Worker, isMainThread} = require('worker_threads');
-const InvoiceAzyk = require('../models/invoiceAzyk');
-const OrderAzyk = require('../models/orderAzyk');
 
 let startDeleteBD = async () => {
     if(isMainThread) {
