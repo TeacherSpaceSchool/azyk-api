@@ -55,7 +55,7 @@ const resolvers = {
             let outXMLShoro = await OutXMLAzyk
                 .find({
                     status: {$regex: filter, $options: 'i'},
-                    number: {$regex: reductionSearch(search), $options: 'i'},
+                    ...search?{$or: [{number: {$regex: reductionSearch(search), $options: 'i'}}, {guid: {$regex: reductionSearch(search), $options: 'i'}},]}:{},
                     organization: organization
                })
                 .sort('-createdAt')
@@ -113,7 +113,7 @@ const resolvers = {
             return await OutXMLReturnedAzyk
                 .find({
                     status: {$regex: filter, $options: 'i'},
-                    number: {$regex: reductionSearch(search), $options: 'i'},
+                    ...search?{$or: [{number: {$regex: reductionSearch(search), $options: 'i'}}, {guid: {$regex: reductionSearch(search), $options: 'i'}},]}:{},
                     organization: organization
                })
                 .sort('-createdAt')
