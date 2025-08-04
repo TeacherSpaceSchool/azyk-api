@@ -984,8 +984,6 @@ router.post('/:pass/put/returned/confirm', async (req, res, next) => {
             }
             // eslint-disable-next-line no-undef
             const returneds = await SingleOutXMLReturnedAzyk.find({organization: organization._id, guid: {$in: req.body.elements[0].elements.map(element => element.attributes.guid)}}).distinct('returned')
-            console.log(req.body.elements[0].elements.map(element => element.attributes.guid))
-            console.log(returneds)
             // eslint-disable-next-line no-undef
             await Promise.all([
                 SingleOutXMLReturnedAzyk.updateMany({organization: organization._id, guid: {$in: errorGuids}}, {status: 'error', exc: 'Ошибка со стороны 1С'}),
