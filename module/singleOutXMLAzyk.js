@@ -53,13 +53,11 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
         //новый
         else {
             //район
-            const district = await DistrictAzyk.findOne({
-                $or: [
-                    {organization: returned.organization._id, client: returned.client._id, ...returned.agent?{agent: returned.agent._id}:{}},
-                    ...returned.agent?[{organization: returned.organization._id, agent: returned.agent._id}]:[],
-                    {organization: returned.organization._id, client: returned.client._id}
-                ]
-           }).select('agent ecspeditor').lean()
+            let district = await DistrictAzyk.findOne({organization: returned.organization._id, client: returned.client._id, ...returned.agent?{agent: returned.agent._id}:{}}).select('agent ecspeditor').lean()
+            if(!district&&returned.agent)
+                district = await DistrictAzyk.findOne({organization: returned.organization._id, agent: returned.agent._id}).select('agent ecspeditor').lean()
+            if(!district)
+                district = await DistrictAzyk.findOne({organization: returned.organization._id, client: returned.client._id}).select('agent ecspeditor').lean()
             if (district) {
                 //интеграции
                 // eslint-disable-next-line no-undef
@@ -161,13 +159,11 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
         //нету
         else {
             //район
-            const district = await DistrictAzyk.findOne({
-                $or: [
-                    {organization: invoice.organization._id, client: invoice.client._id, ...invoice.agent?{agent: invoice.agent._id}:{}},
-                    ...invoice.agent?[{organization: invoice.organization._id, agent: invoice.agent._id}]:[],
-                    {organization: invoice.organization._id, client: invoice.client._id}
-                ]
-           }).select('agent ecspeditor').lean()
+            let district = await DistrictAzyk.findOne({organization: invoice.organization._id, client: invoice.client._id, ...invoice.agent?{agent: invoice.agent._id}:{}}).select('agent ecspeditor').lean()
+            if(!district&&invoice.agent)
+                district = await DistrictAzyk.findOne({organization: invoice.organization._id, agent: invoice.agent._id}).select('agent ecspeditor').lean()
+            if(!district)
+                district = await DistrictAzyk.findOne({organization: invoice.organization._id, client: invoice.client._id}).select('agent ecspeditor').lean()
             if (district) {
                 //интеграции
                 // eslint-disable-next-line no-undef
