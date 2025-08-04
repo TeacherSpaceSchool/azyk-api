@@ -64,7 +64,6 @@ const resolvers = {
                 ...user.city ? {city: user.city} : {},
                 ...user.role==='client'?{status: 'active', categorys: user.category}:{}
             })
-                .select('hit latest apiece image name subBrand price status del _id organization')
                 .sort('-priotiry name')
                 .populate({
                     path: 'subBrand',
