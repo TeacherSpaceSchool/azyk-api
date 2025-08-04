@@ -983,12 +983,14 @@ router.post('/:pass/put/returned/confirm', async (req, res, next) => {
                 else checkGuids.push(element.attributes.guid)
             }
             // eslint-disable-next-line no-undef
-            const checkReturneds = await SingleOutXMLReturnedAzyk.find({organization: organization._id, guid: {$in: checkGuids}}).distinct('returned')
+            const returneds = await SingleOutXMLReturnedAzyk.find({organization: organization._id, guid: {$in: req.body.elements[0].elements.map(element => element.attributes.guid)}}).distinct('returned')
+            console.log(req.body.elements[0].elements.map(element => element.attributes.guid))
+            console.log(returneds)
             // eslint-disable-next-line no-undef
             await Promise.all([
                 SingleOutXMLReturnedAzyk.updateMany({organization: organization._id, guid: {$in: errorGuids}}, {status: 'error', exc: 'Ошибка со стороны 1С'}),
                 SingleOutXMLReturnedAzyk.updateMany({organization: organization._id, guid: {$in: checkGuids}}, {status: 'check'}),
-                ReturnedAzyk.updateMany({_id: {$in: checkReturneds}}, {sync: 2})
+                ReturnedAzyk.updateMany({_id: {$in: returneds}}, {sync: 2})
             ])
         }
         await res.status(200);
@@ -1014,12 +1016,12 @@ router.post('/:pass/put/sales/confirm', async (req, res, next) => {
                 else checkGuids.push(element.attributes.guid)
             }
             // eslint-disable-next-line no-undef
-            const checkInvoices = await SingleOutXMLAzyk.find({organization: organization._id, guid: {$in: checkGuids}}).distinct('invoice')
+            const invoices = await SingleOutXMLAzyk.find({organization: organization._id, guid: {$in: req.body.elements[0].elements.map(element => element.attributes.guid)}}).distinct('invoice')
             // eslint-disable-next-line no-undef
             await Promise.all([
                 SingleOutXMLAzyk.updateMany({organization: organization._id, guid: {$in: errorGuids}}, {status: 'error', exc: 'Ошибка со стороны 1С'}),
                 SingleOutXMLAzyk.updateMany({organization: organization._id, guid: {$in: checkGuids}}, {status: 'check'}),
-                InvoiceAzyk.updateMany({_id: {$in: checkInvoices}}, {sync: 2})
+                InvoiceAzyk.updateMany({_id: {$in: invoices}}, {sync: 2})
             ])
         }
         await res.status(200);
