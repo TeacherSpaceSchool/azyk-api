@@ -976,17 +976,18 @@ router.post('/:pass/put/returned/confirm', async (req, res, next) => {
     res.set('Content-Type', 'application/xml');
     try{
         if(req.body.elements[0].elements&&req.body.elements[0].elements.length) {
+            let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id').lean()
             const errorGuids = [], checkGuids = []
             for(const element of req.body.elements[0].elements) {
                 if(element.attributes.exc) errorGuids.push(element.attributes.guid)
                 else checkGuids.push(element.attributes.guid)
             }
             // eslint-disable-next-line no-undef
-            const checkReturneds = await SingleOutXMLReturnedAzyk.find({pass: req.params.pass, guid: {$in: checkGuids}}).distinct('_id')
+            const checkReturneds = await SingleOutXMLReturnedAzyk.find({organization: organization._id, guid: {$in: checkGuids}}).distinct('returned')
             // eslint-disable-next-line no-undef
             await Promise.all([
-                SingleOutXMLReturnedAzyk.updateMany({pass: req.params.pass, guid: {$in: errorGuids}}, {status: 'error', exc: 'Ошибка со стороны 1С'}),
-                SingleOutXMLReturnedAzyk.updateMany({pass: req.params.pass, guid: {$in: checkGuids}}, {status: 'check'}),
+                SingleOutXMLReturnedAzyk.updateMany({organization: organization._id, guid: {$in: errorGuids}}, {status: 'error', exc: 'Ошибка со стороны 1С'}),
+                SingleOutXMLReturnedAzyk.updateMany({organization: organization._id, guid: {$in: checkGuids}}, {status: 'check'}),
                 ReturnedAzyk.updateMany({_id: {$in: checkReturneds}}, {sync: 2})
             ])
         }
@@ -1006,17 +1007,18 @@ router.post('/:pass/put/sales/confirm', async (req, res, next) => {
     res.set('Content-Type', 'application/xml');
     try{
         if(req.body.elements[0].elements&&req.body.elements[0].elements.length) {
+            let organization = await OrganizationAzyk.findOne({pass: req.params.pass}).select('_id').lean()
             const errorGuids = [], checkGuids = []
             for(const element of req.body.elements[0].elements) {
                 if(element.attributes.exc) errorGuids.push(element.attributes.guid)
                 else checkGuids.push(element.attributes.guid)
             }
             // eslint-disable-next-line no-undef
-            const checkInvoices = await SingleOutXMLReturnedAzyk.find({pass: req.params.pass, guid: {$in: checkGuids}}).distinct('_id')
+            const checkInvoices = await SingleOutXMLAzyk.find({organization: organization._id, guid: {$in: checkGuids}}).distinct('invoice')
             // eslint-disable-next-line no-undef
             await Promise.all([
-                SingleOutXMLAzyk.updateMany({pass: req.params.pass, guid: {$in: errorGuids}}, {status: 'error', exc: 'Ошибка со стороны 1С'}),
-                SingleOutXMLAzyk.updateMany({pass: req.params.pass, guid: {$in: checkGuids}}, {status: 'check'}),
+                SingleOutXMLAzyk.updateMany({organization: organization._id, guid: {$in: errorGuids}}, {status: 'error', exc: 'Ошибка со стороны 1С'}),
+                SingleOutXMLAzyk.updateMany({organization: organization._id, guid: {$in: checkGuids}}, {status: 'check'}),
                 InvoiceAzyk.updateMany({_id: {$in: checkInvoices}}, {sync: 2})
             ])
         }
