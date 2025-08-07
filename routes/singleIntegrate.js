@@ -144,7 +144,6 @@ router.post('/:pass/put/item', async (req, res, next) => {
                             latest: false,
                             status: 'active',
                             weight: checkFloat(element.attributes.weight),
-                            priotiry: checkInt(element.attributes.priority),
                             unit: 'шт',
                             city: organization.cities[0],
                             apiece: element.attributes.apiece == '1',
@@ -160,7 +159,6 @@ router.post('/:pass/put/item', async (req, res, next) => {
                             ...element.attributes.price ? {price: checkFloat(element.attributes.price)} : {},
                             ...element.attributes.package ? {packaging: checkInt(element.attributes.package)} : {},
                             ...element.attributes.weight ? {weight: checkFloat(element.attributes.weight)} : {},
-                            ...isNotEmpty(element.attributes.priority) ? {priotiry: checkInt(element.attributes.priority)} : {},
                             ...element.attributes.apiece ? {apiece: element.attributes.apiece == '1'} : {},
                             ...element.attributes.status ? {status: element.attributes.status == '1' ? 'active' : 'deactive'} : {}
                         }

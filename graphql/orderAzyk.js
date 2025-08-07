@@ -70,10 +70,10 @@ const type = `
     del: String
     city: String
     adss: [Ads]
-    priority: Int
     track: Int
     forwarder: Employment
      
+    priority: Int
     paymentConsignation: Boolean
     consignmentPrice: Float
     provider: Organization
@@ -128,7 +128,7 @@ const query = `
 
 const mutation = `
     acceptOrders: String
-    addOrders(priority: Int!, dateDelivery: Date!, info: String, inv: Boolean, unite: Boolean, paymentMethod: String, organization: ID!, client: ID!): String
+    addOrders(dateDelivery: Date!, info: String, inv: Boolean, unite: Boolean, paymentMethod: String, organization: ID!, client: ID!): String
     setOrder(orders: [OrderInput], invoice: ID): Invoice
     setInvoice(adss: [ID], taken: Boolean, invoice: ID!, confirmationClient: Boolean, confirmationForwarder: Boolean, cancelClient: Boolean, cancelForwarder: Boolean): String
     setInvoicesLogic(track: Int, forwarder: ID, invoices: [ID]!): String
@@ -947,7 +947,7 @@ const resolversMutation = {
             return 'OK';
         }
     },
-    addOrders: async(parent, {priority, dateDelivery, info, paymentMethod, organization, client, inv, unite}, {user}) => {
+    addOrders: async(parent, {dateDelivery, info, paymentMethod, organization, client, inv, unite}, {user}) => {
         // Привязка клиента, если заказ делает клиент
         if(user.client) client = user.client
         // Получаем организацию от SubBrand, если есть
@@ -1094,7 +1094,6 @@ const resolversMutation = {
                     objectInvoice = await InvoiceAzyk.create({
                         guid,
                         city: client.city,
-                        priority,
                         discount,
                         orders,
                         client: client._id,

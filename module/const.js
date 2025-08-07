@@ -238,6 +238,7 @@ module.exports.statsCollection = statsCollection;
 module.exports.getGeoDistance = getGeoDistance;
 module.exports.checkInt = checkInt;
 module.exports.pdHHMM = pdHHMM;
+module.exports.pdDDMMYY = pdDDMMYY;
 module.exports.pdDDMMYYYY = pdDDMMYYYY;
 module.exports.pdDDMMYYHHMM = pdDDMMYYHHMM;
 module.exports.skip = skip;

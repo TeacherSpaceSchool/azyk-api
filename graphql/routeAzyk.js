@@ -692,79 +692,12 @@ const resolversMutation = {
                 let invoices = await InvoiceAzyk.find({_id: {$in: orders}}).lean();
                 length = !length||invoices.length<=length?0:invoices.length-length;
                 let currentLength = invoices.length
-                let firstInvoices = []
-                for(let i=0; i<invoices.length; i++) {
-                    if(invoices[i].priority===1) {
-                        firstInvoices.push(invoices[i])
-                        invoices.splice(i, 1)
-                        i--
-                   }
-               }
                 let delivery = [];
                 let deliveryIndex = 0
                 let sortInvoices = [];
                 let points = provider
                 let tonnage = 0
                 let res
-
-                while(firstInvoices.length&&currentLength>length) {
-                    delivery[deliveryIndex] = {orders: [], legs: []}
-                    sortInvoices = [];
-                    points = provider
-                    tonnage = 0
-                    for(let i=0; i<firstInvoices.length; i++) {
-                        points+= `:${firstInvoices[i].address[1].replace(', ', ',')}`
-                   }
-                    points+=`:${provider}`
-                    res = await axios.get(`https://api.tomtom.com/routing/1/calculateRoute/${points}/json?computeBestOrder=true&routeType=shortest&sectionType=traffic&traffic=true&key=${tomtom}`)
-                    for(let i=0; i<res.data.optimizedWaypoints.length; i++) {
-                        sortInvoices[res.data.optimizedWaypoints[i].providedIndex] = firstInvoices[res.data.optimizedWaypoints[i].optimizedIndex]
-                   }
-                    for(let i=0; i<sortInvoices.length; i++) {
-                        if(tonnage+sortInvoices[i].allTonnage<autoTonnage/*&&currentLength>length*/) {
-                            tonnage += sortInvoices[i].allTonnage
-                            delivery[deliveryIndex].orders.push(sortInvoices[i])
-                            firstInvoices.splice(firstInvoices.findIndex(element=>sortInvoices[i]._id.toString()===element._id.toString()), 1)
-                            currentLength--
-                       }
-                   }
-
-                    if(tonnage<autoTonnage) {
-                        let secondPoints = res.data.routes[0].legs[res.data.routes[0].legs.length-2].points[res.data.routes[0].legs[res.data.routes[0].legs.length-2].points.length-1]
-                        secondPoints = `${secondPoints.latitude},${secondPoints.longitude}`
-                        for(let i=0; i<invoices.length; i++) {
-                            secondPoints += `:${invoices[i].address[1].replace(', ', ',')}`
-                       }
-                        secondPoints+=`:${provider}`
-                        res = await axios.get(`https://api.tomtom.com/routing/1/calculateRoute/${secondPoints}/json?computeBestOrder=true&routeType=shortest&sectionType=traffic&traffic=true&key=${tomtom}`)
-                        sortInvoices = []
-                        for(let i=0; i<res.data.optimizedWaypoints.length; i++) {
-                            sortInvoices[res.data.optimizedWaypoints[i].providedIndex] = invoices[res.data.optimizedWaypoints[i].optimizedIndex]
-                       }
-                        for(let i=0; i<sortInvoices.length; i++) {
-                            if(tonnage+sortInvoices[i].allTonnage<autoTonnage/*&&currentLength>length*/) {
-                                tonnage += sortInvoices[i].allTonnage
-                                delivery[deliveryIndex].orders.push(sortInvoices[i])
-                                invoices.splice(invoices.findIndex(element=>sortInvoices[i]._id.toString()===element._id.toString()), 1)
-                                currentLength--
-                           }
-                       }
-
-                   }
-
-                    points = provider
-                    for(let i=0; i<delivery[deliveryIndex].orders.length; i++) {
-                        points+= `:${delivery[deliveryIndex].orders[i].address[1].replace(', ', ',')}`
-                   }
-                    points+=`:${provider}`
-                    res = await axios.get(`https://api.tomtom.com/routing/1/calculateRoute/${points}/json?computeBestOrder=true&routeType=shortest&sectionType=traffic&traffic=true&key=${tomtom}`)
-                    delivery[deliveryIndex].tonnage = parseInt(tonnage)
-                    delivery[deliveryIndex].lengthInMeters = res.data.routes[0].summary.lengthInMeters
-                    for(let i=0; i<res.data.routes[0].legs.length; i++) {
-                        delivery[deliveryIndex].legs.push(res.data.routes[0].legs[i].points.map(element=>`${element.latitude}, ${element.longitude}`))
-                   }
-                    deliveryIndex+=1
-               }
 
                 while(currentLength>length) {
                     delivery[deliveryIndex] = {orders: [], legs: []}

@@ -38,6 +38,7 @@ const resolvers = {
                     parsedErrors[ID] = {
                         error: error.err,
                         count: 0,
+                        repeats: {},
                         paths: []
                     }
                     allErrors += 1
@@ -47,15 +48,23 @@ const resolvers = {
                     parsedErrors[ID].paths = [...parsedErrors[ID].paths, error.path]
                 if(!allPaths.includes(error.path))
                     allPaths = [...allPaths, error.path]
+                if(!parsedErrors[ID].repeats[error.path])
+                    parsedErrors[ID].repeats[error.path] = 0
+                parsedErrors[ID].repeats[error.path] += 1
             }
-            const keys = Object.keys(parsedErrors)
-
             let errorsStatistic = []
-            for(const key of keys) {
+            for(const key in parsedErrors) {
+                let repeats = 0
+                for (const repeatKey in parsedErrors[key].repeats) {
+                    if (parsedErrors[key].repeats[repeatKey]>1) {
+                        repeats += 1
+                    }
+                }
                 errorsStatistic.push({
                     _id: key,
                     data: [
                         parsedErrors[key].error,
+                        repeats,
                         parsedErrors[key].paths.length,
                         parsedErrors[key].count,
                     ]
@@ -75,7 +84,7 @@ const resolvers = {
                 ...errorsStatistic
             ]
             return {
-                columns: ['ошибка', 'пользователи', 'количество'],
+                columns: ['ошибка', 'повторы', 'пользователи', 'количество'],
                 row: errorsStatistic
             };
        }
