@@ -2,7 +2,7 @@ const PlanClient = require('../models/planClientAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
-const {saveFile, deleteFile, checkInt, urlMain, reductionSearch, isNotEmpty} = require('../module/const');
+const {saveFile, deleteFile, checkInt, urlMain, reductionSearch, isNotEmpty, dayStartDefault} = require('../module/const');
 const path = require('path');
 const readXlsxFile = require('read-excel-file/node');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
@@ -129,7 +129,7 @@ const resolvers = {
                })
                 .lean()
             const dateStart = new Date()
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             dateStart.setDate(1)
             const dateEnd = new Date(dateStart)
             dateEnd.setMonth(dateEnd.getMonth() + 1)
@@ -213,7 +213,7 @@ const resolvers = {
                })
                 .lean()
             const dateStart = new Date()
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             dateStart.setDate(1)
             const dateEnd = new Date(dateStart)
             dateEnd.setMonth(dateEnd.getMonth() + 1)
@@ -277,7 +277,7 @@ const resolvers = {
            }).lean()
             if(res) {
                 const dateStart = new Date()
-                dateStart.setHours(3, 0, 0, 0)
+                dateStart.setHours(dayStartDefault, 0, 0, 0)
                 dateStart.setDate(1)
                 const dateEnd = new Date(dateStart)
                 dateEnd.setMonth(dateEnd.getMonth() + 1)

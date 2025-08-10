@@ -2,7 +2,7 @@ const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const {saveImage, deleteFile, urlMain, isNotTestUser, reductionSearch, isNotEmpty} = require('../module/const');
+const {saveImage, deleteFile, urlMain, isNotTestUser, reductionSearch, isNotEmpty, dayStartDefault} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
 
 const type = `
@@ -61,9 +61,9 @@ const checkAdss = async(invoice, canceled) => {
         .lean()
     //Рассчитывается дата
     const dateStart = new Date(invoice.createdAt)
-    if(dateStart.getHours() < 3)
+    if(dateStart.getHours() < dayStartDefault)
         dateStart.setDate(dateStart.getDate() - 1)
-    dateStart.setHours(3, 0, 0, 0)
+    dateStart.setHours(dayStartDefault, 0, 0, 0)
     const dateEnd = new Date(dateStart)
     dateEnd.setDate(dateEnd.getDate() + 1)
     //Удаляются все акции у заказов

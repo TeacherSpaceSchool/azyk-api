@@ -7,7 +7,7 @@ const InvoiceAzyk = require('../models/invoiceAzyk');
 const ReturnedAzyk = require('../models/returnedAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const AdsAzyk = require('../models/adsAzyk');
-const {pdDDMMYYYY, checkInt, sendPushToAdmin, isNotEmpty, unawaited} = require('./const');
+const {pdDDMMYYYY, checkInt, sendPushToAdmin, isNotEmpty, unawaited, dayStartDefault} = require('./const');
 const { v1: uuidv1 } = require('uuid');
 const builder = require('xmlbuilder');
 const paymentMethod = {'Наличные': 0, 'Перечисление': 1, 'Консигнация': 5}
@@ -73,7 +73,7 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
                         date = new Date(returned.dateDelivery)
                     else {
                         date = new Date(returned.createdAt)
-                        if (date.getHours() >= 3)
+                        if (date.getHours() >= dayStartDefault)
                             date.setDate(date.getDate() + 1)
                         if (date.getDay() === 0)
                             date.setDate(date.getDate() + 1)
@@ -290,9 +290,9 @@ module.exports.getSingleOutXMLAzyk = async(organization) => {
         let result = builder.create('root').att('mode', 'sales');
         //дата
         let date = new Date()
-        if(date.getHours()>=3)
+        if(date.getHours()>=dayStartDefault)
             date.setDate(date.getDate() + 1)
-        date.setHours(3, 0, 0, 0)
+        date.setHours(dayStartDefault, 0, 0, 0)
         //интеграции
         let outXMLs = await SingleOutXMLAzyk.find({
             organization: organization._id,
@@ -461,7 +461,7 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
     try {
         //дата
         let dateXml = new Date()
-        dateXml.setHours(3, 0, 0, 0)
+        dateXml.setHours(dayStartDefault, 0, 0, 0)
         //интеграции районы интеграции районов
         // eslint-disable-next-line no-undef
         const [integrates, districts, outXMLAdss, adss, adsOrders] = await Promise.all([

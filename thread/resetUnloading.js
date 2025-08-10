@@ -4,11 +4,11 @@ const cron = require('node-cron');
 const app = require('../app');
 const fs = require('fs');
 const path = require('path');
-const {unawaited, sendPushToAdmin, formatErrorDetails} = require('../module/const');
+const {unawaited, sendPushToAdmin, formatErrorDetails, dayStartDefault} = require('../module/const');
 const ModelsErrorAzyk = require('../models/errorAzyk');
 connectDB.connect();
 if(!isMainThread) {
-    cron.schedule('1 3 * * *', async() => {
+    cron.schedule(`1 ${dayStartDefault} * * *`, async() => {
         try {
             fs.readdir(path.join(app.dirname, 'public', 'xlsx'), async (err, files) => {
                 for(const file of files) {

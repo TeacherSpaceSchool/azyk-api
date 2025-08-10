@@ -5,7 +5,7 @@ const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const AdsAzyk = require('../models/adsAzyk');
-const {checkDate, isNotEmpty} = require('../module/const');
+const {checkDate, isNotEmpty, dayStartDefault} = require('../module/const');
 const {checkFloat} = require('../module/const');
 const OrganizationAzyk = require('../models/organizationAzyk');
 
@@ -79,10 +79,10 @@ const resolvers = {
             const onlyOnline = filter==='online'
             const onlyOffline = filter==='offline'
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             if(dateEnd) {
                 dateEnd = checkDate(dateEnd)
-                dateEnd.setHours(3, 0, 0, 0)
+                dateEnd.setHours(dayStartDefault, 0, 0, 0)
             }
             else {
                 dateEnd = new Date(dateStart)
@@ -193,10 +193,10 @@ const resolvers = {
             //console.time('get BD')
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
-            dateStart.setHours(isNotEmpty(dayStart)?dayStart:3, 0, 0, 0)
+            dateStart.setHours(isNotEmpty(dayStart)?dayStart:dayStartDefault, 0, 0, 0)
             if(dateEnd) {
                 dateEnd = checkDate(dateEnd)
-                dateEnd.setHours(isNotEmpty(dayStart)?dayStart:3, 0, 0, 0)
+                dateEnd.setHours(isNotEmpty(dayStart)?dayStart:dayStartDefault, 0, 0, 0)
            }
             else {
                 dateEnd = new Date(dateStart)
@@ -280,10 +280,10 @@ const resolvers = {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             if(dateEnd) {
                 dateEnd = checkDate(dateEnd)
-                dateEnd.setHours(3, 0, 0, 0)
+                dateEnd.setHours(dayStartDefault, 0, 0, 0)
             }
             else {
                 dateEnd = new Date(dateStart)
@@ -384,10 +384,10 @@ const resolvers = {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             if(dateEnd) {
                 dateEnd = checkDate(dateEnd)
-                dateEnd.setHours(3, 0, 0, 0)
+                dateEnd.setHours(dayStartDefault, 0, 0, 0)
             }
             else {
                 dateEnd = new Date(dateStart)
@@ -503,7 +503,7 @@ const resolversMutation = {
     repairUnsyncOrder: async(parent, args, {user}) => {
         if (user.role === 'admin') {
             const dateStart = new Date()
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             const dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
             const organizations = await OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id')

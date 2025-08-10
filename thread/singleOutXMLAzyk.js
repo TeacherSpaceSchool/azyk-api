@@ -9,15 +9,15 @@ const ModelsErrorAzyk = require('../models/errorAzyk');
 const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 const SingleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
 const {acceptOrders} = require('../graphql/orderAzyk');
-const {unawaited, sendPushToAdmin, formatErrorDetails} = require('../module/const');
+const {unawaited, sendPushToAdmin, formatErrorDetails, dayStartDefault} = require('../module/const');
 
 connectDB.connect()
 if(!isMainThread) {
-    cron.schedule('1 3 * * *', async() => {
+    cron.schedule(`1 ${dayStartDefault} * * *`, async() => {
         try {
             //только за сегодня
             const dateEnd = new Date()
-            dateEnd.setHours(3, 0, 0, 0)
+            dateEnd.setHours(dayStartDefault, 0, 0, 0)
             const dateStart = new Date(dateEnd)
             dateStart.setDate(dateStart.getDate() - 1)
             //организации для интеграции

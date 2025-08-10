@@ -2,7 +2,7 @@ const InvoiceAzyk = require('../models/invoiceAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
-const {weekDay, pdDDMMYYHHMM, checkFloat, month, checkDate} = require('../module/const');
+const {weekDay, pdDDMMYYHHMM, checkFloat, month, checkDate, dayStartDefault} = require('../module/const');
 
 const query = `
     statisticOrdersOffRoute(type: String, organization: ID, dateStart: Date, dateEnd: Date, online: Boolean, city: String, district: ID): Statistic
@@ -15,10 +15,10 @@ const resolvers = {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             if(dateEnd) {
                 dateEnd = checkDate(dateEnd)
-                dateEnd.setHours(3, 0, 0, 0)
+                dateEnd.setHours(dayStartDefault, 0, 0, 0)
             }
             else {
                 dateEnd = new Date(dateStart)
@@ -151,10 +151,10 @@ const resolvers = {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             if(dateEnd) {
                 dateEnd = checkDate(dateEnd)
-                dateEnd.setHours(3, 0, 0, 0)
+                dateEnd.setHours(dayStartDefault, 0, 0, 0)
             }
             else {
                 dateEnd = new Date(dateStart)
@@ -271,7 +271,7 @@ const resolvers = {
             let res = []
             const organizations = await OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id')
             const dateStart = new Date()
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             const dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
 

@@ -3,7 +3,7 @@ const ReturnedAzyk = require('../models/returnedAzyk');
 const MerchandisingAzyk = require('../models/merchandisingAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const {pdDDMMYYYY, checkDate} = require('../module/const');
+const {pdDDMMYYYY, checkDate, dayStartDefault} = require('../module/const');
 const {pdHHMM, checkFloat} = require('../module/const');
 const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
@@ -20,10 +20,10 @@ const resolvers = {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             if(dateEnd) {
                 dateEnd = checkDate(dateEnd)
-                dateEnd.setHours(3, 0, 0, 0)
+                dateEnd.setHours(dayStartDefault, 0, 0, 0)
             }
             else {
                 dateEnd = new Date(dateStart)
@@ -118,10 +118,10 @@ const resolvers = {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             if(dateEnd) {
                 dateEnd = checkDate(dateEnd)
-                dateEnd.setHours(3, 0, 0, 0)
+                dateEnd.setHours(dayStartDefault, 0, 0, 0)
             }
             else {
                 dateEnd = new Date(dateStart)
@@ -231,7 +231,7 @@ const resolvers = {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             let dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
             const agents = await EmploymentAzyk.find({organization: organization==='super'?null:organization}).distinct('_id')
@@ -294,10 +294,10 @@ const resolvers = {
 
         // Установка дуиапазона дат
         dateStart = checkDate(dateStart)
-        dateStart.setHours(3, 0, 0, 0)
+        dateStart.setHours(dayStartDefault, 0, 0, 0)
         if(dateEnd) {
             dateEnd = checkDate(dateEnd)
-            dateEnd.setHours(3, 0, 0, 0)
+            dateEnd.setHours(dayStartDefault, 0, 0, 0)
         }
         else {
             dateEnd = new Date(dateStart)

@@ -4,7 +4,7 @@ const BasketAzyk = require('../models/basketAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
-const {deleteFile, urlMain, saveImage, reductionSearch, isNotEmpty, checkDate, unawaited} = require('../module/const');
+const {deleteFile, urlMain, saveImage, reductionSearch, isNotEmpty, checkDate, unawaited, dayStartDefault} = require('../module/const');
 const mongoose = require('mongoose')
 const { v1: uuidv1 } = require('uuid');
 const randomstring = require('randomstring');
@@ -58,7 +58,7 @@ const resolvers = {
             let dateEnd;
             if(date) {
                 dateStart = checkDate(date)
-                dateStart.setHours(3, 0, 0, 0)
+                dateStart.setHours(dayStartDefault, 0, 0, 0)
                 dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
            }
@@ -189,7 +189,7 @@ const resolvers = {
         let _sort = {}
         if(date) {
             dateStart = checkDate(date)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
        }

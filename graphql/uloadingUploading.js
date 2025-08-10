@@ -7,7 +7,7 @@ const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const UserAzyk = require('../models/userAzyk');
-const {pdDDMMYYYY, checkDate} = require('../module/const');
+const {pdDDMMYYYY, checkDate, dayStartDefault} = require('../module/const');
 const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const app = require('../app');
@@ -41,7 +41,7 @@ const resolvers = {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             let dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
             let data = await InvoiceAzyk.find(
@@ -160,7 +160,7 @@ const resolvers = {
             let workbook = new ExcelJS.Workbook();
             let dateEnd
             dateStart = checkDate(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
             // eslint-disable-next-line no-undef
@@ -425,7 +425,7 @@ const resolvers = {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
             dateStart = new Date(dateStart)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             if(user.organization)
                 organization = user.organization
             // eslint-disable-next-line no-undef

@@ -5,7 +5,7 @@ const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
 const {setSingleOutXMLReturnedAzykLogic} = require('../module/singleOutXMLAzyk');
-const {checkFloat, reductionSearch, isNotEmpty, checkDate} = require('../module/const');
+const {checkFloat, reductionSearch, isNotEmpty, checkDate, dayStartDefault} = require('../module/const');
 const RELOAD_RETURNED = 'RELOAD_RETURNED';
 const HistoryReturnedAzyk = require('../models/historyReturnedAzyk');
 const mongoose = require('mongoose');
@@ -106,18 +106,18 @@ const resolvers = {
             if (date) {
                 let differenceDates = user.agentHistory
                 dateStart = checkDate(date)
-                dateStart.setHours(3, 0, 0, 0)
+                dateStart.setHours(dayStartDefault, 0, 0, 0)
                 dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
                 if (['агент', 'суперагент'].includes(user.role)) {
                     let now = new Date()
                     now.setDate(now.getDate() + 1)
-                    now.setHours(3, 0, 0, 0)
+                    now.setHours(dayStartDefault, 0, 0, 0)
                     differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
                }
                 if(differenceDates>user.agentHistory) {
                     dateStart = new Date()
-                    dateStart.setHours(3, 0, 0, 0)
+                    dateStart.setHours(dayStartDefault, 0, 0, 0)
                     dateEnd = new Date(dateStart)
                     dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
                }
@@ -125,12 +125,12 @@ const resolvers = {
             else {
                 dateStart = new Date()
                 dateEnd = new Date(dateStart)
-                if(dateStart.getHours()>=3)
+                if(dateStart.getHours()>=dayStartDefault)
                     dateEnd.setDate(dateEnd.getDate() + 1)
                 else
                     dateStart.setDate(dateEnd.getDate() - 1)
-                dateStart.setHours(3, 0, 0, 0)
-                dateEnd.setHours(3, 0, 0, 0)
+                dateStart.setHours(dayStartDefault, 0, 0, 0)
+                dateEnd.setHours(dayStartDefault, 0, 0, 0)
            }
             //доступные организации для суперагента, клиенты сотрудника
             // eslint-disable-next-line no-undef
@@ -183,18 +183,18 @@ const resolvers = {
             let dateStart;
             let dateEnd;
             dateStart = checkDate(date)
-            dateStart.setHours(3, 0, 0, 0)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
             dateEnd = new Date(dateStart)
             dateEnd.setDate(dateEnd.getDate() + 1)
             if (user.role === 'агент') {
                 let now = new Date()
                 now.setDate(now.getDate() + 1)
-                now.setHours(3, 0, 0, 0)
+                now.setHours(dayStartDefault, 0, 0, 0)
                 let differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
-                if (differenceDates > 3) {
+                if (differenceDates > user.agentHistory) {
                     dateStart = new Date()
                     dateEnd = new Date(dateStart)
-                    dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - 3))
+                    dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
                }
            }
             //клиенты сотрудника
@@ -302,17 +302,17 @@ const resolvers = {
             if(date!=='') {
                 let differenceDates = user.agentHistory
                 dateStart = checkDate(date)
-                dateStart.setHours(3, 0, 0, 0)
+                dateStart.setHours(dayStartDefault, 0, 0, 0)
                 dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
                 if(['суперагент', 'агент'].includes(user.role)) {
                     let now = new Date()
-                    now.setHours(3, 0, 0, 0)
+                    now.setHours(dayStartDefault, 0, 0, 0)
                     now.setDate(now.getDate() + 1)
                     differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
                     if(differenceDates>user.agentHistory) {
                         dateStart = new Date()
-                        dateStart.setHours(3, 0, 0, 0)
+                        dateStart.setHours(dayStartDefault, 0, 0, 0)
                         dateEnd = new Date(dateStart)
                         dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
                    }
@@ -320,7 +320,7 @@ const resolvers = {
            }
             else if(['суперагент', 'агент'].includes(user.role)) {
                 dateEnd = new Date()
-                dateEnd.setHours(3, 0, 0, 0)
+                dateEnd.setHours(dayStartDefault, 0, 0, 0)
                 dateEnd.setDate(dateEnd.getDate() + 1)
                 dateStart = new Date(dateEnd)
                 dateStart = new Date(dateStart.setDate(dateStart.getDate() - user.agentHistory))
@@ -496,9 +496,9 @@ const resolversMutation = {
             organization = subbrand.organization
         //дата доставки
         let dateStart = new Date()
-        if(dateStart.getHours()<3)
+        if(dateStart.getHours()<dayStartDefault)
             dateStart.setDate(dateStart.getDate() - 1)
-        dateStart.setHours(3, 0, 0, 0)
+        dateStart.setHours(dayStartDefault, 0, 0, 0)
         let dateEnd = new Date(dateStart)
         dateEnd.setDate(dateEnd.getDate() + 1)
         //гуид

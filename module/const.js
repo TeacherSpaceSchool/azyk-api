@@ -10,6 +10,9 @@ const urlMain = `${process.env.URL.trim()}:3000`,
     skip = 1,
     adminPass = 'hGNSKtmSBG'
 
+const dayStartDefault = 3
+module.exports.dayStartDefault = dayStartDefault;
+
 const validMail = (mail) => {
     return /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/.test(mail);
 }
@@ -184,9 +187,9 @@ module.exports.reductionSearch = (search) => {
 
 module.exports.getDateRange = (date) => {
     const dateStart = new Date(date)
-    if(dateStart.getHours() < 3)
+    if(dateStart.getHours() < dayStartDefault)
         dateStart.setDate(dateStart.getDate() - 1)
-    dateStart.setHours(3, 0, 0, 0)
+    dateStart.setHours(dayStartDefault, 0, 0, 0)
     const dateEnd = new Date(dateStart)
     dateEnd.setDate(dateEnd.getDate() + 1)
     return {dateStart, dateEnd}

@@ -6,7 +6,7 @@ const RouteAzyk = require('../models/routeAzyk');
 const mongoose = require('mongoose');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const randomstring = require('randomstring');
-const {tomtom, reductionSearch, isNotEmpty, checkDate, isEmpty} = require('../module/const');
+const {tomtom, reductionSearch, isNotEmpty, checkDate, isEmpty, dayStartDefault} = require('../module/const');
 const axios = require('axios');
 const ExcelJS = require('exceljs');
 const {urlMain, pdDDMMYYYY, checkInt, checkFloat} = require('../module/const');
@@ -589,7 +589,7 @@ const resolvers = {
             let dateEnd;
             if(date) {
                 dateStart = checkDate(date)
-                dateStart.setHours(3, 0, 0, 0)
+                dateStart.setHours(dayStartDefault, 0, 0, 0)
                 dateEnd = new Date(dateStart)
                 dateEnd.setDate(dateEnd.getDate() + 1)
            }
