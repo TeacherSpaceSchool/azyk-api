@@ -1,19 +1,14 @@
 const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 const SingleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
-const SingleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const ReturnedAzyk = require('../models/returnedAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const AdsAzyk = require('../models/adsAzyk');
-const {pdDDMMYYYY, checkInt, sendPushToAdmin, isNotEmpty, unawaited, dayStartDefault} = require('./const');
+const {pdDDMMYYYY, checkInt, sendPushToAdmin, isNotEmpty, unawaited, dayStartDefault, formatErrorDetails} = require('./const');
 const { v1: uuidv1 } = require('uuid');
 const builder = require('xmlbuilder');
-const paymentMethod = {'Наличные': 0, 'Перечисление': 1, 'Консигнация': 5}
-const {checkFloat} = require('../module/const');
 const ModelsErrorAzyk = require('../models/errorAzyk');
-const {parallelBulkWrite} = require('./parallel');
 
 module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
     try {
@@ -109,6 +104,7 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
        }
    }
     catch (err) {
+        console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLReturnedAzyk'}))
         unawaited(() => sendPushToAdmin({message: 'Ошибка setSingleOutXMLReturnedAzyk'}))
    }
@@ -117,6 +113,14 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
 
 module.exports.setSingleOutXMLAzyk = async(invoice) => {
     try {
+        const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
+        const Integrate1CAzyk = require('../models/integrate1CAzyk');
+        const DistrictAzyk = require('../models/districtAzyk');
+        const {sendPushToAdmin, unawaited} = require('./const');
+        const { v1: uuidv1 } = require('uuid');
+        const {checkFloat} = require('../module/const');
+        const ModelsErrorAzyk = require('../models/errorAzyk');
+        const paymentMethod = {'Наличные': 0, 'Перечисление': 1, 'Консигнация': 5}
         //guid по товарам
         const itemIds = invoice.orders.map(order => order.item._id)
         let integrateItems = await Integrate1CAzyk.find({item: {$in: itemIds}}).select('item guid').lean()
@@ -205,6 +209,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
        }
    }
     catch (err) {
+        console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLAzyk'}))
    }
@@ -231,6 +236,7 @@ module.exports.setSingleOutXMLAzykLogic = async(invoices, forwarder, track) => {
        }
    }
     catch (err) {
+        console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLAzykLogic'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLAzykLogic'}))
    }
@@ -254,6 +260,7 @@ module.exports.setSingleOutXMLReturnedAzykLogic = async(returneds, forwarder, tr
        }
    }
     catch (err) {
+        console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLReturnedAzykLogic'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLReturnedAzykLogic'}))
    }
@@ -266,6 +273,7 @@ module.exports.cancelSingleOutXMLReturnedAzyk = async(returned) => {
         return 1
    }
     catch (err) {
+        console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'cancelSingleOutXMLReturnedAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка cancelSingleOutXMLReturnedAzyk'}))
    }
@@ -279,6 +287,7 @@ module.exports.cancelSingleOutXMLAzyk = async(invoice) => {
         return 0
    }
     catch (err) {
+        console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'cancelSingleOutXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка cancelSingleOutXMLAzyk'}))
    }
@@ -338,6 +347,7 @@ module.exports.getSingleOutXMLAzyk = async(organization) => {
         else return ''
    }
     catch (err) {
+        console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'getSingleOutXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка getSingleOutXMLAzyk'}))
    }
@@ -452,12 +462,24 @@ module.exports.getSingleOutXMLReturnedAzyk = async(organization) => {
         else return ''
    }
     catch (err) {
+        console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'getSingleOutXMLReturnedAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка getSingleOutXMLReturnedAzyk'}))
    }
 }
 
 module.exports.reductionOutAdsXMLAzyk = async(organization) => {
+    const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
+    const SingleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');
+    const Integrate1CAzyk = require('../models/integrate1CAzyk');
+    const InvoiceAzyk = require('../models/invoiceAzyk');
+    const DistrictAzyk = require('../models/districtAzyk');
+    const AdsAzyk = require('../models/adsAzyk');
+    const {sendPushToAdmin, unawaited, dayStartDefault, formatErrorDetails} = require('./const');
+    const { v1: uuidv1 } = require('uuid');
+    const {checkFloat} = require('../module/const');
+    const ModelsErrorAzyk = require('../models/errorAzyk');
+    const {parallelBulkWrite} = require('./parallel');
     try {
         //дата
         let dateXml = new Date()
@@ -572,6 +594,7 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
         if (bulkOperations.length) await parallelBulkWrite(SingleOutXMLAzyk, bulkOperations);
    }
     catch (err) {
+        console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'reductionOutAdsXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка reductionOutAdsXMLAzyk'}))
    }

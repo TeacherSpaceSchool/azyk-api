@@ -16,6 +16,7 @@ if(!isMainThread) {
                }
            });
        } catch (err) {
+            console.error(err)
             unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'resetUnloading.js'}))
             unawaited(() =>  sendPushToAdmin({message: 'Ошибка resetUnloading.js'}))
        }

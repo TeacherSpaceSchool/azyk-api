@@ -3,7 +3,6 @@ const SubBrandAzyk = require('../models/subBrandAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const RouteAzyk = require('../models/routeAzyk');
 const BasketAzyk = require('../models/basketAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const AdsAzyk = require('../models/adsAzyk');
@@ -15,15 +14,11 @@ const {pubsub} = require('./index');
 const {withFilter} = require('graphql-subscriptions');
 const RELOAD_ORDER = 'RELOAD_ORDER';
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
-const {checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault,
-    defaultLimit
-} = require('../module/const');
+const {checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault, defaultLimit} = require('../module/const');
 const {checkAdss} = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
 const { v1: uuidv1 } = require('uuid');
-const ModelsErrorAzyk = require('../models/errorAzyk');
 const {calculateStock} = require('../module/stockAzyk');
-const {parallelBulkWrite, parallelPromise} = require('../module/parallel');
 const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 
 const type = `
@@ -601,6 +596,11 @@ const resolvers = {
 };
 
 const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder, user}) => {
+    const OrderAzyk = require('../models/orderAzyk');
+    const InvoiceAzyk = require('../models/invoiceAzyk');
+    const RouteAzyk = require('../models/routeAzyk');
+    const {checkFloat, isNotEmpty} = require('../module/const');
+    const {checkAdss} = require('../graphql/adsAzyk');
     //накладная
     let object = await InvoiceAzyk.findById(invoice).populate('client')
     //проверка роли
@@ -712,6 +712,19 @@ const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClie
 }
 
 const setOrder = async ({orders, invoice, user}) => {
+    const OrderAzyk = require('../models/orderAzyk');
+    const InvoiceAzyk = require('../models/invoiceAzyk');
+    const DistrictAzyk = require('../models/districtAzyk');
+    const RELOAD_ORDER = 'RELOAD_ORDER';
+    const HistoryOrderAzyk = require('../models/historyOrderAzyk');
+    const {checkFloat, dayStartDefault} = require('../module/const');
+    const ModelsErrorAzyk = require('../models/errorAzyk');
+    const {calculateStock} = require('../module/stockAzyk');
+    const {setSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
+    const {cancelSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
+    const {unawaited} = require('../module/const');
+    const {pubsub} = require('./index');
+    const {parallelBulkWrite} = require('../module/parallel');
     //накладная
     invoice = await InvoiceAzyk.findById(invoice)
         .populate({path: 'orders', populate: {path: 'item'}})
@@ -779,12 +792,10 @@ const setOrder = async ({orders, invoice, user}) => {
         if(invoice.organization.pass) {
             //принятие
             if (invoice.taken) {
-                const {setSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
                 invoice.sync = await setSingleOutXMLAzyk(invoice)
             }
             //отмена
             else if (invoice.cancelClient||invoice.cancelForwarder) {
-                const {cancelSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
                 invoice.sync = await cancelSingleOutXMLAzyk(invoice)
             }
         }
@@ -843,6 +854,14 @@ const setOrder = async ({orders, invoice, user}) => {
 }
 
 const acceptOrders = async (dateEnd) => {
+    const InvoiceAzyk = require('../models/invoiceAzyk');
+    const OrganizationAzyk = require('../models/organizationAzyk');
+    const DistrictAzyk = require('../models/districtAzyk');
+    const RELOAD_ORDER = 'RELOAD_ORDER';
+    const {dayStartDefault} = require('../module/const');
+    const {checkAdss} = require('../graphql/adsAzyk');
+    const ModelsErrorAzyk = require('../models/errorAzyk');
+    const {parallelPromise, parallelBulkWrite} = require('../module/parallel');
     const {setSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
     const {unawaited} = require('../module/const');
     const {pubsub} = require('./index');
@@ -875,7 +894,8 @@ const acceptOrders = async (dateEnd) => {
         //перебор
         // eslint-disable-next-line no-undef
         await parallelPromise(invoices, async (invoice) => {
-            //заказы для подбора акций
+            try {
+                //заказы для подбора акций
             invoicesForCheckAdss[invoice.client._id] = invoice._id
             //дата доставки не менее сегодня
             let today = new Date()
@@ -900,7 +920,7 @@ const acceptOrders = async (dateEnd) => {
                     err: `${invoice.number} Дата доставки просрочена`,
                     path: 'acceptOrders'
                 }))
-            //принятие order
+                //принятие order
             for(const order of invoice.orders) {
                 order.status = 'принят'
                 ordersForAccept.push(order._id)
@@ -931,6 +951,10 @@ const acceptOrders = async (dateEnd) => {
                     type: 'SET'
                 }})
             })
+            }
+            catch (err) {
+                console.error(err)
+            }
         })
         //обновление
         await parallelBulkWrite(InvoiceAzyk, bulkOperations);

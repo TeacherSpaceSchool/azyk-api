@@ -1,19 +1,20 @@
 const {isMainThread} = require('worker_threads');
 const connectDB = require('../models/index');
-const {reductionOutAdsXMLAzyk} = require('../module/singleOutXMLAzyk');
-const OrganizationAzyk = require('../models/organizationAzyk');
-const InvoiceAzyk = require('../models/invoiceAzyk');
-const OrderAzyk = require('../models/orderAzyk');
 const cron = require('node-cron');
-const ModelsErrorAzyk = require('../models/errorAzyk');
-const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
-const SingleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
-const {acceptOrders} = require('../graphql/orderAzyk');
-const {unawaited, sendPushToAdmin, formatErrorDetails, dayStartDefault} = require('../module/const');
+const {dayStartDefault} = require('../module/const');
 
 connectDB.connect()
 if(!isMainThread) {
-    cron.schedule(`1 ${dayStartDefault} * * *`, async() => {
+    cron.schedule(`50 21 ${'4'/*dayStartDefault*/} * * *`, async() => {
+        const {reductionOutAdsXMLAzyk} = require('../module/singleOutXMLAzyk');
+        const OrganizationAzyk = require('../models/organizationAzyk');
+        const InvoiceAzyk = require('../models/invoiceAzyk');
+        const OrderAzyk = require('../models/orderAzyk');
+        const ModelsErrorAzyk = require('../models/errorAzyk');
+        const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
+        const SingleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
+        const {acceptOrders} = require('../graphql/orderAzyk');
+        const {unawaited, sendPushToAdmin, formatErrorDetails, dayStartDefault} = require('../module/const');
         try {
             //только за сегодня
             const dateEnd = new Date()
@@ -57,6 +58,7 @@ if(!isMainThread) {
             ])
        }
         catch (err) {
+            console.log(err)
             unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'singleOutXMLAzyk.js'}))
             unawaited(() =>  sendPushToAdmin({message: 'Ошибка singleOutXMLAzyk.js'}))
        }

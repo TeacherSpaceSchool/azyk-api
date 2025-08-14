@@ -12,6 +12,7 @@ if(!isMainThread) {
             const adminUser = await UserAzyk.findOne({role: 'admin'}).select('_id').lean()
             unawaited(() => sendWebPush({title: 'AZYK.STORE', message: 'Не забудьте сделать свой заказ', excludedUsers: [adminUser._id]}))
         } catch (err) {
+            console.error(err)
             unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'reminderClient.js'}))
             unawaited(() =>  sendPushToAdmin({message: 'Ошибка reminderClient.js'}))
         }
