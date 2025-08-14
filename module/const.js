@@ -10,7 +10,7 @@ const urlMain = `${process.env.URL.trim()}:3000`,
     skip = 1,
     adminPass = 'hGNSKtmSBG'
 
-const dayStartDefault = 4
+const dayStartDefault = 3
 module.exports.dayStartDefault = dayStartDefault;
 
 const validMail = (mail) => {
