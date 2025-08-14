@@ -19,24 +19,24 @@ const AutoAzyk = require('../models/autoAzyk');
 const {parallelPromise, parallelBulkWrite} = require('../module/parallel');
 
 const query = `
-    unloadingInvoices(organization: ID!, dateStart: Date!, all: Boolean): String
-    unloadingOrders(filter: String!, organization: ID!, dateStart: Date!): String
-    unloadingClients(organization: ID!, city: String): String
-    unloadingEmployments(organization: ID!): String
-    unloadingDistricts(organization: ID!): String
-    unloadingAgentRoutes(organization: ID!): String
-    unloadingAdsOrders(organization: ID!, dateStart: Date!): String
+    downloadInvoices(organization: ID!, dateStart: Date!, all: Boolean): String
+    downloadOrders(filter: String!, organization: ID!, dateStart: Date!): String
+    downloadClients(organization: ID!, city: String): String
+    downloadEmployments(organization: ID!): String
+    downloadDistricts(organization: ID!): String
+    downloadAgentRoutes(organization: ID!): String
+    downloadAdsOrders(organization: ID!, dateStart: Date!): String
 `;
 
 const mutation = `
-    uploadingClients(document: Upload!, organization: ID!, city: String!): String
-    uploadingItems(document: Upload!, organization: ID!, city: String!): String
-    uploadingDistricts(document: Upload!, organization: ID!): String
-    uploadingAgentRoute(document: Upload!, agentRoute: ID!, ): String
+    uploadClients(document: Upload!, organization: ID!, city: String!): String
+    uploadItems(document: Upload!, organization: ID!, city: String!): String
+    uploadDistricts(document: Upload!, organization: ID!): String
+    uploadAgentRoute(document: Upload!, agentRoute: ID!, ): String
    `;
 
 const resolvers = {
-    unloadingOrders: async(parent, {filter, organization, dateStart}, {user}) => {
+    downloadOrders: async(parent, {filter, organization, dateStart}, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
@@ -154,7 +154,7 @@ const resolvers = {
             return urlMain + '/xlsx/' + xlsxname
        }
    },
-    unloadingInvoices: async(parent, {organization, dateStart}, {user}) => {
+    downloadInvoices: async(parent, {organization, dateStart}, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
@@ -420,7 +420,7 @@ const resolvers = {
             return urlMain + '/xlsx/' + xlsxname
        }
    },
-    unloadingAdsOrders: async(parent, {organization, dateStart}, {user}) => {
+    downloadAdsOrders: async(parent, {organization, dateStart}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
@@ -525,7 +525,7 @@ const resolvers = {
             return urlMain + '/xlsx/' + xlsxname
        }
    },
-    unloadingClients: async(parent, {organization, city}, {user}) => {
+    downloadClients: async(parent, {organization, city}, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let cities
@@ -587,7 +587,7 @@ const resolvers = {
             return urlMain + '/xlsx/' + xlsxname
        }
    },
-    unloadingEmployments: async(parent, {organization}, {user}) => {
+    downloadEmployments: async(parent, {organization}, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
@@ -646,65 +646,36 @@ const resolvers = {
             return urlMain + '/xlsx/' + xlsxname
        }
    },
-    unloadingDistricts: async(parent, {organization}, {user}) => {
+    downloadDistricts: async(parent, {organization}, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
-            let districts = await DistrictAzyk.find(
-                {
-                    organization: organization==='super'?null:organization
-               }
-            ).populate('client').lean()
-            let integrates = await Integrate1CAzyk.find({
-                organization: organization==='super'?null:organization,
-                client: {$in: (districts.map(district => district.client)).flat()}
-           }).select('client guid').lean()
-            const guidByClient = {}
-            for(const integrate of integrates) {
-                guidByClient[integrate.client] = integrate.guid
-           }
-            let worksheet;
+            let districts = await DistrictAzyk.find({organization: organization==='super'?null:organization}).populate('client').lean()
+            let worksheet = await workbook.addWorksheet('Районы');
+            worksheet.getColumn(1).width = 30;
+            worksheet.getCell('A1').font = {bold: true, size: 14};
+            worksheet.getCell('A1').value = 'Клиент';
+            worksheet.getColumn(2).width = 30;
+            worksheet.getCell('B1').font = {bold: true, size: 14};
+            worksheet.getCell('B1').value = 'Агент';
             for(const district of districts) {
-                worksheet = await workbook.addWorksheet(district.name);
-                worksheet.getColumn(1).width = 30;
-                worksheet.getCell('A1').font = {bold: true, size: 14};
-                worksheet.getCell('A1').value = 'ID';
-                worksheet.getColumn(2).width = 30;
-                worksheet.getCell('B1').font = {bold: true, size: 14};
-                worksheet.getCell('B1').value = 'GUID';
-                worksheet.getColumn(3).width = 30;
-                worksheet.getCell('C1').font = {bold: true, size: 14};
-                worksheet.getCell('C1').value = 'Магазин';
-                worksheet.getColumn(4).width = 30;
-                worksheet.getCell('D1').font = {bold: true, size: 14};
-                worksheet.getCell('D1').value = 'Адрес';
-                worksheet.getColumn(5).width = 30;
-                worksheet.getCell('E1').font = {bold: true, size: 14};
-                worksheet.getCell('E1').value = 'Телефон';
-
                 for(const client of district.client) {
-                    let GUID = guidByClient[client._id]
                     worksheet.addRow([
-                        client._id,
-                        GUID,
-                        client.address[0][2],
-                        client.address[0][0],
-                        client.phone.reduce((accumulator, currentValue, index) => accumulator + `${index!==0?', ':''}${currentValue}`, '')
+                        client._id.toString(),
+                        district.agent.toString()
                     ]);
                }
            }
-
             let xlsxname = `${randomstring.generate(20)}.xlsx`;
             let xlsxdir = path.join(app.dirname, 'public', 'xlsx');
-            if (!await fs.existsSync(xlsxdir)) {
+            if (!await fs.existsSync(xlsxdir))
                 await fs.mkdirSync(xlsxdir);
-           }
             let xlsxpath = path.join(app.dirname, 'public', 'xlsx', xlsxname);
             await workbook.xlsx.writeFile(xlsxpath);
             return urlMain + '/xlsx/' + xlsxname
        }
    },
-    unloadingAgentRoutes: async(parent, {organization}, {user}) => {
+    downloadAgentRoutes: async(parent, {organization}, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
@@ -764,7 +735,7 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    uploadingItems: async(parent, {document, organization}, {user}) => {
+    uploadItems: async(parent, {document, organization}, {user}) => {
         if (user.role === 'admin') {
             organization = await OrganizationAzyk.findByID(organization).select('_id cities').lean()
             let {stream, filename} = await document;
@@ -825,7 +796,7 @@ const resolversMutation = {
             return  'OK'
        }
    },
-    uploadingClients: async(parent, {document, organization}, {user}) => {
+    uploadClients: async(parent, {document, organization}, {user}) => {
         if (user.role === 'admin') {
             let {stream, filename} = await document;
             let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
@@ -918,7 +889,7 @@ const resolversMutation = {
             return  'OK'
        }
    },
-    uploadingAgentRoute: async(parent, {document, agentRoute}, {user}) => {
+    uploadAgentRoute: async(parent, {document, agentRoute}, {user}) => {
         if (user.role === 'admin') {
             let {stream, filename} = await document;
             let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
@@ -947,52 +918,33 @@ const resolversMutation = {
             return  'OK'
        }
    },
-    uploadingDistricts: async(parent, {document, organization}, {user}) => {
+    uploadDistricts: async(parent, {document, organization}, {user}) => {
         if (user.role === 'admin') {
             let {stream, filename} = await document;
             let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
             let rows = await readXlsxFile(xlsxpath)
-            let integrates = await Integrate1CAzyk.find({
-                organization: organization==='super'?null:organization,
-                $or: [{agent: {$ne: null}}, {client: {$ne: null}}],
-                guid: {$in: rows.flat()}
-           }).select('client agent guid').lean()
-            const clientByGuid = {}, agentByGuid = {}
-            for(const integrate of integrates) {
-                if(integrate.client)
-                    clientByGuid[integrate.guid] = integrate.client
-                else
-                    agentByGuid[integrate.guid] = integrate.agent
-           }
-            const districts = await DistrictAzyk.find({
-                organization: organization==='super'?null:organization,
-                agent: {$in: Object.values(agentByGuid)}
-           }).select('_id agent client').lean()
-            const districtByAgent = {}
-            for(const district of districts) {
-                districtByAgent[district.agent] = {_id: district._id, client: district.client.map(client => client.toString())}
-           }
+            const pullOperations = [];
+            const addToSetOperations = [];
             for(const row of rows) {
-                const agent = agentByGuid[row[0]]
-                const client = clientByGuid[row[1]]
+                const client = row[0]
+                const agent = row[1]
                 if(agent&&client) {
-                    const district = districtByAgent[agent]
-                    if(district) {
-                        const index = district.client.indexOf(client.toString());
-                        if (index === -1) {
-                            district.client.push(client.toString());
-                       }
-                        else {
-                            district.client.splice(index, 1);
-                       }
-                   }
+                    pullOperations.push({
+                        updateOne: {
+                            filter: {client, organization},
+                            update: {$pull: {client}}
+                        }
+                    });
+                    addToSetOperations.push({
+                        updateOne: {
+                            filter: {agent, organization},
+                            update: {$addToSet: {client}}
+                        }
+                    });
                }
            }
-            const bulkOperations = [];
-            for(const district of Object.values(districts)) {
-                bulkOperations.push({updateOne: {filter: {_id: district._id}, update: {$set: {client: district.client}}}})
-           }
-            if (bulkOperations.length) await parallelBulkWrite(DistrictAzyk, bulkOperations);
+            if (pullOperations.length) await parallelBulkWrite(DistrictAzyk, pullOperations);
+            if (addToSetOperations.length) await parallelBulkWrite(DistrictAzyk, addToSetOperations);
             await deleteFile(filename)
             return  'OK'
        }
