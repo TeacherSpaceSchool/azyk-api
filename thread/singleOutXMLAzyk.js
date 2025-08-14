@@ -5,7 +5,7 @@ const {dayStartDefault} = require('../module/const');
 
 connectDB.connect()
 if(!isMainThread) {
-    cron.schedule(`34 4 * * *`, async() => {
+    cron.schedule(`1 ${dayStartDefault} * * *`, async() => {
         const {reductionOutAdsXMLAzyk} = require('../module/singleOutXMLAzyk');
         const OrganizationAzyk = require('../models/organizationAzyk');
         const InvoiceAzyk = require('../models/invoiceAzyk');
