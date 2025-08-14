@@ -6,7 +6,7 @@ const RouteAzyk = require('../models/routeAzyk');
 const mongoose = require('mongoose');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const randomstring = require('randomstring');
-const {tomtom, reductionSearch, isNotEmpty, checkDate, isEmpty, dayStartDefault} = require('../module/const');
+const {tomtom, reductionSearch, isNotEmpty, checkDate, isEmpty, dayStartDefault, defaultLimit} = require('../module/const');
 const axios = require('axios');
 const ExcelJS = require('exceljs');
 const {urlMain, pdDDMMYYYY, checkInt, checkFloat} = require('../module/const');
@@ -62,12 +62,10 @@ const mutation = `
 const resolvers = {
     unloadingInvoicesFromRouting: async(parent, {orders, organization}, {user}) => {
         if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
-            if(organization!=='super') {
+            if(organization!=='super')
                 organization = await OrganizationAzyk.findById(organization).select('name address phone').lean()
-           }
-            else {
+            else
                 organization = await ContactAzyk.findOne().select('name address phone').lean()
-           }
             let workbook = new ExcelJS.Workbook();
             let data = await InvoiceAzyk.find(
                 {
@@ -619,7 +617,7 @@ const resolvers = {
                })
                 .sort(sort)
                 .skip(isNotEmpty(skip) ? skip : 0)
-                .limit(isNotEmpty(skip) ? 15 : 10000000000)
+                .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
                 .lean()
 
        }

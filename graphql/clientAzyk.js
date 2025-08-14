@@ -4,7 +4,7 @@ const BasketAzyk = require('../models/basketAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
-const {deleteFile, urlMain, saveImage, reductionSearch, isNotEmpty, checkDate, unawaited, dayStartDefault} = require('../module/const');
+const {deleteFile, urlMain, saveImage, reductionSearch, isNotEmpty, checkDate, unawaited, dayStartDefault, defaultLimit} = require('../module/const');
 const mongoose = require('mongoose')
 const { v1: uuidv1 } = require('uuid');
 const randomstring = require('randomstring');
@@ -264,12 +264,12 @@ const resolvers = {
                                        }
                                    },
                                     {$skip: isNotEmpty(skip) ? skip : 0},
-                                    {$limit: isNotEmpty(skip) ? 15 : 10000000000},
+                                    {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000},
                                 ]
                                 :
                                 [
                                     {$skip: isNotEmpty(skip) ? skip : 0},
-                                    {$limit: isNotEmpty(skip) ? 15 : 10000000000},
+                                    {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000},
                                     {
                                         $lookup:
                                             {

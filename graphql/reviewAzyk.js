@@ -3,7 +3,7 @@ const ClientAzyk = require('../models/clientAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const mongoose = require('mongoose');
-const {sendPushToAdmin, unawaited, isNotEmpty} = require('../module/const');
+const {sendPushToAdmin, unawaited, isNotEmpty, defaultLimit} = require('../module/const');
 
 const type = `
   type Review {
@@ -45,7 +45,7 @@ const resolvers = {
                    },
                     {$sort : {'createdAt': -1}},
                     {$skip: isNotEmpty(skip) ? skip : 0},
-                    {$limit: isNotEmpty(skip) ? 15 : 10000000000},
+                    {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000},
                     {
                         $lookup:
                             {

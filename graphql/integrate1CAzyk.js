@@ -3,7 +3,7 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const mongoose = require('mongoose');
-const {saveFile, deleteFile, reductionSearch, isNotEmpty} = require('../module/const');
+const {saveFile, deleteFile, reductionSearch, isNotEmpty, defaultLimit} = require('../module/const');
 const readXlsxFile = require('read-excel-file/node');
 const path = require('path');
 const app = require('../app');
@@ -189,7 +189,7 @@ const resolvers = {
                })
                 .sort('-createdAt')
                 .skip(isNotEmpty(skip)?skip:0)
-                .limit(isNotEmpty(skip)?15:10000000000)
+                .limit(isNotEmpty(skip)?defaultLimit:10000000000)
                 .lean()
             for(let i=0; i<integrate1Cs.length; i++) {
                 if(integrate1Cs[i].client) {

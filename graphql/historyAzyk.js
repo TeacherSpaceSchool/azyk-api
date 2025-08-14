@@ -1,5 +1,5 @@
 const HistoryAzyk = require('../models/historyAzyk');
-const {reductionSearch, isNotEmpty} = require('../module/const');
+const {reductionSearch, isNotEmpty, defaultLimit} = require('../module/const');
 
 const type = `
   type History {
@@ -41,7 +41,7 @@ const resolvers = {
                })
                 .sort('-createdAt')
                 .skip(isNotEmpty(skip)?skip:0)
-                .limit(isNotEmpty(skip)?15:10000000000)
+                .limit(isNotEmpty(skip)?defaultLimit:10000000000)
                 .lean()
        }
    }

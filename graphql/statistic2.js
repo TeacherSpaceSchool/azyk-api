@@ -5,12 +5,38 @@ const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const {weekDay, pdDDMMYYHHMM, checkFloat, month, checkDate, dayStartDefault} = require('../module/const');
 
 const query = `
+    ordersMap(organization: ID, date: Date, online: Boolean, city: String, district: ID): [[String]]
     statisticOrdersOffRoute(type: String, organization: ID, dateStart: Date, dateEnd: Date, online: Boolean, city: String, district: ID): Statistic
     statisticHours(organization: ID!, dateStart: Date, dateEnd: Date, city: String, type: String!): Statistic
     statisticUnsyncOrder: Statistic
 `;
 
 const resolvers = {
+    ordersMap: async(parent, {organization, date, online, city}, {user}) => {
+        if(['admin', 'суперорганизация'].includes(user.role)) {
+            if(user.organization) organization = user.organization
+            const dateStart = checkDate(date)
+            dateStart.setHours(dayStartDefault, 0, 0, 0)
+            const dateEnd = new Date(dateStart)
+            dateEnd.setDate(dateEnd.getDate() + 1)
+            const geos = []
+            const invoices = await InvoiceAzyk.find({
+                createdAt: {$gte: dateStart, $lt: dateEnd},
+                taken: true,
+                del: {$ne: 'deleted'},
+                'address.1': {$nin: [null, '', '42.8700000, 74.5900000']},
+                ...city?{city}:{},
+                ...organization?{organization}:{},
+                ...online?{agent: null}:{}
+            })
+                .select('_id address')
+                .lean()
+            for(const invoice of invoices) {
+                geos.push(invoice.address[1].split(', '))
+            }
+            return geos;
+        }
+    },
     statisticOrdersOffRoute: async(parent, {type, organization, dateStart, dateEnd, online, city, district}, {user}) => {
         if(['admin', 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization

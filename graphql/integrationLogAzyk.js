@@ -1,5 +1,5 @@
 const IntegrationLogAzyk = require('../models/integrationLogAzyk');
-const {isNotEmpty} = require('../module/const');
+const {isNotEmpty, defaultLimit} = require('../module/const');
 
 const type = `
   type IntegrationLog {
@@ -20,7 +20,7 @@ const resolvers = {
             return await IntegrationLogAzyk.find({...filter?{path: filter}:{}, organization})
                 .sort('-createdAt')
                 .skip(isNotEmpty(skip)?skip:0)
-                .limit(isNotEmpty(skip)?15:10000000000)
+                .limit(isNotEmpty(skip)?defaultLimit:10000000000)
                 .lean()
        }
    }

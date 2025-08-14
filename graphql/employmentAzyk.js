@@ -2,7 +2,7 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const UserAzyk = require('../models/userAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
-const {reductionSearch, unawaited, isNotEmpty} = require('../module/const');
+const {reductionSearch, unawaited, isNotEmpty, defaultLimit} = require('../module/const');
 const randomstring = require('randomstring');
 const {addHistory, historyTypes} = require('../module/history');
 
@@ -54,7 +54,7 @@ const resolvers = {
                 name: {$regex: reductionSearch(search), $options: 'i'}
            })
                 .skip(isNotEmpty(skip)?skip:0)
-                .limit(isNotEmpty(skip)?15:10000000000)
+                .limit(isNotEmpty(skip)?defaultLimit:10000000000)
                 .populate({
                     path: 'user',
                     select: '_id role status login'

@@ -1,4 +1,5 @@
 const ErrorAzyk = require('../models/errorAzyk');
+const UserAzyk = require('../models/userAzyk');
 const {checkFloat} = require('../module/const');
 
 const type = `
@@ -20,6 +21,14 @@ const mutation = `
     addError(err: String!, path: String!): String
 `;
 
+const getLoginFromPath = (path) => {
+    if(path&&path.includes(', login: ')) {
+        let splitError = path.split(', login: ');
+        splitError = splitError[1].split(', name: ');
+        return splitError[0].trim()
+    }
+}
+
 const resolvers = {
     errors: async(parent, ctx, {user}) => {
         if('admin'===user.role) {
@@ -29,44 +38,51 @@ const resolvers = {
     errorsStatistic: async(parent, ctx, {user}) => {
         if('admin'===user.role) {
             const errors = await ErrorAzyk.find().sort('-createdAt').lean()
-            let allErrors = 0, allPaths = []
+            let allErrors = 0, allClients = [], allEmployments = []
             const parsedErrors = {}
+            const logins = (errors.filter(error => error.path&&error.path.includes(', login: '))).map(error => getLoginFromPath(error.path))
+            const users = await UserAzyk.find({login: {$in: logins}}).select('_id login role').lean()
+            const userByLogin = {}
+            for (const user of users) {
+                userByLogin[user.login] = user
+            }
             for (const error of errors) {
                 let ID = error.err
                 if(ID.includes('gql: String cannot represent value')) ID = 'gql: String cannot represent value'
                 if(!parsedErrors[ID]) {
                     parsedErrors[ID] = {
                         error: error.err,
-                        count: 0,
-                        repeats: {},
-                        paths: []
+                        clients: [],
+                        employments: [],
+                        count: 0
                     }
                     allErrors += 1
                 }
                 parsedErrors[ID].count += 1
-                if(!parsedErrors[ID].paths.includes(error.path))
-                    parsedErrors[ID].paths = [...parsedErrors[ID].paths, error.path]
-                if(!allPaths.includes(error.path))
-                    allPaths = [...allPaths, error.path]
-                if(!parsedErrors[ID].repeats[error.path])
-                    parsedErrors[ID].repeats[error.path] = 0
-                parsedErrors[ID].repeats[error.path] += 1
+                const login = getLoginFromPath(error.path)
+                if(login&&userByLogin[login]) {
+                    const _id = userByLogin[login]._id.toString()
+                    if(userByLogin[login].role==='client'&&!parsedErrors[ID].clients.includes(_id)) {
+                        parsedErrors[ID].clients.push(_id)
+                        if(!allClients.includes(_id))
+                            allClients.push(_id)
+                    }
+                    else if(!parsedErrors[ID].employments.includes(_id)) {
+                        parsedErrors[ID].employments.push(_id)
+                        if(!allEmployments.includes(_id))
+                            allEmployments.push(_id)
+                    }
+                }
             }
             let errorsStatistic = []
             for(const key in parsedErrors) {
-                let repeats = 0
-                for (const repeatKey in parsedErrors[key].repeats) {
-                    if (parsedErrors[key].repeats[repeatKey]>1) {
-                        repeats += 1
-                    }
-                }
                 errorsStatistic.push({
                     _id: key,
                     data: [
                         parsedErrors[key].error,
-                        repeats,
-                        parsedErrors[key].paths.length,
                         parsedErrors[key].count,
+                        parsedErrors[key].clients.length,
+                        parsedErrors[key].employments.length,
                     ]
                 })
             }
@@ -77,14 +93,15 @@ const resolvers = {
                 {
                     _id: 'All',
                     data: [
-                        allPaths.length,
-                        allErrors
+                        allErrors,
+                        allClients.length,
+                        allEmployments.length
                     ]
                 },
                 ...errorsStatistic
             ]
             return {
-                columns: ['ошибка', 'повторы', 'пользователи', 'количество'],
+                columns: ['ошибка', 'количество', 'клиенты', 'сотрудники'],
                 row: errorsStatistic
             };
        }

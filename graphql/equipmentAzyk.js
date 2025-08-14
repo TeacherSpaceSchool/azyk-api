@@ -4,7 +4,7 @@ const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const path = require('path');
 const fs = require('fs');
-const {urlMain, saveImage, reductionSearch, isNotEmpty} = require('../module/const');
+const {urlMain, saveImage, reductionSearch, isNotEmpty, defaultLimit} = require('../module/const');
 const app = require('../app');
 const ClientAzyk = require('../models/clientAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
@@ -131,7 +131,7 @@ const resolvers = {
                 ]
            })
                 .skip(isNotEmpty(skip)?skip:0)
-                .limit(isNotEmpty(skip)?15:10000000000)
+                .limit(isNotEmpty(skip)?defaultLimit:10000000000)
                 .populate({
                     path: 'client',
                     select: 'name _id address'

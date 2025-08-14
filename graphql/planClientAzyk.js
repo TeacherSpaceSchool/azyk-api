@@ -2,7 +2,7 @@ const PlanClient = require('../models/planClientAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
-const {saveFile, deleteFile, checkInt, urlMain, reductionSearch, isNotEmpty, dayStartDefault} = require('../module/const');
+const {saveFile, deleteFile, checkInt, urlMain, reductionSearch, isNotEmpty, dayStartDefault, defaultLimit} = require('../module/const');
 const path = require('path');
 const readXlsxFile = require('read-excel-file/node');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
@@ -206,7 +206,7 @@ const resolvers = {
            })
                 .sort('-createdAt')
                 .skip(isNotEmpty(skip)?skip:0)
-                .limit(isNotEmpty(skip)?15:10000000000)
+                .limit(isNotEmpty(skip)?defaultLimit:10000000000)
                 .populate({
                     path: 'client',
                     select: '_id name address'

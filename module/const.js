@@ -228,7 +228,7 @@ module.exports.generateUniqueNumber = async (table, numbers = []) => {
 
 module.exports.checkDate = (date) => {
     const parsed = new Date(date);
-    return Number.isNaN(parsed) ? new Date() : parsed;
+    return Number.isNaN(parsed)||parsed=='Invalid Date' ? new Date() : parsed;
 };
 
 module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Боконбаева', 'Жалал-Абад', 'Кара-Балта', 'Каракол', 'Казарман', 'Кочкор', 'Кызыл-Кия', 'Нарын', 'Ош', 'Раззаков', 'Талас', 'Токмок', 'Чолпон-Ата', 'Москва'];
@@ -237,6 +237,7 @@ module.exports.formatErrorDetails = (err) => {
     return (err.stack&&err.message).slice(0, 250);
 }
 
+module.exports.defaultLimit = 20;
 module.exports.statsCollection = statsCollection;
 module.exports.getGeoDistance = getGeoDistance;
 module.exports.checkInt = checkInt;

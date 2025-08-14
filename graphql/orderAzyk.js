@@ -15,7 +15,9 @@ const {pubsub} = require('./index');
 const {withFilter} = require('graphql-subscriptions');
 const RELOAD_ORDER = 'RELOAD_ORDER';
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
-const {checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault} = require('../module/const');
+const {checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault,
+    defaultLimit
+} = require('../module/const');
 const {checkAdss} = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
 const { v1: uuidv1 } = require('uuid');
@@ -305,7 +307,7 @@ const resolvers = {
                 },
                 {$sort: _sort},
                 {$skip: isNotEmpty(skip) ? skip : 0},
-                {$limit: isNotEmpty(skip) ? 15 : 10000000000},
+                {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000},
                 {
                     $lookup:
                         {

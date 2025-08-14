@@ -2,7 +2,7 @@ const OutXMLAzyk = require('../models/singleOutXMLAzyk');
 const OutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const ReturnedAzyk = require('../models/returnedAzyk');
-const {reductionSearch, isNotEmpty} = require('../module/const');
+const {reductionSearch, isNotEmpty, defaultLimit} = require('../module/const');
 
 const type = `
   type OutXMLShoro{
@@ -60,7 +60,7 @@ const resolvers = {
                })
                 .sort('-createdAt')
                 .skip(isNotEmpty(skip)?skip:0)
-                .limit(isNotEmpty(skip)?15:10000000000)
+                .limit(isNotEmpty(skip)?defaultLimit:10000000000)
                 .lean()
             return outXMLShoro
        }

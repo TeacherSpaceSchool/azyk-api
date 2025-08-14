@@ -2,7 +2,7 @@ const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const {saveImage, deleteFile, urlMain, isNotTestUser, reductionSearch, isNotEmpty, dayStartDefault} = require('../module/const');
+const {saveImage, deleteFile, urlMain, isNotTestUser, reductionSearch, isNotEmpty, dayStartDefault, defaultLimit} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
 
 const type = `
@@ -263,7 +263,7 @@ const resolvers = {
                 organization
            })
                 .skip(isNotEmpty(skip)?skip:0)
-                .limit(isNotEmpty(skip)?15:10000000000)
+                .limit(isNotEmpty(skip)?defaultLimit:10000000000)
                 .populate({
                     path: 'item',
                     select: 'name _id'
