@@ -63,7 +63,7 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
                 // eslint-disable-next-line no-undef
                 const [integrateClient, integrateAgent, integrateEcspeditor] = await Promise.all([
                     Integrate1CAzyk.findOne({client: returned.client._id, organization: returned.organization._id}).select('guid').lean(),
-                    Integrate1CAzyk.findOne({agent: district.agent, organization: returned.organization._id}).select('guid').lean(),
+                    Integrate1CAzyk.findOne({agent: returned.agent?returned.agent._id:district.agent, organization: returned.organization._id}).select('guid').lean(),
                     Integrate1CAzyk.findOne({ecspeditor: district.ecspeditor, organization: returned.organization._id}).select('guid').lean()
                 ])
                 if (integrateClient && integrateAgent && integrateEcspeditor) {
@@ -169,7 +169,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
                 // eslint-disable-next-line no-undef
                 const [integrateClient, integrateAgent, integrateEcspeditor] = await Promise.all([
                     Integrate1CAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id}).select('guid').lean(),
-                    Integrate1CAzyk.findOne({agent: district.agent, organization: invoice.organization._id}).select('guid').lean(),
+                    Integrate1CAzyk.findOne({agent: invoice.agent?invoice.agent._id:district.agent, organization: invoice.organization._id}).select('guid').lean(),
                     Integrate1CAzyk.findOne({ecspeditor: district.ecspeditor, organization: invoice.organization._id}).select('guid').lean()
                 ])
                 if (integrateClient && integrateAgent && integrateEcspeditor) {
