@@ -1,5 +1,5 @@
 const StockAzyk = require('../models/stockAzyk');
-const {reductionSearch} = require('../module/const');
+const {reductionSearchText} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const Item = require('../models/itemAzyk');
@@ -54,7 +54,7 @@ const resolvers = {
             // eslint-disable-next-line no-undef
             const [subBrand, searchedItems] = await Promise.all([
                 SubBrandAzyk.findById(organization).select('organization _id').lean(),
-                search?ItemAzyk.find({name: {$regex: reductionSearch(search), $options: 'i'}}).distinct('_id'):null,
+                search?ItemAzyk.find({name: {$regex: reductionSearchText(search), $options: 'i'}}).distinct('_id'):null,
             ])
             if(subBrand) organization = subBrand.organization
             let warehouse

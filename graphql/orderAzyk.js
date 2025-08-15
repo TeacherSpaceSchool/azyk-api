@@ -14,7 +14,9 @@ const {pubsub} = require('./index');
 const {withFilter} = require('graphql-subscriptions');
 const RELOAD_ORDER = 'RELOAD_ORDER';
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
-const {checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault, defaultLimit} = require('../module/const');
+const {
+    checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault, defaultLimit, reductionSearchText
+} = require('../module/const');
 const {checkAdss} = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
 const { v1: uuidv1 } = require('uuid');
@@ -202,8 +204,8 @@ const resolvers = {
                     //поиск
                     ...search?{$or: [
                             {number: {$regex: reductionSearch(search), $options: 'i'}},
-                            {info: {$regex: reductionSearch(search), $options: 'i'}},
-                            {address: {$regex: reductionSearch(search), $options: 'i'}}
+                            {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                            {address: {$regex: reductionSearchText(search), $options: 'i'}}
                         ]}:{},
                 }
             )
@@ -295,8 +297,8 @@ const resolvers = {
                         //поиск
                         ...search?{$or: [
                                 {number: {$regex: reductionSearch(search), $options: 'i'}},
-                                {info: {$regex: reductionSearch(search), $options: 'i'}},
-                                {address: {$regex: reductionSearch(search), $options: 'i'}}
+                                {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                                {address: {$regex: reductionSearchText(search), $options: 'i'}}
                             ]}:{},
                     }
                 },

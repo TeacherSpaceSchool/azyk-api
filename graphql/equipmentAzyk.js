@@ -4,7 +4,7 @@ const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const path = require('path');
 const fs = require('fs');
-const {urlMain, saveImage, reductionSearch, isNotEmpty, defaultLimit} = require('../module/const');
+const {urlMain, saveImage, reductionSearch, isNotEmpty, defaultLimit, reductionSearchText} = require('../module/const');
 const app = require('../app');
 const ClientAzyk = require('../models/clientAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
@@ -102,9 +102,9 @@ const resolvers = {
                 search?ClientAzyk.find({
                     del: {$ne: 'deleted'},
                     ...search?{$or: [
-                            {name: {$regex: reductionSearch(search), $options: 'i'}},
-                            {info: {$regex: reductionSearch(search), $options: 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                            {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                            {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
                         ]}:{}
                }).distinct('_id'):null
             ])
@@ -161,9 +161,9 @@ const resolvers = {
                 search?ClientAzyk.find({
                     del: {$ne: 'deleted'},
                     ...search?{$or: [
-                            {name: {$regex: reductionSearch(search), $options: 'i'}},
-                            {info: {$regex: reductionSearch(search), $options: 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                            {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                            {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
                         ]}:{}
                }).distinct('_id'):null
             ])

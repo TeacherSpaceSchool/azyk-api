@@ -4,7 +4,7 @@ const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const BasketAzyk = require('../models/basketAzyk');
 const mongoose = require('mongoose');
-const {saveImage, deleteFile, urlMain, reductionSearch, isNotEmpty, unawaited} = require('../module/const');
+const {saveImage, deleteFile, urlMain, reductionSearchText, isNotEmpty, unawaited} = require('../module/const');
 const {addHistory, historyTypes} = require('../module/history');
 
 // OLD
@@ -59,7 +59,7 @@ const resolvers = {
             organization = user.organization||organization
             return await ItemAzyk.find({
                 del: {$ne: 'deleted'},
-                name: {$regex: reductionSearch(search), $options: 'i'},
+                name: {$regex: reductionSearchText(search), $options: 'i'},
                 ...organization?{organization}:{},
                 ...user.city ? {city: user.city} : {},
                 ...user.role==='client'?{status: 'active', categorys: user.category}:{}
@@ -92,7 +92,7 @@ const resolvers = {
                 del: {$ne: 'deleted'},
                 ...city ? {city} : {},
                 ...user.role === 'client' ? {categorys: user.category} : {},
-                ...search?{name: {$regex: reductionSearch(search), $options: 'i'}}:{}
+                ...search?{name: {$regex: reductionSearchText(search), $options: 'i'}}:{}
             })
                 .sort('-priotiry name')
                 .lean()

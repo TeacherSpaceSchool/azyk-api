@@ -2,7 +2,7 @@ const MerchandisingAzyk = require('../models/merchandisingAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
-const {saveBase64ToFile, urlMain, deleteFile, reductionSearch, unawaited, isNotEmpty} = require('../module/const');
+const {saveBase64ToFile, urlMain, deleteFile, unawaited, isNotEmpty, reductionSearchText} = require('../module/const');
 const {sendWebPush} = require('../module/webPush');
 const EmploymentAzyk = require('../models/employmentAzyk');
 
@@ -74,8 +74,9 @@ const resolvers = {
                     .find({$or: [{manager: user.employment}, {agent: user.employment}]})
                     .distinct('client'):null,
                 search?ClientAzyk.find({$or: [
-                    {name: {$regex: reductionSearch(search), $options: 'i'}},
-                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                    {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                    {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
                 ]}).distinct('_id'):null
             ])
             return await MerchandisingAzyk.find({

@@ -1,6 +1,6 @@
 const SingleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const {reductionSearch} = require('../module/const');
+const {reductionSearchText} = require('../module/const');
 
 
 const type = `
@@ -35,7 +35,7 @@ const resolvers = {
         if (user.role === 'admin') {
             let searchedDistricts;
             if (search) {
-                searchedDistricts = await DistrictAzyk.find({name: {$regex: reductionSearch(search), $options: 'i'}}).distinct('_id').lean()
+                searchedDistricts = await DistrictAzyk.find({name: {$regex: reductionSearchText(search), $options: 'i'}}).distinct('_id').lean()
            }
             return await SingleOutXMLAdsAzyk.find({
                 organization, ...search?{district: {'$in': searchedDistricts}}:{}

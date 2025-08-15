@@ -2,7 +2,7 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const UserAzyk = require('../models/userAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
-const {reductionSearch, unawaited, isNotEmpty, defaultLimit} = require('../module/const');
+const {unawaited, isNotEmpty, defaultLimit, reductionSearchText} = require('../module/const');
 const randomstring = require('randomstring');
 const {addHistory, historyTypes} = require('../module/history');
 
@@ -51,7 +51,7 @@ const resolvers = {
                 organization: user.organization||(organization==='super'?null:organization),
                 del: {$ne: 'deleted'},
                 ...filter && filter.length ? {user: {$in: filteredUsers}} : {},
-                name: {$regex: reductionSearch(search), $options: 'i'}
+                name: {$regex: reductionSearchText(search), $options: 'i'}
            })
                 .skip(isNotEmpty(skip)?skip:0)
                 .limit(isNotEmpty(skip)?defaultLimit:10000000000)
@@ -82,7 +82,7 @@ const resolvers = {
                 organization: user.organization||(organization==='super'?null:organization),
                 del: {$ne: 'deleted'},
                 ...filter && filter.length ? {user: {$in: filteredUsers}} : {},
-                name: {$regex: reductionSearch(search), $options: 'i'}
+                name: {$regex: reductionSearchText(search), $options: 'i'}
            })
        }
    },

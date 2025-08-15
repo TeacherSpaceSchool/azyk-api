@@ -6,7 +6,9 @@ const DistrictAzyk = require('../models/districtAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const BasketAzyk = require('../models/basketAzyk');
-const {saveImage, saveFile, deleteFile, urlMain, isTestUser, isNotTestUser, reductionSearch, isNotEmpty, unawaited} = require('../module/const');
+const {
+    saveImage, saveFile, deleteFile, urlMain, isTestUser, isNotTestUser, isNotEmpty, unawaited, reductionSearchText
+} = require('../module/const');
 const {deleteOrganizations} = require('../module/organizations');
 const {addHistory, historyTypes} = require('../module/history');
 
@@ -134,7 +136,7 @@ const resolvers = {
         //filter поиска
         const getFilter = (_ids) => ({
             _id: {$in: _ids},
-            name: {$regex: reductionSearch(search), $options: 'i'},
+            name: {$regex: reductionSearchText(search), $options: 'i'},
             status:
                 (isAdmin || isTestUser(user))
                     ? filter.length === 0
@@ -196,7 +198,7 @@ const resolvers = {
    },
     organizations: async(parent, {search, filter, city}, {user}) => {
         return await OrganizationAzyk.find({
-            name: {$regex: reductionSearch(search), $options: 'i'},
+            name: {$regex: reductionSearchText(search), $options: 'i'},
             ...(isNotTestUser(user)&&user.role!=='admin')?{status:'active'}:filter?{status: filter}:{},
             ...city?{cities: city}:{},
             ...user.organization?{_id: user.organization}:{},

@@ -5,7 +5,7 @@ const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
 const {setSingleOutXMLReturnedAzykLogic} = require('../module/singleOutXMLAzyk');
-const {checkFloat, reductionSearch, isNotEmpty, checkDate, dayStartDefault, defaultLimit} = require('../module/const');
+const {checkFloat, reductionSearch, isNotEmpty, checkDate, dayStartDefault, defaultLimit, reductionSearchText} = require('../module/const');
 const RELOAD_RETURNED = 'RELOAD_RETURNED';
 const HistoryReturnedAzyk = require('../models/historyReturnedAzyk');
 const mongoose = require('mongoose');
@@ -154,7 +154,7 @@ const resolvers = {
                 ...search ? {
                         $or: [
                             {number: {$regex: reductionSearch(search), $options: 'i'}},
-                            {address: {$regex: reductionSearch(search), $options: 'i'}}
+                            {address: {$regex: reductionSearchText(search), $options: 'i'}}
                         ]
                    }:{},
                 //только в своей организации
@@ -347,9 +347,9 @@ const resolvers = {
                         ...city?{city}:{},
                         //поиск
                         ...search?{$or: [
-                                {number: {$regex: reductionSearch(search), $options: 'i'}},
-                                {info: {$regex: reductionSearch(search), $options: 'i'}},
-                                {address: {$regex: reductionSearch(search), $options: 'i'}}
+                                {number: {$regex: reductionSearchText(search), $options: 'i'}},
+                                {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                                {address: {$regex: reductionSearchText(search), $options: 'i'}}
                             ]}:{},
                         //только в своей организации
                         ...user.organization ? {organization: user.organization}:{},

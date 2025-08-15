@@ -1,5 +1,5 @@
 const BlogAzyk = require('../models/blogAzyk');
-const {saveImage, deleteFile, urlMain, reductionSearch} = require('../module/const');
+const {saveImage, deleteFile, urlMain, reductionSearchText} = require('../module/const');
 
 const type = `
   type Blog {
@@ -24,7 +24,7 @@ const mutation = `
 const resolvers = {
     blogs: async(parent, {search}) => {
         return await BlogAzyk.find({
-            title: {$regex: reductionSearch(search), $options: 'i'}
+            title: {$regex: reductionSearchText(search), $options: 'i'}
        })
             .sort('-createdAt')
             .lean()

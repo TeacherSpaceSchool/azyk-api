@@ -1,5 +1,5 @@
 const FaqAzyk = require('../models/faqAzyk');
-const {saveFile, deleteFile, urlMain, reductionSearch, saveImage} = require('../module/const');
+const {saveFile, deleteFile, urlMain, saveImage, reductionSearchText} = require('../module/const');
 
 const type = `
   type Faq {
@@ -31,7 +31,7 @@ const resolvers = {
             else if (user.role!=='admin')
                 typex = 'сотрудники'
             return await FaqAzyk.find({
-                ...search?{title: {$regex: reductionSearch(search), $options: 'i'}}:{},
+                ...search?{title: {$regex: reductionSearchText(search), $options: 'i'}}:{},
                 ...typex?{typex}:{}
            }).sort('title').lean()
        }

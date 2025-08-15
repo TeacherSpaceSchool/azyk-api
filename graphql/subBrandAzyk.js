@@ -1,6 +1,6 @@
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const ItemAzyk = require('../models/itemAzyk');
-const {saveImage, deleteFile, urlMain, reductionSearch, isNotEmpty, unawaited} = require('../module/const');
+const {saveImage, deleteFile, urlMain, reductionSearchText, isNotEmpty, unawaited} = require('../module/const');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const {addHistory, historyTypes} = require('../module/history');
 
@@ -40,8 +40,8 @@ const resolvers = {
             return await SubBrandAzyk.find({
                 del: {$ne: 'deleted'},
                 ...search?{$or: [
-                    {name: {$regex: reductionSearch(search), $options: 'i'}},
-                    {miniInfo: {$regex: reductionSearch(search), $options: 'i'}}
+                    {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                    {miniInfo: {$regex: reductionSearchText(search), $options: 'i'}}
                 ]}:{},
                 ...organization?{organization}:{},
                 ...city?{cities: city}:{},

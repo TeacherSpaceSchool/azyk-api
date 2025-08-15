@@ -1,7 +1,7 @@
 const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const {saveImage, deleteFile, urlMain, isNotTestUser, reductionSearch, isNotEmpty, defaultLimit, dayStartDefault} = require('../module/const');
+const {saveImage, deleteFile, urlMain, isNotTestUser, isNotEmpty, defaultLimit, reductionSearchText} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
 
 const type = `
@@ -261,7 +261,7 @@ const resolvers = {
             organization = user.organization||organization
             return await AdsAzyk.find({
                 del: {$ne: 'deleted'},
-                ...search?{title: {$regex: reductionSearch(search), $options: 'i'}}:{},
+                ...search?{title: {$regex: reductionSearchText(search), $options: 'i'}}:{},
                 organization
            })
                 .skip(isNotEmpty(skip)?skip:0)

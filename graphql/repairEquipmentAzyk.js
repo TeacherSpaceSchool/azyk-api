@@ -3,7 +3,7 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
-const {reductionSearch, isNotEmpty} = require('../module/const');
+const {reductionSearch, isNotEmpty, reductionSearchText} = require('../module/const');
 
 const type = `
   type RepairEquipment {
@@ -42,10 +42,11 @@ const resolvers = {
             // eslint-disable-next-line no-undef
             const [employmentClients, searchedAgents, searchedClients] = await Promise.all([
                 ['агент', 'менеджер'].includes(user.role)?DistrictAzyk.find({agent: user.employment}).distinct('client'):null,
-                search?EmploymentAzyk.find({name: {$regex: reductionSearch(search), $options: 'i'}}).distinct('_id'):null,
+                search?EmploymentAzyk.find({name: {$regex: reductionSearchText(search), $options: 'i'}}).distinct('_id'):null,
                 search?ClientAzyk.find({$or: [
-                        {name: {$regex: reductionSearch(search), $options: 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                        {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
                     ]}).distinct('_id'):null
             ])
             return await RepairEquipmentAzyk.find({

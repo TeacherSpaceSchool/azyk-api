@@ -6,7 +6,7 @@ const RouteAzyk = require('../models/routeAzyk');
 const mongoose = require('mongoose');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const randomstring = require('randomstring');
-const {tomtom, reductionSearch, isNotEmpty, checkDate, isEmpty, dayStartDefault, defaultLimit} = require('../module/const');
+const {tomtom, reductionSearchText, isNotEmpty, checkDate, isEmpty, dayStartDefault, defaultLimit} = require('../module/const');
 const axios = require('axios');
 const ExcelJS = require('exceljs');
 const {urlMain, pdDDMMYYYY, checkInt, checkFloat} = require('../module/const');
@@ -595,7 +595,7 @@ const resolvers = {
             let district
             if(search) {
                 searchedEmployments = await EmploymentAzyk.find({
-                    name: {$regex: reductionSearch(search), $options: 'i'}
+                    name: {$regex: reductionSearchText(search), $options: 'i'}
                }).distinct('_id')
            }
             if(['менеджер', 'агент'].includes(user.role)) {

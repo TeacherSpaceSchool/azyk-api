@@ -3,7 +3,7 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const mongoose = require('mongoose');
-const {saveFile, deleteFile, reductionSearch, isNotEmpty, defaultLimit} = require('../module/const');
+const {saveFile, deleteFile, reductionSearch, isNotEmpty, defaultLimit, reductionSearchText} = require('../module/const');
 const readXlsxFile = require('read-excel-file/node');
 const path = require('path');
 const app = require('../app');
@@ -46,18 +46,19 @@ const resolvers = {
             // eslint-disable-next-line no-undef
             const [searchedItems, searchedClients, searchedEmployments] = await Promise.all([
                 search?ItemAzyk.find({
-                    name: {$regex: reductionSearch(search), $options: 'i'},
+                    name: {$regex: reductionSearchText(search), $options: 'i'},
                     del: {$ne: 'deleted'}, organization
                }).distinct('_id'):null,
                 search?ClientAzyk.find({
                     $or: [
-                        {name: {$regex: reductionSearch(search), $options: 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                        {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
                     ],
                     del: {$ne: 'deleted'}
                }).distinct('_id'):null,
                 search?EmploymentAzyk.find({
-                    name: {$regex: reductionSearch(search), $options: 'i'},
+                    name: {$regex: reductionSearchText(search), $options: 'i'},
                     del: {$ne: 'deleted'}, organization
                }).distinct('_id'):null
             ])
@@ -91,7 +92,7 @@ const resolvers = {
                 !filter||filter==='агент'?(async () => {
                     let agents =  await Integrate1CAzyk.find({organization, agent: {$ne: null}}).distinct('agent')
                     agents = await EmploymentAzyk.find({
-                        name: {$regex: reductionSearch(search), $options: 'i'}, organization, _id: {$nin: agents}, del: {$ne: 'deleted'}
+                        name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: agents}, del: {$ne: 'deleted'}
                    }).populate({path: 'user', match: {role: organization?'агент':'суперагент', status: 'active'}}).select('user').lean()
                     agents = agents.filter(agent => (agent.user))
                     return agents.length
@@ -99,7 +100,7 @@ const resolvers = {
                 !filter||filter==='экспедитор'?(async () => {
                     let ecspeditors =  await Integrate1CAzyk.find({organization, ecspeditor: {$ne: null}}).distinct('ecspeditor')
                     ecspeditors = await EmploymentAzyk.find({
-                        name: {$regex: reductionSearch(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
+                        name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
                    })
                         .populate({path: 'user', match: {role: organization?'экспедитор':'суперэкспедитор', status: 'active'}}).lean()
                     ecspeditors = ecspeditors.filter(ecspeditor => (ecspeditor.user))
@@ -108,7 +109,7 @@ const resolvers = {
                 !filter||filter==='товар'?(async () => {
                     let items =  await Integrate1CAzyk.find({organization, item: {$ne: null}}).distinct('item')
                     return ItemAzyk.countDocuments({
-                        name: {$regex: reductionSearch(search), $options: 'i'}, _id: {$nin: items}, organization, del: {$ne: 'deleted'}
+                        name: {$regex: reductionSearchText(search), $options: 'i'}, _id: {$nin: items}, organization, del: {$ne: 'deleted'}
                    })
                })():null,
                 !filter||filter==='клиент'?(async () => {
@@ -116,9 +117,9 @@ const resolvers = {
                     return ClientAzyk.countDocuments({
                         _id: {$nin: clients}, del: {$ne: 'deleted'},
                         $or: [
-                            {name: {$regex: reductionSearch(search), $options: 'i'}},
-                            {info: {$regex: reductionSearch(search), $options: 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                            {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                            {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
                         ]
                    }).populate({path: 'user', match: {status: 'active'}}).lean()
                })():null,
@@ -132,18 +133,19 @@ const resolvers = {
             // eslint-disable-next-line no-undef
             const [searchedItems, searchedClients, searchedEmployments] = await Promise.all([
                 search?ItemAzyk.find({
-                    name: {$regex: reductionSearch(search), $options: 'i'},
+                    name: {$regex: reductionSearchText(search), $options: 'i'},
                     del: {$ne: 'deleted'}, organization
                }).distinct('_id'):null,
                 search?ClientAzyk.find({
                     $or: [
-                        {name: {$regex: reductionSearch(search), $options: 'i'}},
-                        {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                        {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
                     ],
                     del: {$ne: 'deleted'}
                }).distinct('_id'):null,
                 search?EmploymentAzyk.find({
-                    name: {$regex: reductionSearch(search), $options: 'i'},
+                    name: {$regex: reductionSearchText(search), $options: 'i'},
                     del: {$ne: 'deleted'}, organization
                }).distinct('_id'):null
             ])
@@ -206,7 +208,7 @@ const resolvers = {
             organization = organization==='super'?null:organization
             let ecspeditors =  await Integrate1CAzyk.find({organization, ecspeditor: {$ne: null}}).distinct('ecspeditor')
             ecspeditors = await EmploymentAzyk.find({
-                name: {$regex: reductionSearch(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
+                name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
            })
                 .populate({path: 'user', match: {role: organization?'экспедитор':'суперэкспедитор', status: 'active'}}).lean()
             ecspeditors = ecspeditors.filter(ecspeditor => (ecspeditor.user))
@@ -219,7 +221,7 @@ const resolvers = {
             organization = organization==='super'?null:organization
             let agents =  await Integrate1CAzyk.find({organization, agent: {$ne: null}}).distinct('agent')
             agents = await EmploymentAzyk.find({
-                name: {$regex: reductionSearch(search), $options: 'i'}, organization, _id: {$nin: agents}, del: {$ne: 'deleted'}
+                name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: agents}, del: {$ne: 'deleted'}
            }).populate({path: 'user', match: {role: organization?'агент':'суперагент', status: 'active'}}).lean()
             agents = agents.filter(agent => (agent.user))
             return agents
@@ -233,9 +235,9 @@ const resolvers = {
             clients = await ClientAzyk.find({
                 _id: {$nin: clients}, city: organization.cities[0], del: {$ne: 'deleted'},
                 $or: [
-                    {name: {$regex: reductionSearch(search), $options: 'i'}},
-                    {info: {$regex: reductionSearch(search), $options: 'i'}},
-                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                    {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                    {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
                 ]
            }).populate({path: 'user', match: {status: 'active'}}).lean()
             for(let i=0; i<clients.length; i++) {
@@ -251,7 +253,7 @@ const resolvers = {
         if(mongoose.Types.ObjectId.isValid(organization)&&user.role==='admin') {
             let items =  await Integrate1CAzyk.find({organization, item: {$ne: null}}).distinct('item')
             items = await ItemAzyk.find({
-                name: {$regex: reductionSearch(search), $options: 'i'}, _id: {$nin: items}, organization, del: {$ne: 'deleted'}
+                name: {$regex: reductionSearchText(search), $options: 'i'}, _id: {$nin: items}, organization, del: {$ne: 'deleted'}
            }).lean()
             return items
        }

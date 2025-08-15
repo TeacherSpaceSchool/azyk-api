@@ -1,7 +1,7 @@
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
-const {reductionSearch} = require('../module/const');
+const {reductionSearchText} = require('../module/const');
 
 const type = `
   type AgentRoute {
@@ -30,7 +30,7 @@ const resolvers = {
         if(['суперорганизация', 'организация', 'менеджер', 'admin' ].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [searchedDistricts, employmentDistricts] = await Promise.all([
-                search?DistrictAzyk.find({name: {$regex: reductionSearch(search), $options: 'i'}}).distinct('_id'):null,
+                search?DistrictAzyk.find({name: {$regex: reductionSearchText(search), $options: 'i'}}).distinct('_id'):null,
                 user.role==='менеджер'?DistrictAzyk.find({manager: user.employment}).distinct('_id'):null
             ])
             organization = user.organization||(organization === 'super'?null:organization)

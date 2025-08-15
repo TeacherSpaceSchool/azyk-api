@@ -4,7 +4,7 @@ const ClientAzyk = require('../models/clientAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const {reductionSearch, unawaited} = require('../module/const');
+const {unawaited, reductionSearchText} = require('../module/const');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const SingleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');
@@ -44,12 +44,13 @@ const resolvers = {
             const [searchedClients, searchedEmployments] = await Promise.all([
                 search?ClientAzyk.find({
                         $or: [
-                            {name: {$regex: reductionSearch(search), $options: 'i'}},
-                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearch(search), $options: 'i'}}}}
+                            {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                            {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                            {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
                         ]
                    }).distinct('_id'):null,
                 search?await EmploymentAzyk.find({
-                    name: {$regex: reductionSearch(search), $options: 'i'},
+                    name: {$regex: reductionSearchText(search), $options: 'i'},
                     ...user.organization?{organization: user.organization}:{}
                }).distinct('_id'):null
             ])
@@ -57,7 +58,7 @@ const resolvers = {
                 organization: user.organization || (organization==='super'?null:organization),
                 ...(search ? {
                     $or: [
-                        {name: {$regex: reductionSearch(search), $options: 'i'}},
+                        {name: {$regex: reductionSearchText(search), $options: 'i'}},
                         {agent: {$in: searchedEmployments}},
                         {ecspeditor: {$in: searchedEmployments}},
                         {manager: {$in: searchedEmployments}},

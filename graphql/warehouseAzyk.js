@@ -1,7 +1,7 @@
 const WarehouseAzyk = require('../models/warehouseAzyk');
 const StockAzyk = require('../models/stockAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const {reductionSearch} = require('../module/const');
+const {reductionSearch, reductionSearchText} = require('../module/const');
 
 const type = `
   type Warehouse {
@@ -29,7 +29,7 @@ const resolvers = {
             return await WarehouseAzyk.find({
                 organization: user.organization||organization,
                 ...search?{$or: [
-                    {name: {$regex: reductionSearch(search), $options: 'i'}},
+                    {name: {$regex: reductionSearchText(search), $options: 'i'}},
                     {guid: {$regex: reductionSearch(search), $options: 'i'}}
                 ]}:{}
            }).sort('name').lean()
