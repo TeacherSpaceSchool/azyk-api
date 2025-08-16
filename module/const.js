@@ -170,30 +170,25 @@ const pdHHMM = (date) =>
     return date
 }
 
-module.exports.reductionSearch = (search) => {
+
+const reductionSearch = (search) => {
     if(search) {
         search = search.trim()
-        search = search.replace(/\\/g, '')
-        search = search.replace(/\(/g, '\\(')
-        search = search.replace(/\)/g, '\\)')
-        search = search.replace(/\[/g, '\\[')
-        search = search.replace(/]/g, '\\]')
-        search = search.replace(/\+/g, '\\+')
-        search = search.replace(/\*/g, '\\*')
-        search = search.replace(/\?/g, '\\?')
-        return search
-   }
-    return ''
-}
-
-module.exports.reductionSearchText = (search) => {
-    if(search) {
         // Убираем обратные слэши
         search = search.replace(/\\/g, '');
         // Экранируем спецсимволы
         search = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return search
+   }
+    return ''
+}
+module.exports.reductionSearch = reductionSearch
+
+module.exports.reductionSearchText = (search) => {
+    if(search) {
+        search = reductionSearch(search)
         // Убираем повторяющиеся буквы в поиске
-        search = search.replace(/(.)\1+/g, '$1');
+        search = search.replace(/([а-яА-ЯёЁa-zA-Z])\1+/g, '$1');
         // Фонетические подстановки
         const phoneticMap = {
             'о': '[оа]', 'а': '[ао]', 'и': '[ие]', 'у': '[уү]',
@@ -209,7 +204,11 @@ module.exports.reductionSearchText = (search) => {
                 const c = word[i].toLowerCase();
                 const p = phoneticMap[c] || c;
                 // буква{1,}? — одна или более, лениво
-                pattern += p + '{1,}';
+                if (/[а-яёa-z]/i.test(c)) {
+                    pattern += '(?:' + p + '){1,}';
+                } else {
+                    pattern += p;
+                }
             }
             return pattern;
         });
