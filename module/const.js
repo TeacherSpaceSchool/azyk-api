@@ -13,18 +13,14 @@ const urlMain = `${process.env.URL.trim()}:3000`,
 const dayStartDefault = 3
 module.exports.dayStartDefault = dayStartDefault;
 
-const validMail = (mail) => {
-    return /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/.test(mail);
-}
-const validPhone = (phone) => {
-    return /^[+]{1}996[0-9]{9}$/.test(phone);
-}
-const isNotTestUser = (profile) => {
-    return !profile||!profile.login||!profile.login.toLowerCase().includes('test')
-}
-const isTestUser = (profile) => {
-    return profile&&profile.login&&profile.login.toLowerCase().includes('test')
-}
+const validMail = mail => /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/.test(mail);
+
+const validPhone = phone => /^[+]{1}996[0-9]{9}$/.test(phone);
+
+const isNotTestUser = profile => !profile||!profile.login||!profile.login.toLowerCase().includes('test')
+
+const isTestUser = profile => profile&&profile.login&&profile.login.toLowerCase().includes('test')
+
 const getGeoDistance = (lat1, lon1, lat2, lon2) => {
     lat1 = parseFloat(lat1)
     lon1 = parseFloat(lon1)
@@ -70,11 +66,9 @@ module.exports.month = [
 
 module.exports.tomtom = 'waWMYtFJZce2G49GAz0nXJG5Grw3OpNm'
 
-const statsCollection = async (collection) => {
-    return (await (require(collection)).collection.stats())
-}
+const statsCollection = async collection => await (require(collection)).collection.stats()
 
-module.exports.saveBase64ToFile = (base64) => {
+module.exports.saveBase64ToFile = base64 => {
     // eslint-disable-next-line no-undef
     return new Promise((resolve) => {
         let filename = `${randomstring.generate(14)}.png`;
@@ -86,12 +80,12 @@ module.exports.saveBase64ToFile = (base64) => {
    })
 }
 
-const checkInt = (int) => {
+const checkInt = int => {
     if (typeof int === 'string') int = int.replace(/\s+/g, '');
     return isNaN(parseInt(int))?0:parseInt(int)
 }
 
-const checkFloat = (float) => {
+const checkFloat = float => {
     if (typeof float === 'string') float = float.replace(/\s+/g, '');
     float = parseFloat(float)
     return isNaN(float)?0:Math.round(float * 10)/10
@@ -135,7 +129,7 @@ module.exports.saveImage = (stream, filename) => {
    })
 }
 
-module.exports.deleteFile = (oldFile) => {
+module.exports.deleteFile = oldFile => {
     if(oldFile) {
         // eslint-disable-next-line no-undef
         return new Promise(async (resolve) => {
@@ -147,33 +141,31 @@ module.exports.deleteFile = (oldFile) => {
        })
    }
 }
-const pdDDMMYYYY = (date) =>
+const pdDDMMYYYY = date =>
 {
     date = new Date(date)
     date = `${date.getDate()<10?'0':''}${date.getDate()}.${date.getMonth()<9?'0':''}${date.getMonth()+1}.${date.getFullYear()}`
     return date
 }
-const pdDDMMYY = (date) =>
+const pdDDMMYY = date =>
 {
     date = new Date(date)
     date = `${date.getDate()<10?'0':''}${date.getDate()}.${date.getMonth()<9?'0':''}${date.getMonth()+1}.${date.getYear()-100}`
     return date
 }
-const pdDDMMYYHHMM = (date) =>
-{
+const pdDDMMYYHHMM = date => {
     date = new Date(date)
     date = `${date.getDate()<10?'0':''}${date.getDate()}.${date.getMonth()<9?'0':''}${date.getMonth()+1}.${date.getFullYear()} ${date.getHours()<10?'0':''}${date.getHours()}:${date.getMinutes()<10?'0':''}${date.getMinutes()}`
     return date
 }
-const pdHHMM = (date) =>
-{
+const pdHHMM = date => {
     date = new Date(date)
     date = `${date.getHours()<10?'0':''}${date.getHours()}:${date.getMinutes()<10?'0':''}${date.getMinutes()}`
     return date
 }
 
 
-const reductionSearch = (search) => {
+const reductionSearch = search => {
     if(search) {
         search = search.trim()
         // Убираем обратные слэши
@@ -186,7 +178,7 @@ const reductionSearch = (search) => {
 }
 module.exports.reductionSearch = reductionSearch
 
-module.exports.reductionSearchText = (search) => {
+module.exports.reductionSearchText = search => {
     if(search) {
         search = reductionSearch(search)
         // Убираем повторяющиеся буквы в поиске
@@ -220,7 +212,7 @@ module.exports.reductionSearchText = (search) => {
     return ''
 }
 
-module.exports.getDateRange = (date) => {
+module.exports.getDateRange = date => {
     const dateStart = new Date(date)
     if(dateStart.getHours() < dayStartDefault)
         dateStart.setDate(dateStart.getDate() - 1)
@@ -230,13 +222,9 @@ module.exports.getDateRange = (date) => {
     return {dateStart, dateEnd}
 }
 
-module.exports.isNotEmpty = (value) => {
-    return value !== undefined && value !== null;
-}
+module.exports.isNotEmpty = value => value !== undefined && value !== null;
 
-module.exports.isEmpty = (value) => {
-    return value === undefined || value === null;
-}
+module.exports.isEmpty = value => value === undefined || value === null;
 
 module.exports.chunkArray = (array, size) => {
     const result = [];
@@ -251,7 +239,7 @@ module.exports.sendPushToAdmin = async ({title, message}) => {
     await sendWebPush({title: title, message, users: [adminUser._id]})
 }
 
-module.exports.unawaited = (func) => setTimeout(async () => await func())
+module.exports.unawaited = func => setTimeout(async () => await func())
 
 module.exports.generateUniqueNumber = async (table, numbers = []) => {
     let number
@@ -261,18 +249,16 @@ module.exports.generateUniqueNumber = async (table, numbers = []) => {
     return number
 }
 
-module.exports.checkDate = (date) => {
+module.exports.checkDate = date => {
     const parsed = new Date(date);
     return Number.isNaN(parsed)||parsed=='Invalid Date' ? new Date() : parsed;
 };
 
 module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Боконбаева', 'Жалал-Абад', 'Кара-Балта', 'Каракол', 'Казарман', 'Кочкор', 'Кызыл-Кия', 'Нарын', 'Ош', 'Раззаков', 'Талас', 'Токмок', 'Чолпон-Ата', 'Москва'];
 
-module.exports.formatErrorDetails = (err) => {
-    return (err.stack&&err.message).slice(0, 250);
-}
+module.exports.formatErrorDetails = err => (err.stack&&err.message).slice(0, 250);
 
-module.exports.formatAmount = (amount) => amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
+module.exports.formatAmount = amount => amount&&amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
 
 module.exports.defaultLimit = 20;
 module.exports.statsCollection = statsCollection;
