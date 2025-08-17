@@ -2,7 +2,7 @@ const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const app = require('../app');
 const path = require('path');
-const {saveFile, deleteFile, checkFloat} = require('../module/const');
+const {saveFile, deleteFile, checkFloat, formatAmount} = require('../module/const');
 const readXlsxFile = require('read-excel-file/node');
 const os = require('os');
 const mongoose = require('mongoose');
@@ -77,12 +77,12 @@ const resolvers = {
                     _id: keys[i],
                     data: [
                         statistic[keys[i]].name,
-                        statistic[keys[i]].count,
+                        formatAmount(statistic[keys[i]].count),
                     ]
                })
            }
             data = data.sort(function(a, b) {
-                return b.data[1] - a.data[1]
+                return checkFloat(b.data[1]) - checkFloat(a.data[1])
            });
             return {
                 columns: ['девайс', 'количество'],
@@ -106,18 +106,18 @@ const resolvers = {
                 allCount += stats.count
                 data.push({
                     _id: name,
-                    data: [name, size, stats.count]
+                    data: [name, formatAmount(size), formatAmount(stats.count)]
                })
            }
             data = data.sort(function(a, b) {
-                return b.data[1] - a.data[1]
+                return checkFloat(b.data[1]) - checkFloat(a.data[1])
            });
             data = [
                 {
                     _id: 'Всего',
                     data: [
-                        checkFloat(allSize),
-                        allCount
+                        formatAmount(checkFloat(allSize)),
+                        formatAmount(allCount)
                     ]
                },
                 ...data

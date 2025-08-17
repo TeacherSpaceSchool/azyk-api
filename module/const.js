@@ -87,10 +87,12 @@ module.exports.saveBase64ToFile = (base64) => {
 }
 
 const checkInt = (int) => {
+    if (typeof int === 'string') int = int.replace(/\s+/g, '');
     return isNaN(parseInt(int))?0:parseInt(int)
 }
 
 const checkFloat = (float) => {
+    if (typeof float === 'string') float = float.replace(/\s+/g, '');
     float = parseFloat(float)
     return isNaN(float)?0:Math.round(float * 10)/10
 }
@@ -269,6 +271,8 @@ module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Бо
 module.exports.formatErrorDetails = (err) => {
     return (err.stack&&err.message).slice(0, 250);
 }
+
+module.exports.formatAmount = (amount) => amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
 
 module.exports.defaultLimit = 20;
 module.exports.statsCollection = statsCollection;

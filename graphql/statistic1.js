@@ -5,7 +5,7 @@ const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const AdsAzyk = require('../models/adsAzyk');
-const {checkDate, isNotEmpty, dayStartDefault} = require('../module/const');
+const {checkDate, isNotEmpty, dayStartDefault, formatAmount} = require('../module/const');
 const {checkFloat} = require('../module/const');
 const OrganizationAzyk = require('../models/organizationAzyk');
 
@@ -152,12 +152,12 @@ const resolvers = {
                     _id: key,
                     data: [
                         statistic[key].client,
-                        ...!onlyOffline&&!onlyOnline?[checkFloat(statistic[key].profit)]:[],
-                        ...!onlyOffline?[checkFloat(statistic[key].profitOnline)]:[],
-                        ...!onlyOnline?[checkFloat(statistic[key].profitOffline)]:[],
-                        ...!onlyOffline&&!onlyOnline?[checkFloat(statistic[key].complete)]:[],
-                        ...!onlyOffline?[checkFloat(statistic[key].completeOnline)]:[],
-                        ...!onlyOnline?[checkFloat(statistic[key].completeOffline)]:[],
+                        ...!onlyOffline&&!onlyOnline?[formatAmount(checkFloat(statistic[key].profit))]:[],
+                        ...!onlyOffline?[formatAmount(checkFloat(statistic[key].profitOnline))]:[],
+                        ...!onlyOnline?[formatAmount(checkFloat(statistic[key].profitOffline))]:[],
+                        ...!onlyOffline&&!onlyOnline?[formatAmount(checkFloat(statistic[key].complete))]:[],
+                        ...!onlyOffline?[formatAmount(checkFloat(statistic[key].completeOnline))]:[],
+                        ...!onlyOnline?[formatAmount(checkFloat(statistic[key].completeOffline))]:[],
                     ]
                })
            }
@@ -168,13 +168,13 @@ const resolvers = {
                 {
                     _id: 'All',
                     data: [
-                        data.length,
-                        ...!onlyOffline&&!onlyOnline?[checkFloat(profitAll)]:[],
-                        !onlyOffline?checkFloat(profitOnlineAll):'',
-                        !onlyOnline?checkFloat(profitOfflineAll):'',
-                        ...!onlyOffline&&!onlyOnline?[completeAll]:[],
-                        !onlyOffline?completeOnlineAll:'',
-                        !onlyOnline?completeOfflineAll:'',
+                        formatAmount(data.length),
+                        ...!onlyOffline&&!onlyOnline?[formatAmount(checkFloat(profitAll))]:[],
+                        !onlyOffline?formatAmount(checkFloat(profitOnlineAll)):'',
+                        !onlyOnline?formatAmount(checkFloat(profitOfflineAll)):'',
+                        ...!onlyOffline&&!onlyOnline?[formatAmount(completeAll)]:[],
+                        !onlyOffline?formatAmount(completeOnlineAll):'',
+                        !onlyOnline?formatAmount(completeOfflineAll):'',
                     ]
                },
                 ...data
@@ -249,22 +249,22 @@ const resolvers = {
                     _id: key,
                     data: [
                         statistic[key].item,
-                        checkFloat(statistic[key].profit),
-                        checkFloat(statistic[key].count),
-                        checkFloat(statistic[key].profit*100/profitAll)
+                        formatAmount(checkFloat(statistic[key].profit)),
+                        formatAmount(checkFloat(statistic[key].count)),
+                        formatAmount(checkFloat(statistic[key].profit*100/profitAll))
                     ]
                })
            }
             data = data.sort(function(a, b) {
-                return b.data[1] - a.data[1]
+                return checkFloat(b.data[1]) - checkFloat(a.data[1])
            });
             data = [
                 {
                     _id: 'All',
                     data: [
-                        data.length,
-                        checkFloat(profitAll),
-                        invoices.length
+                        formatAmount(data.length),
+                        formatAmount(checkFloat(profitAll)),
+                        formatAmount(invoices.length)
                     ]
                },
                 ...data
@@ -351,25 +351,25 @@ const resolvers = {
                 data.push({
                     _id: key,
                     data: [
-                        statistic[key].ads,
-                        checkFloat(statistic[key].profit),
-                        statistic[key].complet.length,
-                        ...returnedAll?[checkFloat(statistic[key].returned)]:[],
-                        checkFloat(statistic[key].profit*100/profitAll)
+                        formatAmount(statistic[key].ads),
+                        formatAmount(checkFloat(statistic[key].profit)),
+                        formatAmount(statistic[key].complet.length),
+                        ...returnedAll?[formatAmount(checkFloat(statistic[key].returned))]:[],
+                        formatAmount(checkFloat(statistic[key].profit*100/profitAll))
                     ]
                })
            }
             data = data.sort(function(a, b) {
-                return b.data[1] - a.data[1]
+                return checkFloat(b.data[1]) - checkFloat(a.data[1])
            });
             data = [
                 {
                     _id: 'All',
                     data: [
-                        data.length,
-                        checkFloat(profitAll),
-                        completAll.length,
-                        checkFloat(returnedAll)
+                        formatAmount(data.length),
+                        formatAmount(checkFloat(profitAll)),
+                        formatAmount(completAll.length),
+                        formatAmount(checkFloat(returnedAll))
                     ]
                },
                 ...data
@@ -466,26 +466,26 @@ const resolvers = {
                     _id: key,
                     data: [
                         statistic[key].name,
-                        checkFloat(statistic[key].profit),
-                        statistic[key].complet,
-                        ...returnedAll?[checkFloat(statistic[key].returnedPrice)]:[],
-                        checkFloat(statistic[key].profit/statistic[key].complet),
-                        Object.keys(statistic[key].clients).length,
-                        checkFloat(statistic[key].profit*100/profitAll)
+                        formatAmount(checkFloat(statistic[key].profit)),
+                        formatAmount(statistic[key].complet),
+                        ...returnedAll?[formatAmount(checkFloat(statistic[key].returnedPrice))]:[],
+                        formatAmount(checkFloat(statistic[key].profit/statistic[key].complet)),
+                        formatAmount(Object.keys(statistic[key].clients).length),
+                        formatAmount(checkFloat(statistic[key].profit*100/profitAll))
                     ]
                })
            }
             data = data.sort(function(a, b) {
-                return b.data[1] - a.data[1]
+                return checkFloat(b.data[1]) - checkFloat(a.data[1])
            });
             data = [
                 {
                     _id: 'All',
                     data: [
-                        data.length,
-                        checkFloat(profitAll),
-                        completAll,
-                        checkFloat(returnedAll)
+                        formatAmount(data.length),
+                        formatAmount(checkFloat(profitAll)),
+                        formatAmount(completAll),
+                        formatAmount(checkFloat(returnedAll))
                     ]
                },
                 ...data

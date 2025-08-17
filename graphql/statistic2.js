@@ -2,7 +2,7 @@ const InvoiceAzyk = require('../models/invoiceAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
-const {weekDay, pdDDMMYYHHMM, checkFloat, month, checkDate, dayStartDefault} = require('../module/const');
+const {weekDay, pdDDMMYYHHMM, checkFloat, month, checkDate, dayStartDefault, formatAmount} = require('../module/const');
 
 const query = `
     ordersMap(organization: ID, date: Date, online: Boolean, city: String, district: ID): [[String]]
@@ -143,26 +143,26 @@ const resolvers = {
                     _id: key,
                     data: [
                         statistic[key].name,
-                        checkFloat(statistic[key].profit),
-                        statistic[key].complet,
-                        ...returnedAll?[checkFloat(statistic[key].returnedPrice)]:[],
-                        checkFloat(statistic[key].profit/statistic[key].complet),
-                        ...type==='район'?[Object.keys(statistic[key].clients).length]:[],
-                        checkFloat(statistic[key].profit*100/profitAll)
+                        formatAmount(checkFloat(statistic[key].profit)),
+                        formatAmount(statistic[key].complet),
+                        ...returnedAll?[formatAmount(checkFloat(statistic[key].returnedPrice))]:[],
+                        formatAmount(checkFloat(statistic[key].profit/statistic[key].complet)),
+                        ...type==='район'?[formatAmount(Object.keys(statistic[key].clients).length)]:[],
+                        formatAmount(checkFloat(statistic[key].profit*100/profitAll))
                     ]
                })
            }
 
             data = data.sort(function(a, b) {
-                return b.data[1] - a.data[1]
+                return checkFloat(b.data[1]) - checkFloat(a.data[1])
            });
             data = [
                 {
                     _id: 'All',
                     data: [
-                        `${completAll}/${orderAllCount}`,
-                        checkFloat(profitAll),
-                        checkFloat(returnedAll),
+                        `${formatAmount(completAll)}/${formatAmount(orderAllCount)}`,
+                        formatAmount(checkFloat(profitAll)),
+                        formatAmount(checkFloat(returnedAll)),
                     ]
                },
                 ...data
@@ -262,12 +262,12 @@ const resolvers = {
                     _id: key,
                     data: [
                         statistic[key].name,
-                        checkFloat(statistic[key].profitAll),
-                        checkFloat(statistic[key].profitOnline),
-                        checkFloat(statistic[key].profitOffline),
-                        checkFloat(statistic[key].completAll),
-                        checkFloat(statistic[key].completOnline),
-                        checkFloat(statistic[key].completOffline)
+                        formatAmount(checkFloat(statistic[key].profitAll)),
+                        formatAmount(checkFloat(statistic[key].profitOnline)),
+                        formatAmount(checkFloat(statistic[key].profitOffline)),
+                        formatAmount(checkFloat(statistic[key].completAll)),
+                        formatAmount(checkFloat(statistic[key].completOnline)),
+                        formatAmount(checkFloat(statistic[key].completOffline))
                     ]
                })
            }
@@ -276,12 +276,12 @@ const resolvers = {
                 {
                     _id: 'All',
                     data: [
-                        checkFloat(profitAll),
-                        checkFloat(profitOnline),
-                        checkFloat(profitOffline),
-                        checkFloat(completAll),
-                        checkFloat(completOnline),
-                        checkFloat(completOffline)
+                        formatAmount(checkFloat(profitAll)),
+                        formatAmount(checkFloat(profitOnline)),
+                        formatAmount(checkFloat(profitOffline)),
+                        formatAmount(checkFloat(completAll)),
+                        formatAmount(checkFloat(completOnline)),
+                        formatAmount(checkFloat(completOffline))
                     ]
                },
                 ...data

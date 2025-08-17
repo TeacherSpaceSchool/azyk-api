@@ -3,7 +3,7 @@ const ReturnedAzyk = require('../models/returnedAzyk');
 const MerchandisingAzyk = require('../models/merchandisingAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const {pdDDMMYYYY, checkDate, dayStartDefault} = require('../module/const');
+const {pdDDMMYYYY, checkDate, dayStartDefault, formatAmount} = require('../module/const');
 const {pdHHMM, checkFloat} = require('../module/const');
 const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
@@ -88,22 +88,22 @@ const resolvers = {
                     _id: key,
                     data: [
                         statistic[key].name,
-                        checkFloat(statistic[key].profit),
-                        statistic[key].complet,
-                        checkFloat(statistic[key].profit*100/profitAll)
+                        formatAmount(checkFloat(statistic[key].profit)),
+                        formatAmount(statistic[key].complet),
+                        formatAmount(checkFloat(statistic[key].profit*100/profitAll))
                     ]
                })
            }
             data = data.sort(function(a, b) {
-                return b.data[1] - a.data[1]
+                return checkFloat(b.data[1]) - checkFloat(a.data[1])
            });
             data = [
                 {
                     _id: 'All',
                     data: [
-                        data.length,
-                        checkFloat(profitAll),
-                        completAll
+                        formatAmount(data.length),
+                        formatAmount(checkFloat(profitAll)),
+                        formatAmount(completAll)
                     ]
                },
                 ...data
@@ -198,25 +198,25 @@ const resolvers = {
                     _id: key,
                     data: [
                         statistic[key].name,
-                        checkFloat(statistic[key].profit),
-                        statistic[key].complet,
-                        ...returnedAll?[checkFloat(statistic[key].returned)]:[],
-                        checkFloat(statistic[key].profit/statistic[key].complet),
-                        checkFloat(statistic[key].profit*100/profitAll)
+                        formatAmount(checkFloat(statistic[key].profit)),
+                        formatAmount(statistic[key].complet),
+                        ...returnedAll?[formatAmount(checkFloat(statistic[key].returned))]:[],
+                        formatAmount(checkFloat(statistic[key].profit/statistic[key].complet)),
+                        formatAmount(checkFloat(statistic[key].profit*100/profitAll))
                     ]
                })
            }
             data = data.sort(function(a, b) {
-                return b.data[1] - a.data[1]
+                return checkFloat(b.data[1]) - checkFloat(a.data[1])
            });
             data = [
                 {
                     _id: 'All',
                     data: [
                         data.length,
-                        checkFloat(profitAll),
-                        completAll,
-                        checkFloat(returnedAll),
+                        formatAmount(checkFloat(profitAll)),
+                        formatAmount(completAll),
+                        formatAmount(checkFloat(returnedAll)),
                     ]
                },
                 ...data
