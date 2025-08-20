@@ -40,7 +40,7 @@ const mutation = `
 
 const resolvers = {
     districts: async(parent, {organization, search}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.admin, 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.admin, roleList.manager, roleList.agent, roleList.superAgent].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [searchedClients, searchedEmployments] = await Promise.all([
                 search?ClientAzyk.find({
@@ -66,8 +66,8 @@ const resolvers = {
                         {client: {$in: searchedClients}},
                     ]
                } : {}),
-                ...'менеджер' === user.role ? {manager: user.employment} : {},
-                ...'агент' === user.role ? {agent: user.employment} : {},
+                ...roleList.manager === user.role ? {manager: user.employment} : {},
+                ...roleList.agent === user.role ? {agent: user.employment} : {},
            })
                 .populate({
                     path: 'agent',
@@ -90,7 +90,7 @@ const resolvers = {
        }
    },
     clientsWithoutDistrict: async(parent, {organization, district}, {user}) => {
-        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.superAgent].includes(user.role)) {
             if(user.organization) organization = user.organization
             organization = await OrganizationAzyk.findById(organization).select('_id cities clientDuplicate onlyIntegrate').lean()
             // eslint-disable-next-line no-undef
@@ -119,12 +119,12 @@ const resolvers = {
        }
    },
     district: async(parent, {_id}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.admin, 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.admin, roleList.manager, roleList.agent, roleList.superAgent].includes(user.role)) {
             return await DistrictAzyk.findOne({
                 ...mongoose.Types.ObjectId.isValid(_id)?{_id}:{},
                 ...user.organization?{organization: user.organization}:{},
-                ...'менеджер'===user.role?{manager: user.employment}:{},
-                ...['агент', 'суперагент'].includes(user.role)?{agent: user.employment}:{},
+                ...roleList.manager===user.role?{manager: user.employment}:{},
+                ...[roleList.agent, roleList.superAgent].includes(user.role)?{agent: user.employment}:{},
            })
                 .populate({
                     path: 'agent',
@@ -198,7 +198,7 @@ const resolversMutation = {
         }
    },
     setDistrict: async(parent, {_id, client, ecspeditor, name, agent, manager, warehouse}, {user}) => {
-        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.superAgent].includes(user.role)) {
             let object = await DistrictAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'DistrictAzyk', name: object.name, object: _id, data: {client: `${object.client.length}->${client.length}`, ecspeditor, name, agent, manager, warehouse}}))
             if(name) object.name = name

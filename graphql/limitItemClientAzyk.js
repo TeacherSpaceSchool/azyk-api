@@ -57,7 +57,7 @@ const resolvers = {
        }
    },
     itemsForLimitItemClients: async(parent, {client, organization}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.admin].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [excludedItems, clientCity] = await Promise.all([
                 LimitItemClientAzyk.find({
@@ -75,7 +75,7 @@ const resolvers = {
 
 const resolversMutation = {
     addLimitItemClient: async(parent, {client, organization, limit, item}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin, 'агент'].includes(user.role)&&!(await LimitItemClientAzyk.findOne({item, client}).select('_id').lean())) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin, roleList.agent].includes(user.role)&&!(await LimitItemClientAzyk.findOne({item, client}).select('_id').lean())) {
             // eslint-disable-next-line no-undef
             const [createdObject, itemData, clientData] = await Promise.all([
                 LimitItemClientAzyk.create({item, limit, client, organization}),
@@ -86,7 +86,7 @@ const resolversMutation = {
        }
    },
     setLimitItemClient: async(parent, {_id, limit}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin, 'агент'].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin, roleList.agent].includes(user.role)) {
             let object = await LimitItemClientAzyk.findById(_id)
             object.limit = limit
             await object.save();
@@ -94,7 +94,7 @@ const resolversMutation = {
         return 'OK';
    },
     deleteLimitItemClient: async(parent, {_id}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin, 'агент'].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin, roleList.agent].includes(user.role)) {
             await LimitItemClientAzyk.deleteOne({_id})
        }
         return 'OK'

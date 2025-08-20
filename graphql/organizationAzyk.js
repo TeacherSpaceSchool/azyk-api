@@ -83,7 +83,7 @@ const resolvers = {
         // Флаг для удобства: является ли пользователь клиентом
         const isClient = user.role === roleList.client;
         const isAdmin = user.role === roleList.admin;
-        const isSuperAgent = ['суперагент', 'суперэкспедитор'].includes(user.role);
+        const isSuperAgent = [roleList.superAgent, roleList.superEcspeditor].includes(user.role);
 
         // Получаем все элементы (товары или позиции) из коллекции ItemAzyk с учетом города, статуса и удаления
         const brandItems = await ItemAzyk.find({

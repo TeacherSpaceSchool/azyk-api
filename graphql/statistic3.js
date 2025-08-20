@@ -110,7 +110,7 @@ const resolvers = {
                 ...data
             ]
             return {
-                columns: [organization?'район':roleList.organization, 'сумма(сом)', 'выполнен(шт)', 'процент'],
+                columns: [organization?'район':'организация', 'сумма(сом)', 'выполнен(шт)', 'процент'],
                 row: data
            };
        }
@@ -223,7 +223,7 @@ const resolvers = {
                 ...data
             ]
             return {
-                columns: [organization?'агент':roleList.organization, 'выручка(сом)', 'выполнен(шт)', ...returnedAll?['отказов(сом)']:[], 'средний чек(сом)', 'процент'],
+                columns: [organization?'агент':'организация', 'выручка(сом)', 'выполнен(шт)', ...returnedAll?['отказов(сом)']:[], 'средний чек(сом)', 'процент'],
                 row: data
            };
        }
@@ -289,7 +289,7 @@ const resolvers = {
    },
     statisticMerchandising: async (parent, {type, dateStart, dateEnd, organization, agent}, {user}) => {
         // Проверка прав доступа
-        if (![roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер'].includes(user.role)) return
+        if (![roleList.admin, roleList.superOrganization, roleList.organization, roleList.manager].includes(user.role)) return
 
         if(user.organization) organization= user.organization
 
@@ -361,7 +361,7 @@ const resolvers = {
 
         const districts = await DistrictAzyk.find({
             organization,
-            ...(user.role === 'менеджер' ? {manager: user._id} : {})
+            ...(user.role === roleList.manager ? {manager: user._id} : {})
        }).select('_id name client agent').populate({
             path: 'agent',
             select: 'name _id'
@@ -388,7 +388,7 @@ const resolvers = {
 
         const statistic = {}
         for(let i = 0; i < data.length; i++) {
-            if (user.role !== 'менеджер' || data[i].district._id !== 'lol') {
+            if (user.role !== roleList.manager || data[i].district._id !== 'lol') {
                 const _id = data[i].district._id
                 if (!statistic[_id]) statistic[_id] = {
                     name: data[i].district.agent ? data[i].district.agent.name : 'Не найден',

@@ -56,7 +56,7 @@ const mutation = `
 
 const resolvers = {
     items: async(parent, {organization, search}, {user}) => {
-        if([roleList.admin, 'суперагент', 'экспедитор', roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.client].includes(user.role)) {
+        if([roleList.admin, roleList.superAgent, roleList.ecspeditor, roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.client].includes(user.role)) {
             organization = user.organization||organization
             return await ItemAzyk.find({
                 del: {$ne: 'deleted'},

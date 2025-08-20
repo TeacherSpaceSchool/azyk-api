@@ -28,7 +28,7 @@ const mutation = `
 
 const resolvers = {
     autos: async(parent, {organization, search, sort}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.admin].includes(user.role)) {
             let searchedEmployments;
             if(search) {
                 searchedEmployments = await EmploymentAzyk.find({
@@ -54,7 +54,7 @@ const resolvers = {
        }
    },
     auto: async(parent, {_id}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.admin].includes(user.role)) {
             return await AutoAzyk.findOne({
                 $or: [{_id}, {employment: _id}],
                 ...user.organization ? {organization: user.organization} : {},

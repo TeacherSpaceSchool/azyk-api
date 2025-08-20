@@ -56,7 +56,7 @@ const mutation = `
 
 const resolvers = {
     clientsSimpleStatistic: async(parent, {search, date, filter, city}, {user}) => {
-        if(['менеджер', 'экспедитор', 'агент', 'суперагент', roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
+        if([roleList.manager, roleList.ecspeditor, roleList.agent, roleList.superAgent, roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let dateStart;
             let dateEnd;
             if(date) {
@@ -66,7 +66,7 @@ const resolvers = {
                 dateEnd.setDate(dateEnd.getDate() + 1)
            }
             let availableClients
-            if(['менеджер', 'экспедитор', 'агент', 'суперагент'].includes(user.role)) {
+            if([roleList.manager, roleList.ecspeditor, roleList.agent, roleList.superAgent].includes(user.role)) {
                 availableClients = await DistrictAzyk
                     .find({$or: [{manager: user.employment}, {ecspeditor: user.employment}, {agent: user.employment}]})
                     .distinct('client')
@@ -197,7 +197,7 @@ const resolvers = {
             dateEnd.setDate(dateEnd.getDate() + 1)
        }
         _sort[sort[0]==='-'?sort.substring(1):sort]=sort[0]==='-'?-1:1
-        if(['менеджер', 'экспедитор', 'агент', 'суперагент'].includes(user.role)) {
+        if([roleList.manager, roleList.ecspeditor, roleList.agent, roleList.superAgent].includes(user.role)) {
             availableClients = await DistrictAzyk
                 .find({$or: [{manager: user.employment}, {ecspeditor: user.employment}, {agent: user.employment}]})
                 .distinct('client')
@@ -307,7 +307,7 @@ const resolvers = {
 
 const resolversMutation = {
     addClient: async(parent, {image, name, email, city, address, phone, inn, info, login, password, category}, {user}) => {
-        if(user.role===roleList.admin||(user.addedClient&&[roleList.superOrganization, roleList.organization, 'агент'].includes(user.role))) {
+        if(user.role===roleList.admin||(user.addedClient&&[roleList.superOrganization, roleList.organization, roleList.agent].includes(user.role))) {
             let newUser = await UserAzyk.create({
                 login: login.trim(),
                 role: roleList.client,
@@ -346,7 +346,7 @@ const resolversMutation = {
    },
     setClient: async(parent, {_id, image, name, email, address, info, inn, newPass, phone, login, city, device, category}, {user}) => {
         if(
-            [roleList.superOrganization, roleList.organization, 'агент', roleList.admin, 'суперагент', 'экспедитор'].includes(user.role)
+            [roleList.superOrganization, roleList.organization, roleList.agent, roleList.admin, roleList.superAgent, roleList.ecspeditor].includes(user.role)
         ) {
             let object = await ClientAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'ClientAzyk', name: object.name, object: _id, data: {image, name, email, address, info, inn, newPass, phone, login, city, device, category}}))
@@ -410,7 +410,7 @@ const resolversMutation = {
         return 'OK'
    },
     onoffClient: async(parent, {_id}, {user}) => {
-        if(['агент', roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization].includes(user.role)) {
+        if([roleList.agent, roleList.admin, roleList.superAgent, roleList.superOrganization, roleList.organization].includes(user.role)) {
             //получаем ссылку на пользователя
             const client = await ClientAzyk.findById(_id).select('name user').lean()
             //находим пользователя

@@ -38,13 +38,13 @@ const mutation = `
 
 const resolvers = {
     employments: async(parent, {organization, search, filter, skip}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin].includes(user.role)) {
             let filteredUsers = await UserAzyk.find({
                 $and: [
                     ...filter?[{role: {$regex: filter, $options: 'i'}}]:[],
                     {role: {$nin: [
                         ...user.role!==roleList.admin?[roleList.superOrganization, roleList.organization]:[],
-                        ...user.role==='менеджер'?['менеджер']:[],
+                        ...user.role===roleList.manager?[roleList.manager]:[],
                     ]}}
                 ]
             }).distinct('_id')
@@ -69,13 +69,13 @@ const resolvers = {
        }
    },
     employmentsCount: async(parent, {organization, search, filter}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin].includes(user.role)) {
             let filteredUsers = await UserAzyk.find({
                 $and: [
                     ...filter?[{role: {$regex: filter, $options: 'i'}}]:[],
                     {role: {$nin: [
                                 ...user.role!==roleList.admin?[roleList.superOrganization, roleList.organization]:[],
-                                ...user.role==='менеджер'?['менеджер']:[],
+                                ...user.role===roleList.manager?[roleList.manager]:[],
                             ]}}
                 ]
             }).distinct('_id')
@@ -88,11 +88,11 @@ const resolvers = {
        }
    },
     ecspeditors: async(parent, {organization}, {user}) => {
-        if ([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if ([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
-            let role = 'экспедитор'
+            let role = roleList.ecspeditor
             if(organization==='super') {
-                role = 'суперэкспедитор'
+                role = roleList.superEcspeditor
                 organization = null
             }
             let filteredUsers = await UserAzyk.find({role, status: 'active'}).distinct('_id')
@@ -112,9 +112,9 @@ const resolvers = {
     managers: async(parent, {organization}, {user}) => {
         if ([roleList.superOrganization, roleList.organization, roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
-            let role = 'менеджер'
+            let role = roleList.manager
             if(organization==='super') {
-                role = 'суперменеджер'
+                role = roleList.superManager
                 organization = null
             }
             let filteredUsers = await UserAzyk.find({
@@ -134,17 +134,17 @@ const resolvers = {
        }
    },
     agents: async(parent, {organization}, {user}) => {
-        if ([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
+        if ([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
-            let role = 'агент'
+            let role = roleList.agent
             if(organization==='super') {
-                role = 'суперагент'
+                role = roleList.superAgent
                 organization = null
             }
             // eslint-disable-next-line no-undef
             const [filteredUsers, districtAgents] = await Promise.all([
                 UserAzyk.find({role, status: 'active'}).distinct('_id'),
-                user.role==='менеджер'?DistrictAzyk.find({manager: user.employment}).distinct('agent'):null
+                user.role===roleList.manager?DistrictAzyk.find({manager: user.employment}).distinct('agent'):null
             ])
             return await EmploymentAzyk.find({...districtAgents?{_id: {$in: districtAgents}}:{}, user: {$in: filteredUsers}, organization, del: {$ne: 'deleted'}})
                 .populate({

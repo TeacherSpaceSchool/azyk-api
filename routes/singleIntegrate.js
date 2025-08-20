@@ -24,6 +24,7 @@ const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const {addIntegrationLog} = require('../module/integrationLog');
 const SubBrandAzyk = require('../models/subBrandAzyk');
+const {roleList} = require('../module/enum');
 
 // eslint-disable-next-line no-unused-vars
 router.post('/:pass/put/subBrand', async (req, res, next) => {
@@ -528,7 +529,7 @@ router.post('/:pass/put/employment', async (req, res, next) => {
         if(req.body.elements[0].elements&&req.body.elements[0].elements.length) {
             unawaited(() => addIntegrationLog({organization: organization._id, path: '/:pass/put/employment', xml: req.body.elements[0].elements}))
             //роль
-            let position = req.body.elements[0].attributes.mode==='forwarder'?'экспедитор':'агент'
+            let position = req.body.elements[0].attributes.mode==='forwarder'?roleList.ecspeditor:roleList.agent
             //получаем интеграции
             const integrates = await Integrate1CAzyk.find({
                 organization: organization._id,

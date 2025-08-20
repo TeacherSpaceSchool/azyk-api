@@ -36,7 +36,7 @@ const mutation = `
 
 const resolvers = {
     subBrands: async(parent, {organization, search, city}, {user}) => {
-        if([roleList.admin, 'суперагент', 'экспедитор', roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.client].includes(user.role)) {
+        if([roleList.admin, roleList.superAgent, roleList.ecspeditor, roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.client].includes(user.role)) {
             if(user.organization) organization = user.organization
             return await SubBrandAzyk.find({
                 del: {$ne: 'deleted'},

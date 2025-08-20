@@ -67,7 +67,7 @@ const resolvers = {
                                 ` (${client.address[0][2] ? `${client.address[0][2]}, ` : ''}${client.address[0][0]})` : ''}`;
                        }
                    }
-                    else if (['суперагент', 'суперменеджер'].includes(userRole)) {
+                    else if ([roleList.superAgent, roleList.superManager].includes(userRole)) {
                         const emp = employmentMap[userId];
                         if (emp) {
                             userText = `${userRole} ${emp.name}`;

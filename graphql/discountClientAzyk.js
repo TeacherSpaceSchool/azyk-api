@@ -24,13 +24,13 @@ const mutation = `
 
 const resolvers = {
     discountClients: async(parent, {clients, organization}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.admin].includes(user.role)) {
             organization = user.organization||(organization==='super'?null:organization)
             return await DiscountClient.find({client: {$in: clients}, organization}).lean()
        }
    },
     discountClient: async(parent, {client, organization}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin, roleList.client].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.admin, roleList.client].includes(user.role)) {
             if(user.client) client = user.client
             if(user.organization)
                 organization = user.organization
@@ -46,7 +46,7 @@ const resolvers = {
 
 const resolversMutation = {
     setDiscountClients: async(parent, {clients, organization, discount}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.admin].includes(user.role)) {
             organization = user.organization ? user.organization : organization==='super'?null:organization
             // Получаем клиентов DiscountClient
             let existingClients = await DiscountClient.find({client: {$in: clients}, organization}).distinct('client').lean()

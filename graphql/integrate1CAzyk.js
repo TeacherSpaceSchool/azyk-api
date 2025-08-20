@@ -94,7 +94,7 @@ const resolvers = {
                     let agents =  await Integrate1CAzyk.find({organization, agent: {$ne: null}}).distinct('agent')
                     agents = await EmploymentAzyk.find({
                         name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: agents}, del: {$ne: 'deleted'}
-                   }).populate({path: 'user', match: {role: organization?'агент':'суперагент', status: 'active'}}).select('user').lean()
+                   }).populate({path: 'user', match: {role: organization?roleList.agent:roleList.superAgent, status: 'active'}}).select('user').lean()
                     agents = agents.filter(agent => (agent.user))
                     return agents.length
                })():null,
@@ -103,7 +103,7 @@ const resolvers = {
                     ecspeditors = await EmploymentAzyk.find({
                         name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
                    })
-                        .populate({path: 'user', match: {role: organization?'экспедитор':'суперэкспедитор', status: 'active'}}).lean()
+                        .populate({path: 'user', match: {role: organization?roleList.ecspeditor:roleList.superEcspeditor, status: 'active'}}).lean()
                     ecspeditors = ecspeditors.filter(ecspeditor => (ecspeditor.user))
                     return ecspeditors.length
                })():null,
@@ -211,7 +211,7 @@ const resolvers = {
             ecspeditors = await EmploymentAzyk.find({
                 name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
            })
-                .populate({path: 'user', match: {role: organization?'экспедитор':'суперэкспедитор', status: 'active'}}).lean()
+                .populate({path: 'user', match: {role: organization?roleList.ecspeditor:roleList.superEcspeditor, status: 'active'}}).lean()
             ecspeditors = ecspeditors.filter(ecspeditor => (ecspeditor.user))
             return ecspeditors
        }
@@ -223,7 +223,7 @@ const resolvers = {
             let agents =  await Integrate1CAzyk.find({organization, agent: {$ne: null}}).distinct('agent')
             agents = await EmploymentAzyk.find({
                 name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: agents}, del: {$ne: 'deleted'}
-           }).populate({path: 'user', match: {role: organization?'агент':'суперагент', status: 'active'}}).lean()
+           }).populate({path: 'user', match: {role: organization?roleList.agent:roleList.superAgent, status: 'active'}}).lean()
             agents = agents.filter(agent => (agent.user))
             return agents
        }

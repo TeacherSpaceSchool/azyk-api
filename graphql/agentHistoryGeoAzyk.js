@@ -27,7 +27,7 @@ const mutation = `
 
 const resolvers = {
     agentHistoryGeos: async(parent, {organization, agent, date}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
             // Устанавливаем дату начала и конца (день с 3:00)
             let dateStart = checkDate(date)
@@ -41,7 +41,7 @@ const resolvers = {
                 if (organization !== 'super')
                     agents = await EmploymentAzyk.find({organization}).distinct('_id')
                 else {
-                    agents = await UserAzyk.find({role: 'суперагент'}).distinct('_id')
+                    agents = await UserAzyk.find({role: roleList.superAgent}).distinct('_id')
                     agents = await EmploymentAzyk.find({user: {$in: agents}}).distinct('_id')
                }
            }
@@ -131,7 +131,7 @@ const resolvers = {
        }
    },
     agentMapGeos: async(parent, {agent, date}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin].includes(user.role)) {
             let dateStart = checkDate(date)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
             let dateEnd = new Date(dateStart)
@@ -183,7 +183,7 @@ const resolvers = {
 
 const resolversMutation = {
     addAgentHistoryGeo: async(parent, {client, geo}, {user}) => {
-        if(['агент', 'суперагент'].includes(user.role)) {
+        if([roleList.agent, roleList.superAgent].includes(user.role)) {
             let dateStart = new Date()
             dateStart.setHours(dayStartDefault, 0, 0, 0)
             let dateEnd = new Date(dateStart)
