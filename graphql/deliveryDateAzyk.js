@@ -39,7 +39,7 @@ const resolvers = {
 
 const resolversMutation = {
     setDeliveryDate: async(parent, {organization, days}, {user}) => {
-        if(['суперорганизация', 'организация', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
             const deliveryDate = await DeliveryDate.findOne({organization})
             if(!deliveryDate) {

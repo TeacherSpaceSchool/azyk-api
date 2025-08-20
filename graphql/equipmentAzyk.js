@@ -43,7 +43,7 @@ const mutation = `
 
 const resolvers = {
     unloadEquipments: async(parent, {organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
             let workbook = new ExcelJS.Workbook();
             const worksheet = await workbook.addWorksheet('Оборудование');
             let row = 1;
@@ -96,7 +96,7 @@ const resolvers = {
        }
    },
     equipments: async(parent, {organization, search, agent, skip}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [districtClients, searchedClients] = await Promise.all([
                 ['агент', 'менеджер'].includes(user.role)?DistrictAzyk.find({agent: user.employment}).distinct('client'):null,
@@ -155,7 +155,7 @@ const resolvers = {
        }
    },
     equipmentsCount: async(parent, {organization, search, agent}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [districtClients, searchedClients] = await Promise.all([
                 ['агент', 'менеджер'].includes(user.role)?DistrictAzyk.find({agent: user.employment}).distinct('client'):null,
@@ -196,7 +196,7 @@ const resolvers = {
 
 const resolversMutation = {
     addEquipment: async(parent, {number, model, client, agent, organization}, {user}) => {
-        if(['агент', roleList.admin, 'суперагент', 'суперорганизация', 'организация', 'ремонтник'].includes(user.role)) {
+        if(['агент', roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization, 'ремонтник'].includes(user.role)) {
             if(['агент', 'суперагент'].includes(user.role)) agent = user.employment
             // eslint-disable-next-line no-undef
             const [createdObject, agentData, organizationData, clientData] = await Promise.all([
@@ -216,7 +216,7 @@ const resolversMutation = {
        }
    },
     setEquipment: async(parent, {_id, image, number, model, client, agent}, {user}) => {
-        if(['агент', roleList.admin, 'суперагент', 'суперорганизация', 'организация', 'ремонтник'].includes(user.role)) {
+        if(['агент', roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization, 'ремонтник'].includes(user.role)) {
             let object = await EquipmentAzyk.findById(_id)
             if(client) object.client = client
             if(number) object.number = number
@@ -234,7 +234,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteEquipment: async(parent, {_id}, {user}) => {
-        if(['агент', roleList.admin, 'суперагент', 'суперорганизация', 'организация', 'ремонтник'].includes(user.role)) {
+        if(['агент', roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization, 'ремонтник'].includes(user.role)) {
             await EquipmentAzyk.deleteOne({_id, ...user.organization?{organization: user.organization}:{}})
        }
         return 'OK'

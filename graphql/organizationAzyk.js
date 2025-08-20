@@ -73,7 +73,7 @@ const mutation = `
 const resolvers = {
     brandOrganizations: async (parent, {search, filter, city}, {user}) => {
         // Разрешаем выполнение только для указанных ролей
-        if (![roleList.admin, 'экспедитор', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент', 'суперэкспедитор', roleList.client].includes(user.role)) {
+        if (!user.role) {
             return [];
        }
 
@@ -270,7 +270,7 @@ const resolversMutation = {
        }
    },
     setOrganization: async(parent, {catalog, cities, addedClient, agentSubBrand, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, _id, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
-        if(user.role===roleList.admin||(['суперорганизация', 'организация'].includes(user.role)&&user.organization.toString()===_id.toString())) {
+        if(user.role===roleList.admin||([roleList.superOrganization, roleList.organization].includes(user.role)&&user.organization.toString()===_id.toString())) {
             let object = await OrganizationAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'OrganizationAzyk', name: object.name, object: _id, data: {catalog, cities, addedClient, agentSubBrand, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}}))
             if (image) {

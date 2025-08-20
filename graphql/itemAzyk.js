@@ -56,7 +56,7 @@ const mutation = `
 
 const resolvers = {
     items: async(parent, {organization, search}, {user}) => {
-        if([roleList.admin, 'суперагент', 'экспедитор', 'суперорганизация', 'организация', 'менеджер', 'агент', roleList.client].includes(user.role)) {
+        if([roleList.admin, 'суперагент', 'экспедитор', roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.client].includes(user.role)) {
             organization = user.organization||organization
             return await ItemAzyk.find({
                 del: {$ne: 'deleted'},
@@ -122,7 +122,7 @@ const resolvers = {
 
 const resolversMutation = {
     addItem: async(parent, {subBrand, categorys, city, unit, apiece, priotiry, name, image, price, organization, hit, latest, packaging, weight}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let {stream, filename} = await image;
             image = urlMain + await saveImage(stream, filename)
             const createdObject = await ItemAzyk.create({
@@ -147,7 +147,7 @@ const resolversMutation = {
         }
     },
     setItem: async(parent, {subBrand, city, unit, categorys, apiece, _id, priotiry, weight, name, image, price, organization, packaging, hit, latest}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let object = await ItemAzyk.findOne({
                 _id,
                 ...user.organization?{organization: user.organization}:{},
@@ -182,7 +182,7 @@ const resolversMutation = {
         }
     },
     onoffItem: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             const item = await ItemAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}}).select('name status').lean()
             const newStatus = item.status === 'active' ? 'deactive' : 'active'
             // eslint-disable-next-line no-undef
@@ -197,7 +197,7 @@ const resolversMutation = {
         }
     },
     deleteItem: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [item, adss] = await Promise.all([
                 ItemAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}}).select('name image').lean(),

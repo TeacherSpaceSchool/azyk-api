@@ -27,7 +27,7 @@ const mutation = `
 
 const resolvers = {
     agentHistoryGeos: async(parent, {organization, agent, date}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
             // Устанавливаем дату начала и конца (день с 3:00)
             let dateStart = checkDate(date)
@@ -131,7 +131,7 @@ const resolvers = {
        }
    },
     agentMapGeos: async(parent, {agent, date}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
             let dateStart = checkDate(date)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
             let dateEnd = new Date(dateStart)

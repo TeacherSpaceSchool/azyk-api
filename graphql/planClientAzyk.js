@@ -43,7 +43,7 @@ const mutation = `
 
 const resolvers = {
     clientsForPlanClients: async(parent, {search, district, organization, city}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
 
             // eslint-disable-next-line no-undef
             const [districtClients, usedClients, organizationCities] = await Promise.all([
@@ -80,7 +80,7 @@ const resolvers = {
        }
    },
     unloadPlanClients: async(parent, {city, organization, district}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
             let workbook = new ExcelJS.Workbook();
             const worksheet = await workbook.addWorksheet('Планы клиентов');
             let row = 1;
@@ -179,7 +179,7 @@ const resolvers = {
        }
    },
     planClients: async(parent, {search, district, city, organization, skip}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
 
             // eslint-disable-next-line no-undef
             const [districtClients, searchedClients] = await Promise.all([
@@ -243,7 +243,7 @@ const resolvers = {
        }
    },
     planClientsCount: async(parent, {search, district, city, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [districtClients, searchedClients] = await Promise.all([
                 district||['менеджер', 'агент'].includes(user.role)?DistrictAzyk.find({
@@ -273,7 +273,7 @@ const resolvers = {
        }
    },
     planClient: async(parent, {client, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
             const res = await PlanClient.findOne({
                 client,
                 organization: user.organization||organization
@@ -307,7 +307,7 @@ const resolvers = {
 
 const resolversMutation = {
     setPlanClient: async(parent, {client, organization, month, visit}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
             organization = user.organization||organization
             let planClient = await PlanClient.findOne({client, organization});
             if(!planClient)
@@ -321,7 +321,7 @@ const resolversMutation = {
        }
    },
     deletePlanClient: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
              await PlanClient.deleteOne({
                 _id,
                 ...user.organization? {organization: user.organization}:{}
@@ -330,7 +330,7 @@ const resolversMutation = {
         return 'OK';
    },
     uploadPlanClients: async(parent, {document, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
             let {stream, filename} = await document;
             let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
             let rows = await readXlsxFile(xlsxpath)

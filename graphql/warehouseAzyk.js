@@ -26,7 +26,7 @@ const mutation = `
 
 const resolvers = {
     warehouses: async(parent, {organization, search}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             return await WarehouseAzyk.find({
                 organization: user.organization||organization,
                 ...search?{$or: [
@@ -40,7 +40,7 @@ const resolvers = {
 
 const resolversMutation = {
     addWarehouse: async(parent, {name, organization, guid}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             return WarehouseAzyk.create({
                 organization: user.organization||organization,
                 name, guid
@@ -48,7 +48,7 @@ const resolversMutation = {
        }
    },
     setWarehouse: async(parent, {_id, name, guid}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let object = await WarehouseAzyk.findById(_id)
             if(name) object.name = name
             if(guid) object.guid = guid
@@ -57,7 +57,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteWarehouse: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             // eslint-disable-next-line no-undef
             await Promise.all([
                 WarehouseAzyk.deleteOne({_id}),

@@ -39,7 +39,7 @@ const mutation = `
 
 const resolvers = {
     repairEquipments: async(parent, {organization, search, filter}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [employmentClients, searchedAgents, searchedClients] = await Promise.all([
                 ['агент', 'менеджер'].includes(user.role)?DistrictAzyk.find({agent: user.employment}).distinct('client'):null,
@@ -85,7 +85,7 @@ const resolvers = {
        }
    },
     repairEquipment: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
             return await RepairEquipmentAzyk.findOne({
                 _id,
                 ...user.organization ? {organization: user.organization} : {}
@@ -113,7 +113,7 @@ const resolvers = {
 
 const resolversMutation = {
     addRepairEquipment: async(parent, {equipment, client, defect, organization}, {user}) => {
-        if(['агент', roleList.admin, 'суперагент', 'суперорганизация', 'организация'].includes(user.role)) {
+        if(['агент', roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization].includes(user.role)) {
             let number = randomstring.generate({length: 12, charset: 'numeric'});
             while (await RepairEquipmentAzyk.findOne({number: number}).select('_id').lean())
                 number = randomstring.generate({length: 12, charset: 'numeric'});
@@ -136,7 +136,7 @@ const resolversMutation = {
        }
    },
     setRepairEquipment: async(parent, {_id, accept, done, cancel, defect, repair, equipment, client}, {user}) => {
-        if(['агент', roleList.admin, 'суперагент', 'суперорганизация', 'организация', 'ремонтник'].includes(user.role)) {
+        if(['агент', roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization, 'ремонтник'].includes(user.role)) {
             let object = await RepairEquipmentAzyk.findById(_id)
             if(user.role==='ремонтник')object.repairMan = user.employment
             if(defect&&!object.accept&&!object.cancel)object.defect = defect
@@ -161,7 +161,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteRepairEquipment: async(parent, {_id}, {user}) => {
-        if(['агент', roleList.admin, 'суперагент', 'суперорганизация', 'организация'].includes(user.role)) {
+        if(['агент', roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization].includes(user.role)) {
             await RepairEquipmentAzyk.deleteOne({_id, ...user.organization?{organization: user.organization}:{}})
        }
         return 'OK'

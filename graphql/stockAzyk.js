@@ -31,7 +31,7 @@ const mutation = `
 
 const resolvers = {
     itemsForStocks: async(parent, {organization, warehouse}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let excludedItems = await StockAzyk.find({
                 organization: user.organization||organization,
                 warehouse
@@ -85,7 +85,7 @@ const resolvers = {
 const resolversMutation = {
     addStock: async(parent, {item, organization, count, warehouse}, {user}) => {
         if(
-            [roleList.admin, 'суперорганизация', 'организация'].includes(user.role)&&
+            [roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)&&
             !(await StockAzyk.countDocuments({item, organization: user.organization||organization, warehouse}).lean())
         ) {
             // eslint-disable-next-line no-undef
@@ -98,13 +98,13 @@ const resolversMutation = {
        }
    },
     setStock: async(parent, {_id, count}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             await StockAzyk.updateOne({_id}, {count})
        }
         return 'OK'
    },
     deleteStock: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             await StockAzyk.deleteOne({_id})
        }
         return 'OK'

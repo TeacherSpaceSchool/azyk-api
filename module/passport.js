@@ -104,9 +104,9 @@ const verifydeuserGQL = async (req, res) => {
     return new Promise((resolve) => {passport.authenticate('jwt', async function (err, user) {
         try{
             if (user&&user.status==='active') {
-                if(roleList.admin===user.role)
+                if(user.role===roleList.admin)
                     resolve(user)
-                else if(roleList.client===user.role) {
+                else if(user.role===roleList.client) {
                     const client = await ClientAzyk.findOne({user: user._id}).select('_id name category city').lean()
                     user.client = client._id
                     user.name = client.name

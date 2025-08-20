@@ -28,7 +28,7 @@ const mutation = `
 
 const resolvers = {
     autos: async(parent, {organization, search, sort}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
             let searchedEmployments;
             if(search) {
                 searchedEmployments = await EmploymentAzyk.find({
@@ -54,7 +54,7 @@ const resolvers = {
        }
    },
     auto: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
             return await AutoAzyk.findOne({
                 $or: [{_id}, {employment: _id}],
                 ...user.organization ? {organization: user.organization} : {},
@@ -74,7 +74,7 @@ const resolvers = {
 
 const resolversMutation = {
     addAuto: async(parent, {number, tonnage, organization, employment}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             // eslint-disable-next-line no-undef
             let [createdObject, employmentData] = await Promise.all([
                 AutoAzyk.create({
@@ -89,7 +89,7 @@ const resolversMutation = {
        }
    },
     setAuto: async(parent, {_id, number, tonnage, employment}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let object = await AutoAzyk.findById(_id)
             if(number)object.number = number
             if(tonnage)object.tonnage = tonnage
@@ -99,7 +99,7 @@ const resolversMutation = {
        }
    },
     deleteAuto: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             await AutoAzyk.deleteOne({_id, ...user.organization?{organization: user.organization}:{}})
             return 'OK'
        }

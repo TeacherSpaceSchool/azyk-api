@@ -60,7 +60,7 @@ const mutation = `
 
 const resolvers = {
     merchandisings: async(parent, {organization, agent, search, date, client, sort, filter, skip}, {user}) => {
-        if([roleList.admin, 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
+        if([roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
             let dateStart;
             let dateEnd;
             if(date&&date!=='') {
@@ -129,7 +129,7 @@ const resolvers = {
 
 const resolversMutation = {
     addMerchandising: async(parent, {organization, type, client, geo, productAvailability, productInventory, productConditions, productLocation, images, fhos, needFho, stateProduct, comment}, {user}) => {
-        if([roleList.admin, 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
+        if([roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
             let _object = new MerchandisingAzyk({
                 organization: user.organization||(organization==='super'?null:organization),
                 employment: user.employment?user.employment:null,
@@ -159,7 +159,7 @@ const resolversMutation = {
        }
    },
     checkMerchandising: async(parent, {_id, reviewerScore, reviewerComment}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер'].includes(user.role)) {
             let object = await MerchandisingAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
             object.check = true
             object.reviewerScore = reviewerScore
@@ -183,7 +183,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteMerchandising: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
+        if([roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
             const merchandisingImages = await MerchandisingAzyk.findOne({...user.organization?{organization: user.organization}:{}, _id}).select('images').lean()
             // eslint-disable-next-line no-undef
             await Promise.all(merchandisingImages.images.map(image => deleteFile(image)));

@@ -27,7 +27,7 @@ const mutation = `
 
 const resolvers = {
     connectionApplications: async(parent, {skip, filter}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             return await ConnectionApplicationAzyk.aggregate(
                 [
                     {
@@ -42,7 +42,7 @@ const resolvers = {
        }
    },
     connectionApplicationsSimpleStatistic: async(parent, {filter}, {user}) => {
-        if(roleList.admin===user.role)
+        if(user.role===roleList.admin)
             return await ConnectionApplicationAzyk.countDocuments({
                 ...(filter === 'обработка' ? {taken: false} : {})
            }).lean()
@@ -63,7 +63,7 @@ const resolversMutation = {
        }
    },
     acceptConnectionApplication: async(parent, {_id}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let object = await ConnectionApplicationAzyk.findById(_id)
             object.taken = true
             await object.save();

@@ -56,7 +56,7 @@ const mutation = `
 
 const resolvers = {
     clientsSimpleStatistic: async(parent, {search, date, filter, city}, {user}) => {
-        if(['менеджер', 'экспедитор', 'агент', 'суперагент', roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if(['менеджер', 'экспедитор', 'агент', 'суперагент', roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let dateStart;
             let dateEnd;
             if(date) {
@@ -212,7 +212,7 @@ const resolvers = {
                     .lean()
            }
        }
-        else if(['суперорганизация', 'организация', 'мерчендайзер'].includes(user.role)&&catalog) {
+        else if([roleList.superOrganization, roleList.organization, 'мерчендайзер'].includes(user.role)&&catalog) {
             // eslint-disable-next-line no-undef
             let [districtClients, integrateClients] = await Promise.all([
                 user.onlyDistrict?DistrictAzyk.find({organization: user.organization}).distinct('client').lean():null,
@@ -297,7 +297,7 @@ const resolvers = {
        } else return []
    },
     client: async(parent, {_id}, {user}) => {
-        if (user.role === roleList.admin)
+        if (user.role === roleList.client)
             _id = user._id
         if(mongoose.Types.ObjectId.isValid(_id)) {
             return await ClientAzyk.findOne({$or: [{_id}, {user: _id}]}).populate({path: 'user'}).lean()
@@ -307,10 +307,10 @@ const resolvers = {
 
 const resolversMutation = {
     addClient: async(parent, {image, name, email, city, address, phone, inn, info, login, password, category}, {user}) => {
-        if(user.role===roleList.admin||(user.addedClient&&['суперорганизация', 'организация', 'агент'].includes(user.role))) {
+        if(user.role===roleList.admin||(user.addedClient&&[roleList.superOrganization, roleList.organization, 'агент'].includes(user.role))) {
             let newUser = await UserAzyk.create({
                 login: login.trim(),
-                role: roleList.admin,
+                role: roleList.client,
                 status: 'active',
                 password,
                 category
@@ -346,7 +346,7 @@ const resolversMutation = {
    },
     setClient: async(parent, {_id, image, name, email, address, info, inn, newPass, phone, login, city, device, category}, {user}) => {
         if(
-            ['суперорганизация', 'организация', 'агент', roleList.admin, 'суперагент', 'экспедитор'].includes(user.role)
+            [roleList.superOrganization, roleList.organization, 'агент', roleList.admin, 'суперагент', 'экспедитор'].includes(user.role)
         ) {
             let object = await ClientAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'ClientAzyk', name: object.name, object: _id, data: {image, name, email, address, info, inn, newPass, phone, login, city, device, category}}))
@@ -410,7 +410,7 @@ const resolversMutation = {
         return 'OK'
    },
     onoffClient: async(parent, {_id}, {user}) => {
-        if(['агент', roleList.admin, 'суперагент', 'суперорганизация', 'организация'].includes(user.role)) {
+        if(['агент', roleList.admin, 'суперагент', roleList.superOrganization, roleList.organization].includes(user.role)) {
             //получаем ссылку на пользователя
             const client = await ClientAzyk.findById(_id).select('name user').lean()
             //находим пользователя

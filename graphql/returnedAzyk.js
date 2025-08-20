@@ -93,7 +93,7 @@ const mutation = `
 
 const resolvers = {
     returnedsSimpleStatistic: async(parent, {search, date, city}, {user}) => {
-        if(['суперорганизация', 'организация', 'агент', 'менеджер', roleList.admin, 'суперагент'].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'агент', 'менеджер', roleList.admin, 'суперагент'].includes(user.role)) {
             //период
             let dateStart;
             let dateEnd;
@@ -172,7 +172,7 @@ const resolvers = {
        }
    },
     returnedsFromDistrict: async(parent, {organization, district, date}, {user}) =>  {
-        if(['суперорганизация', 'организация', 'агент', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'агент', 'менеджер', roleList.admin].includes(user.role)) {
             //период
             let dateStart;
             let dateEnd;
@@ -284,7 +284,7 @@ const resolvers = {
        }
    },
     returneds: async(parent, {search, sort, date, skip, city}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер', 'суперагент', 'агент'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер', 'суперагент', 'агент'].includes(user.role)) {
             //период
             let dateStart;
             let dateEnd;

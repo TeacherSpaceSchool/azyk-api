@@ -28,7 +28,7 @@ const mutation = `
 
 const resolvers = {
     notificationStatistics: async(parent, {search}, {user}) => {
-        if(roleList.admin===user.role)
+        if(user.role===roleList.admin)
             return await NotificationStatisticAzyk.find({
                 $or: [
                     {title: {$regex: reductionSearchText(search), $options: 'i'}},
@@ -46,7 +46,7 @@ const resolvers = {
 
 const resolversMutation = {
     addNotificationStatistic: async(parent, {text, title, tag , url, icon}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let payload = {title, message: text, tag, url}
             if(icon) {
                 let {stream, filename} = await icon;

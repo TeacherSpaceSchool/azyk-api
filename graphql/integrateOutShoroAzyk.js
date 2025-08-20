@@ -52,7 +52,7 @@ const mutation = `
 
 const resolvers = {
     outXMLShoros: async(parent, {search, filter, skip, organization}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let outXMLShoro = await OutXMLAzyk
                 .find({
                     status: {$regex: filter, $options: 'i'},
@@ -68,7 +68,7 @@ const resolvers = {
         else return []
    },
     statisticOutXMLShoros: async(parent, {organization}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let outXMLShoro = await OutXMLAzyk
                 .find({organization}).lean()
             let procces = 0;
@@ -88,7 +88,7 @@ const resolvers = {
         else return []
    },
     statisticOutXMLReturnedShoros: async(parent, {organization}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let outXMLReturnedAzyk = await OutXMLReturnedAzyk
                 .find({organization})
                 .select('status')
@@ -110,7 +110,7 @@ const resolvers = {
         else return []
    },
     outXMLReturnedShoros: async(parent, {search, filter, skip, organization}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             return await OutXMLReturnedAzyk
                 .find({
                     status: {$regex: filter, $options: 'i'},
@@ -127,7 +127,7 @@ const resolvers = {
 
 const resolversMutation = {
     deleteOutXMLShoro: async(parent, {_id}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let invoiceId = await OutXMLAzyk.findOne({_id, status: {$ne: 'check'}}).select('invoice').lean()
             // eslint-disable-next-line no-undef
             await Promise.all([
@@ -138,7 +138,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteOutXMLShoroAll: async(parent, {organization}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let invoiceIds = await OutXMLAzyk.find({organization, status: {$ne: 'check'}}).distinct('invoice')
             // eslint-disable-next-line no-undef
             await Promise.all([
@@ -149,7 +149,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteOutXMLReturnedShoro: async(parent, {_id}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let object = await OutXMLReturnedAzyk.findOne({_id, status: {$ne: 'check'}}).select('returned').lean()
             // eslint-disable-next-line no-undef
             await Promise.all([
@@ -160,7 +160,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteOutXMLReturnedShoroAll: async(parent, {organization}, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let returnedIds = await OutXMLReturnedAzyk.find({organization, status: {$ne: 'check'}}).distinct('returned')
             // eslint-disable-next-line no-undef
             await Promise.all([

@@ -3,4 +3,6 @@ export const roleList = Object.freeze({
     admin: 'admin',
     //client
     client: 'client',
+    superOrganization: 'суперорганизация',
+    organization: 'организация',
 })

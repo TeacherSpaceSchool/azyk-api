@@ -28,7 +28,7 @@ const mutation = `
 
 const resolvers = {
     agentRoutes: async(parent, {organization, search}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin ].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin ].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [searchedDistricts, employmentDistricts] = await Promise.all([
                 search?DistrictAzyk.find({name: {$regex: reductionSearchText(search), $options: 'i'}}).distinct('_id'):null,
@@ -55,7 +55,7 @@ const resolvers = {
        }
    },
     districtsWithoutAgentRoutes: async(parent, {organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin ].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin ].includes(user.role)) {
             organization = organization==='super'?null:organization
             let districts = await AgentRouteAzyk
                 .find({organization})
@@ -75,7 +75,7 @@ const resolvers = {
        }
    },
     agentRoute: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'агент', 'суперагент', 'менеджер', roleList.admin, ].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'агент', 'суперагент', 'менеджер', roleList.admin, ].includes(user.role)) {
             let employmentDistricts
             if (['агент', 'суперагент', 'менеджер'].includes(user.role)) {
                 employmentDistricts = await DistrictAzyk
@@ -97,19 +97,19 @@ const resolvers = {
 
 const resolversMutation = {
     addAgentRoute: async(parent, {organization, clients, district}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер'].includes(user.role)) {
             const createdObject = await AgentRouteAzyk.create({district, clients, organization: organization!=='super'?organization:null})
             return createdObject._id;
        }
    },
     setAgentRoute: async(parent, {_id, clients}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             await AgentRouteAzyk.updateOne({_id, ...user.organization?{organization: user.organization}:{}}, {clients})
             return 'OK'
        }
    },
     deleteAgentRoute: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер'].includes(user.role)) {
             await AgentRouteAzyk.deleteOne({_id, ...user.organization ? {organization: user.organization} : {}})
             return 'OK'
        }

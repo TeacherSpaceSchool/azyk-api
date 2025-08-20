@@ -20,7 +20,7 @@ const query = `
 const resolvers = {
     subscribers: async(parent, ctx, {user}) => {
         let res = []
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             let findRes = await SubscriberAzyk
                 .find({})
                 .populate({path: 'user'})

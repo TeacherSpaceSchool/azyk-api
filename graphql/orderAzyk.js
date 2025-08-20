@@ -142,7 +142,7 @@ const subscription  = `
 
 const resolvers = {
     invoicesSimpleStatistic: async(parent, {search, filter, date, organization, city}, {user}) => {
-        if(['суперорганизация', 'организация', roleList.client, roleList.admin, 'менеджер', 'агент', 'экспедитор', 'суперэкспедитор', 'суперагент'].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.client, roleList.admin, 'менеджер', 'агент', 'экспедитор', 'суперэкспедитор', 'суперагент'].includes(user.role)) {
             //дата доставки
             let dateStart;
             let dateEnd;
@@ -228,7 +228,7 @@ const resolvers = {
         }
     },
     invoices: async(parent, {search, sort, filter, date, skip, organization, city}, {user}) =>  {
-        if(['суперорганизация', 'организация', roleList.client, roleList.admin, 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.client, roleList.admin, 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
             //console.time('get BD')
             let dateStart;
             let dateEnd;
@@ -390,12 +390,12 @@ const resolvers = {
         }
     },
     orderHistorys: async(parent, {invoice}, {user}) => {
-        if([roleList.admin, 'менеджер', 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'менеджер', roleList.superOrganization, roleList.organization].includes(user.role)) {
             return HistoryOrderAzyk.find({invoice}).sort('-createdAt').lean()
         }
     },
     invoicesForRouting: async(parent, {produsers, clients, dateStart, dateEnd, dateDelivery}, {user}) => {
-        if([roleList.admin, 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+        if([roleList.admin, 'агент', roleList.superOrganization, roleList.organization, 'менеджер'].includes(user.role)) {
             if(dateDelivery) {
                 dateStart = checkDate(dateDelivery)
                 dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -435,7 +435,7 @@ const resolvers = {
         else  return []
     },
     invoice: async(parent, {_id}, {user}) => {
-        if(['агент', 'менеджер', 'суперорганизация', 'организация', 'экспедитор', 'суперагент', roleList.admin, 'суперэкспедитор', roleList.client].includes(user.role)) {
+        if(['агент', 'менеджер', roleList.superOrganization, roleList.organization, 'экспедитор', 'суперагент', roleList.admin, 'суперэкспедитор', roleList.client].includes(user.role)) {
             return InvoiceAzyk.findOne({
                 _id,
                 ...user.client ? {client: user.client} : {},
@@ -474,7 +474,7 @@ const resolvers = {
         }
     },
     invoicesFromDistrict: async(parent, {organization, district, date}, {user}) =>  {
-        if([roleList.admin, 'агент', 'менеджер','суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'агент', 'менеджер',roleList.superOrganization, roleList.organization].includes(user.role)) {
             let dateStart;
             let dateEnd;
             dateStart = checkDate(date)
@@ -609,9 +609,9 @@ const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClie
     let object = await InvoiceAzyk.findById(invoice).populate('client')
     //проверка роли
     let isAdmin = [roleList.admin, 'суперагент', 'суперэкспедитор'].includes(user.role)
-    let isClient = roleList.client===user.role&&user.client.toString()===object.client._id.toString()
-    let isEmployment = ['менеджер', 'суперорганизация', 'организация', 'агент', 'экспедитор'].includes(user.role)&&object.organization.toString()===user.organization.toString();
-    let isUndefinedClient = ['менеджер', 'суперорганизация', 'организация', 'экспедитор', 'агент'].includes(user.role)&&!object.client.user
+    let isClient = user.role===roleList.client&&user.client.toString()===object.client._id.toString()
+    let isEmployment = ['менеджер', roleList.superOrganization, roleList.organization, 'агент', 'экспедитор'].includes(user.role)&&object.organization.toString()===user.organization.toString();
+    let isUndefinedClient = ['менеджер', roleList.superOrganization, roleList.organization, 'экспедитор', 'агент'].includes(user.role)&&!object.client.user
     //optionUpdateOrder
     let optionUpdateOrder
     //ручное задание акций
@@ -1308,12 +1308,12 @@ const resolversSubscription = {
                 return (
                     user&&user.role&&user._id&&user._id.toString()!==payload.reloadOrder.who&&
                     (
-                        roleList.admin===user.role||
+                        user.role===roleList.admin||
                         (user.client&&payload.reloadOrder.client&&payload.reloadOrder.client.toString()===user.client.toString())||
                         (user.employment&&payload.reloadOrder.superagent&&payload.reloadOrder.superagent.toString()===user.employment.toString())||
                         (user.employment&&payload.reloadOrder.agent&&payload.reloadOrder.agent.toString()===user.employment.toString())||
                         (user.employment&&payload.reloadOrder.manager&&payload.reloadOrder.manager.toString()===user.employment.toString())||
-                        (user.organization&&payload.reloadOrder.organization&&['суперорганизация', 'организация'].includes(user.role)&&payload.reloadOrder.organization.toString()===user.organization.toString())
+                        (user.organization&&payload.reloadOrder.organization&&[roleList.superOrganization, roleList.organization].includes(user.role)&&payload.reloadOrder.organization.toString()===user.organization.toString())
                     )
                 )
             },

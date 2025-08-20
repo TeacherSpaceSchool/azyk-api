@@ -30,7 +30,7 @@ const mutation = `
 
 const resolvers = {
     reviews: async(parent, {organization, skip, filter}, {user}) => {
-        if(['суперорганизация', 'организация', roleList.admin, roleList.client].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.admin, roleList.client].includes(user.role)) {
             let reviews = await ReviewAzyk.aggregate(
                 [
                     {
@@ -114,7 +114,7 @@ const resolversMutation = {
        }
    },
     acceptReview: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, roleList.admin].includes(user.role)) {
             await ReviewAzyk.updateOne({_id}, {taken: true})
        }
         return 'OK'

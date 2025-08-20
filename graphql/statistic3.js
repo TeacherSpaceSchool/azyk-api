@@ -18,7 +18,7 @@ const query = `
 
 const resolvers = {
     statisticReturned: async(parent, {organization, dateStart, dateEnd, city}, {user}) => {
-        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -110,13 +110,13 @@ const resolvers = {
                 ...data
             ]
             return {
-                columns: [organization?'район':'организация', 'сумма(сом)', 'выполнен(шт)', 'процент'],
+                columns: [organization?'район':roleList.organization, 'сумма(сом)', 'выполнен(шт)', 'процент'],
                 row: data
            };
        }
    },
     statisticAgents: async(parent, {organization, dateStart, dateEnd, city}, {user}) => {
-        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -223,13 +223,13 @@ const resolvers = {
                 ...data
             ]
             return {
-                columns: [organization?'агент':'организация', 'выручка(сом)', 'выполнен(шт)', ...returnedAll?['отказов(сом)']:[], 'средний чек(сом)', 'процент'],
+                columns: [organization?'агент':roleList.organization, 'выручка(сом)', 'выполнен(шт)', ...returnedAll?['отказов(сом)']:[], 'средний чек(сом)', 'процент'],
                 row: data
            };
        }
    },
     statisticAgentsWorkTime: async(parent, {organization, dateStart}, {user}) => {
-        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -289,7 +289,7 @@ const resolvers = {
    },
     statisticMerchandising: async (parent, {type, dateStart, dateEnd, organization, agent}, {user}) => {
         // Проверка прав доступа
-        if (![roleList.admin, 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) return
+        if (![roleList.admin, roleList.superOrganization, roleList.organization, 'менеджер'].includes(user.role)) return
 
         if(user.organization) organization= user.organization
 

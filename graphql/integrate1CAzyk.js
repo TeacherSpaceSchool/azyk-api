@@ -264,7 +264,7 @@ const resolvers = {
 
 const resolversMutation = {
     addIntegrate1C: async(parent, {organization, item, client, guid, agent, ecspeditor}, {user}) => {
-        if([roleList.admin].includes(user.role)) {
+        if(user.role===roleList.admin) {
             // eslint-disable-next-line no-undef
             const [createdObject, agentData, ecspeditorData, itemData, clientData] = await Promise.all([
                 Integrate1CAzyk.create({...(organization==='super'?{organization: null}:{organization}), guid, item, client, agent, ecspeditor}),

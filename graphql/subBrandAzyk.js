@@ -36,7 +36,7 @@ const mutation = `
 
 const resolvers = {
     subBrands: async(parent, {organization, search, city}, {user}) => {
-        if([roleList.admin, 'суперагент', 'экспедитор', 'суперорганизация', 'организация', 'менеджер', 'агент', roleList.client].includes(user.role)) {
+        if([roleList.admin, 'суперагент', 'экспедитор', roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.client].includes(user.role)) {
             if(user.organization) organization = user.organization
             return await SubBrandAzyk.find({
                 del: {$ne: 'deleted'},
@@ -46,7 +46,7 @@ const resolvers = {
                 ]}:{},
                 ...organization?{organization}:{},
                 ...city?{cities: city}:{},
-                ...![roleList.admin, 'суперорганизация', 'организация'].includes(user.role)?{status: 'active'}:{}
+                ...![roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)?{status: 'active'}:{}
            })
                 .populate({
                     path: 'organization',
@@ -71,7 +71,7 @@ const resolvers = {
 
 const resolversMutation = {
     addSubBrand: async(parent, {minimumOrder, image, miniInfo, priotiry, organization, guid, name}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             if(user.organization) organization = user.organization
             organization = await OrganizationAzyk.findById(organization).select('_id name cities').lean()
             let {stream, filename} = await image;
@@ -85,7 +85,7 @@ const resolversMutation = {
        }
    },
     setSubBrand: async(parent, {_id, image, minimumOrder, miniInfo, priotiry, guid, name}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let object = await SubBrandAzyk.findOne({
                 _id,
                 ...user.organization?{organization: user.organization}:{}
@@ -110,7 +110,7 @@ const resolversMutation = {
         return 'OK'
    },
     onoffSubBrand: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             const subBrand = await SubBrandAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
             subBrand.status = subBrand.status === 'active' ? 'deactive' : 'active';
             subBrand.save();
@@ -119,7 +119,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteSubBrand: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let subBrand = await SubBrandAzyk.findById(_id).select('name').lean()
             // eslint-disable-next-line no-undef
             await Promise.all([
@@ -131,7 +131,7 @@ const resolversMutation = {
         return 'OK'
    },
     setSubBrandForItems: async(parent, {subBrand, selectedItems, unselectedItems}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             // eslint-disable-next-line no-undef
             await Promise.all([
                 ItemAzyk.updateMany({_id: {$in: selectedItems}, subBrand: {$ne: subBrand}, ...user.organization?{organization: user.organization}:{}}, {subBrand}),

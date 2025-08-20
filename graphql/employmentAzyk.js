@@ -38,12 +38,12 @@ const mutation = `
 
 const resolvers = {
     employments: async(parent, {organization, search, filter, skip}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
             let filteredUsers = await UserAzyk.find({
                 $and: [
                     ...filter?[{role: {$regex: filter, $options: 'i'}}]:[],
                     {role: {$nin: [
-                        ...user.role!==roleList.admin?['суперорганизация', 'организация']:[],
+                        ...user.role!==roleList.admin?[roleList.superOrganization, roleList.organization]:[],
                         ...user.role==='менеджер'?['менеджер']:[],
                     ]}}
                 ]
@@ -69,12 +69,12 @@ const resolvers = {
        }
    },
     employmentsCount: async(parent, {organization, search, filter}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
             let filteredUsers = await UserAzyk.find({
                 $and: [
                     ...filter?[{role: {$regex: filter, $options: 'i'}}]:[],
                     {role: {$nin: [
-                                ...user.role!==roleList.admin?['суперорганизация', 'организация']:[],
+                                ...user.role!==roleList.admin?[roleList.superOrganization, roleList.organization]:[],
                                 ...user.role==='менеджер'?['менеджер']:[],
                             ]}}
                 ]
@@ -88,7 +88,7 @@ const resolvers = {
        }
    },
     ecspeditors: async(parent, {organization}, {user}) => {
-        if (['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
+        if ([roleList.superOrganization, roleList.organization, 'менеджер', 'агент', roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
             let role = 'экспедитор'
             if(organization==='super') {
@@ -110,7 +110,7 @@ const resolvers = {
        }
    },
     managers: async(parent, {organization}, {user}) => {
-        if (['суперорганизация', 'организация', roleList.admin].includes(user.role)) {
+        if ([roleList.superOrganization, roleList.organization, roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
             let role = 'менеджер'
             if(organization==='super') {
@@ -134,7 +134,7 @@ const resolvers = {
        }
    },
     agents: async(parent, {organization}, {user}) => {
-        if (['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
+        if ([roleList.superOrganization, roleList.organization, 'менеджер', roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
             let role = 'агент'
             if(organization==='super') {
@@ -160,8 +160,8 @@ const resolvers = {
        }
    },
     employment: async(parent, {_id}, {user}) => {
-        if(user.role&&user.role!==roleList.admin) {
-            if(![roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) _id = user._id
+        if(user.role&&user.role!==roleList.client) {
+            if(![roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) _id = user._id
             return await EmploymentAzyk.findOne({
                 $or: [
                     {_id},
@@ -203,11 +203,11 @@ const resolversMutation = {
        }
    },
     setEmployment: async(parent, {_id, name, email, newPass, role, login, phone}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             let object = await EmploymentAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'EmploymentAzyk', name: object.name, object: _id, data: {name, email, newPass, role, login, phone}}))
-            if(role==='суперорганизация'&&user.role!==roleList.admin)
-                role = 'организация'
+            if(role===roleList.superOrganization&&user.role!==roleList.admin)
+                role = roleList.organization
             if (role || newPass || login) {
                 let objectUser = await UserAzyk.findById(object.user)
                 if(login)objectUser.login = login.trim()
@@ -247,7 +247,7 @@ const resolversMutation = {
         return 'OK'
    },
     onoffEmployment: async(parent, {_id}, {user}) => {
-        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, roleList.superOrganization, roleList.organization].includes(user.role)) {
             //получаем ссылку на пользователя
             const employment = await EmploymentAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}}).select('name user').lean()
             //находим пользователя

@@ -18,7 +18,7 @@ const query = `
 
 const resolvers = {
     statisticDevice: async(parent, {filter}, {user}) => {
-        if([roleList.admin].includes(user.role)) {
+        if(user.role===roleList.admin) {
             let statistic = {}
             let data = await ClientAzyk.find({device: {$ne: null}})
                 .select('device')
@@ -92,7 +92,7 @@ const resolvers = {
        }
    },
     statisticStorageSize: async(parent, ctx, {user}) => {
-        if([roleList.admin].includes(user.role)) {
+        if(user.role===roleList.admin) {
             let allSize = 0
             let allCount = 0
             let mbSize = 1048576
@@ -130,7 +130,7 @@ const resolvers = {
        }
    },
     statisticClientCity: async(parent, ctx, {user}) => {
-        if([roleList.admin].includes(user.role)) {
+        if(user.role===roleList.admin) {
             let data = {}
             let clients = await ClientAzyk.find({
                 del: {$ne: 'deleted'},

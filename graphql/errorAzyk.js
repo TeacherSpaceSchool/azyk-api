@@ -32,12 +32,12 @@ const getLoginFromPath = (path) => {
 
 const resolvers = {
     errors: async(parent, ctx, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             return await ErrorAzyk.find().sort('-createdAt').lean()
        }
    },
     errorsStatistic: async(parent, ctx, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             const errors = await ErrorAzyk.find().sort('-createdAt').lean()
             let allErrors = 0, allClients = [], allEmployments = []
             const parsedErrors = {}
@@ -117,7 +117,7 @@ const resolversMutation = {
         return 'OK'
     },
     clearAllErrors: async(parent, ctx, {user}) => {
-        if(roleList.admin===user.role) {
+        if(user.role===roleList.admin) {
             await ErrorAzyk.deleteMany()
        }
         return 'OK'
