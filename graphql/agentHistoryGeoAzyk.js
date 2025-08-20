@@ -4,6 +4,7 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const UserAzyk = require('../models/userAzyk');
 const {getGeoDistance, pdDDMMYYHHMM, checkDate, dayStartDefault} = require('../module/const');
 const {parallelPromise} = require('../module/parallel');
+const {roleList} = require('../module/enum');
 
 const type = `
   type AgentHistoryGeo {
@@ -26,7 +27,7 @@ const mutation = `
 
 const resolvers = {
     agentHistoryGeos: async(parent, {organization, agent, date}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
             // Устанавливаем дату начала и конца (день с 3:00)
             let dateStart = checkDate(date)
@@ -130,7 +131,7 @@ const resolvers = {
        }
    },
     agentMapGeos: async(parent, {agent, date}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', roleList.admin].includes(user.role)) {
             let dateStart = checkDate(date)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
             let dateEnd = new Date(dateStart)

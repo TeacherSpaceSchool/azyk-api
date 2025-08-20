@@ -7,6 +7,7 @@ const {pdDDMMYYYY, checkDate, dayStartDefault, formatAmount} = require('../modul
 const {pdHHMM, checkFloat} = require('../module/const');
 const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
+const {roleList} = require('../module/enum');
 
 const query = `
     statisticReturned(organization: ID, dateStart: Date, dateEnd: Date, city: String): Statistic
@@ -17,7 +18,7 @@ const query = `
 
 const resolvers = {
     statisticReturned: async(parent, {organization, dateStart, dateEnd, city}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -115,7 +116,7 @@ const resolvers = {
        }
    },
     statisticAgents: async(parent, {organization, dateStart, dateEnd, city}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -228,7 +229,7 @@ const resolvers = {
        }
    },
     statisticAgentsWorkTime: async(parent, {organization, dateStart}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -288,7 +289,7 @@ const resolvers = {
    },
     statisticMerchandising: async (parent, {type, dateStart, dateEnd, organization, agent}, {user}) => {
         // Проверка прав доступа
-        if (!['admin', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) return
+        if (![roleList.admin, 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) return
 
         if(user.organization) organization= user.organization
 

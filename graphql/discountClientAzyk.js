@@ -1,6 +1,7 @@
 const DiscountClient = require('../models/discountClientAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const {parallelBulkWrite} = require('../module/parallel');
+const {roleList} = require('../module/enum');
 
 const type = `
   type DiscountClient {
@@ -23,13 +24,13 @@ const mutation = `
 
 const resolvers = {
     discountClients: async(parent, {clients, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
             organization = user.organization||(organization==='super'?null:organization)
             return await DiscountClient.find({client: {$in: clients}, organization}).lean()
        }
    },
     discountClient: async(parent, {client, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin', 'client'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin, roleList.admin].includes(user.role)) {
             if(user.client) client = user.client
             if(user.organization)
                 organization = user.organization
@@ -45,7 +46,7 @@ const resolvers = {
 
 const resolversMutation = {
     setDiscountClients: async(parent, {clients, organization, discount}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
             organization = user.organization ? user.organization : organization==='super'?null:organization
             // Получаем клиентов DiscountClient
             let existingClients = await DiscountClient.find({client: {$in: clients}, organization}).distinct('client').lean()

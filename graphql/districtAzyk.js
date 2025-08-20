@@ -9,6 +9,7 @@ const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const SingleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');
 const {addHistory, historyTypes} = require('../module/history');
+const {roleList} = require('../module/enum');
 
 const type = `
   type District {
@@ -39,7 +40,7 @@ const mutation = `
 
 const resolvers = {
     districts: async(parent, {organization, search}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if(['суперорганизация', 'организация', roleList.admin, 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [searchedClients, searchedEmployments] = await Promise.all([
                 search?ClientAzyk.find({
@@ -89,7 +90,7 @@ const resolvers = {
        }
    },
     clientsWithoutDistrict: async(parent, {organization, district}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             if(user.organization) organization = user.organization
             organization = await OrganizationAzyk.findById(organization).select('_id cities clientDuplicate onlyIntegrate').lean()
             // eslint-disable-next-line no-undef
@@ -118,7 +119,7 @@ const resolvers = {
        }
    },
     district: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if(['суперорганизация', 'организация', roleList.admin, 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             return await DistrictAzyk.findOne({
                 ...mongoose.Types.ObjectId.isValid(_id)?{_id}:{},
                 ...user.organization?{organization: user.organization}:{},
@@ -155,7 +156,7 @@ const resolvers = {
    },
     //район клиента
     clientDistrict: async(parent, {organization}, {user}) => {
-        if('client'===user.role) {
+        if(roleList.admin===user.role) {
             let subBrand = await SubBrandAzyk.findById(organization).select('organization').lean()
             if(subBrand) organization = subBrand.organization
             return await DistrictAzyk.findOne({
@@ -182,7 +183,7 @@ const resolvers = {
 
 const resolversMutation = {
     addDistrict: async(parent, {organization, client, name, agent, ecspeditor, manager, warehouse}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
             const createdObject = await DistrictAzyk.create({
                 name,
                 client,
@@ -197,7 +198,7 @@ const resolversMutation = {
         }
    },
     setDistrict: async(parent, {_id, client, ecspeditor, name, agent, manager, warehouse}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             let object = await DistrictAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'DistrictAzyk', name: object.name, object: _id, data: {client: `${object.client.length}->${client.length}`, ecspeditor, name, agent, manager, warehouse}}))
             if(name) object.name = name
@@ -240,7 +241,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteDistrict: async(parent, {_id}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
             const district = await DistrictAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}}).select('name').lean()
             // eslint-disable-next-line no-undef
             await Promise.all([

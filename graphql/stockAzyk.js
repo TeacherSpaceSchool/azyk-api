@@ -5,6 +5,7 @@ const DistrictAzyk = require('../models/districtAzyk');
 const Item = require('../models/itemAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const WarehouseAzyk = require('../models/warehouseAzyk');
+const {roleList} = require('../module/enum');
 
 const type = `
   type Stock {
@@ -30,7 +31,7 @@ const mutation = `
 
 const resolvers = {
     itemsForStocks: async(parent, {organization, warehouse}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
             let excludedItems = await StockAzyk.find({
                 organization: user.organization||organization,
                 warehouse
@@ -84,7 +85,7 @@ const resolvers = {
 const resolversMutation = {
     addStock: async(parent, {item, organization, count, warehouse}, {user}) => {
         if(
-            ['admin', 'суперорганизация', 'организация'].includes(user.role)&&
+            [roleList.admin, 'суперорганизация', 'организация'].includes(user.role)&&
             !(await StockAzyk.countDocuments({item, organization: user.organization||organization, warehouse}).lean())
         ) {
             // eslint-disable-next-line no-undef
@@ -97,13 +98,13 @@ const resolversMutation = {
        }
    },
     setStock: async(parent, {_id, count}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
             await StockAzyk.updateOne({_id}, {count})
        }
         return 'OK'
    },
     deleteStock: async(parent, {_id}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
             await StockAzyk.deleteOne({_id})
        }
         return 'OK'

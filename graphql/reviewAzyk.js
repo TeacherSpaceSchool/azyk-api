@@ -4,6 +4,7 @@ const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const mongoose = require('mongoose');
 const {sendPushToAdmin, unawaited, isNotEmpty, defaultLimit} = require('../module/const');
+const {roleList} = require('../module/enum');
 
 const type = `
   type Review {
@@ -29,7 +30,7 @@ const mutation = `
 
 const resolvers = {
     reviews: async(parent, {organization, skip, filter}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin', 'client'].includes(user.role)) {
+        if(['суперорганизация', 'организация', roleList.admin, roleList.client].includes(user.role)) {
             let reviews = await ReviewAzyk.aggregate(
                 [
                     {
@@ -100,7 +101,7 @@ const resolvers = {
 
 const resolversMutation = {
     addReview: async(parent, {organization, text, type}, {user}) => {
-        if(user.role==='client') {
+        if(user.role===roleList.client) {
             // eslint-disable-next-line no-undef
             const [createdObject, clientData, organizationData] = await Promise.all([
                 ReviewAzyk.create({organization, client: user.client, taken: false, type, text}),
@@ -113,13 +114,13 @@ const resolversMutation = {
        }
    },
     acceptReview: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', roleList.admin].includes(user.role)) {
             await ReviewAzyk.updateOne({_id}, {taken: true})
        }
         return 'OK'
    },
     deleteReview: async(parent, {_id}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             await ReviewAzyk.deleteOne({_id})
        }
         return 'OK'

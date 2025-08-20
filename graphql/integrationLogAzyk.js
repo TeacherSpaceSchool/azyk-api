@@ -1,5 +1,6 @@
 const IntegrationLogAzyk = require('../models/integrationLogAzyk');
 const {isNotEmpty, defaultLimit} = require('../module/const');
+const {roleList} = require('../module/enum');
 
 const type = `
   type IntegrationLog {
@@ -16,7 +17,7 @@ const query = `
 
 const resolvers = {
     integrationLogs: async(parent, {filter, organization, skip}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             return await IntegrationLogAzyk.find({...filter?{path: filter}:{}, organization})
                 .sort('-createdAt')
                 .skip(isNotEmpty(skip)?skip:0)

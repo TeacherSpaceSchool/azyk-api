@@ -8,7 +8,6 @@ const {parallelPromise} = require('../module/parallel');
 const ModelsErrorAzyk = require('../models/errorAzyk');
 const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
-const HistoryReturnedAzyk = require('../models/historyReturnedAzyk');
 const HistoryAzyk = require('../models/historyAzyk');
 const IntegrationLogAzyk = require('../models/integrationLogAzyk');
 
@@ -32,7 +31,6 @@ if(!isMainThread) {
                 MerchandisingAzyk.deleteMany({createdAt: {$lte: date}}),
                 AgentHistoryGeoAzyk.deleteMany({createdAt: {$lte: date}}),
                 HistoryOrderAzyk.deleteMany({createdAt: {$lte: date}}),
-                HistoryReturnedAzyk.deleteMany({createdAt: {$lte: date}}),
                 HistoryAzyk.deleteMany({createdAt: {$lte: date}}),
                 IntegrationLogAzyk.deleteMany({createdAt: {$lte: date}})
             ])

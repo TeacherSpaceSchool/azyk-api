@@ -13,6 +13,7 @@ const {urlMain, pdDDMMYYYY, checkInt, checkFloat} = require('../module/const');
 const app = require('../app');
 const fs = require('fs');
 const path = require('path');
+const {roleList} = require('../module/enum');
 
 const type = `
   type Route {
@@ -61,7 +62,7 @@ const mutation = `
 
 const resolvers = {
     unloadingInvoicesFromRouting: async(parent, {orders, organization}, {user}) => {
-        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
+        if([roleList.admin, 'агент', 'суперорганизация', 'организация', 'менеджер', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
             if(organization!=='super')
                 organization = await OrganizationAzyk.findById(organization).select('name address phone').lean()
             else
@@ -460,7 +461,7 @@ const resolvers = {
        }
    },
     listDownload: async(parent, {orders}, {user}) => {
-        if(['admin', 'агент', 'суперорганизация', 'организация', 'суперэкспедитор', 'экспедитор', 'менеджер'].includes(user.role)) {
+        if([roleList.admin, 'агент', 'суперорганизация', 'организация', 'суперэкспедитор', 'экспедитор', 'менеджер'].includes(user.role)) {
             orders = await InvoiceAzyk.find({_id: {$in: orders}})
                 .select('orders allPrice adss')
                 .populate({
@@ -558,7 +559,7 @@ const resolvers = {
        }
    },
     listUnload: async(parent, {orders}, {user}) => {
-        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+        if([roleList.admin, 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             orders = await InvoiceAzyk.find({_id: {$in: orders}})
                 .select('orders')
                 .populate({
@@ -582,7 +583,7 @@ const resolvers = {
        }
    },
     routes: async(parent, {organization, search, sort, filter, date, skip}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin, 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
             let dateStart;
             let dateEnd;
             if(date) {
@@ -660,7 +661,7 @@ const resolvers = {
                 .lean()
             if (route &&
                 (
-                    ['admin', 'суперэкспедитор'].includes(user.role) ||
+                    [roleList.admin, 'суперэкспедитор'].includes(user.role) ||
                     (user.role === 'экспедитор' && route.selectEcspeditor._id.toString() === user.employment.toString()) ||
                     (['суперорганизация', 'организация', 'менеджер', 'агент'].includes(user.role) && route.provider._id.toString() === user.organization.toString())
                 )
@@ -681,7 +682,7 @@ const resolvers = {
 
 const resolversMutation = {
     buildRoute: async(parent, {provider, autoTonnage, orders, length}, {user}) => {
-        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+        if([roleList.admin, 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             if(provider!=='super')
                 provider = (await OrganizationAzyk.findById(provider).select('warehouse').lean()).warehouse.replace(', ', ',');
             else
@@ -738,7 +739,7 @@ const resolversMutation = {
         return 'OK';
    },
     setRoute: async(parent, {route, deletedOrders}, {user}) => {
-        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
+        if([roleList.admin, 'агент', 'суперорганизация', 'организация', 'менеджер', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
             route = await RouteAzyk.findOne({_id: route, ...user.organization?{provider: user.organization}:{}})
             if(route) {
                 for(let i = 0; i < deletedOrders.length; i++) {
@@ -766,7 +767,7 @@ const resolversMutation = {
         return 'OK';
    },
     addRoute: async(parent, {deliverys, provider, selectProdusers, selectDistricts, selectEcspeditor, selectAuto, selectedOrders, dateDelivery, allTonnage}, {user}) => {
-        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+        if([roleList.admin, 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             let number = await randomstring.generate({length: 12, charset: 'numeric'});
             while (await RouteAzyk.findOne({number: number}).select('_id').lean())
                 number = await randomstring.generate({length: 12, charset: 'numeric'});

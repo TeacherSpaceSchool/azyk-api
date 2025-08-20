@@ -1,6 +1,7 @@
 const SingleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const {reductionSearchText} = require('../module/const');
+const {roleList} = require('../module/enum');
 
 
 const type = `
@@ -26,13 +27,13 @@ const mutation = `
 
 const resolvers = {
     districtsOutXMLAdsShoros: async(parent, {organization}, {user}) => {
-        if (user.role === 'admin') {
+        if (user.role === roleList.admin) {
             let districts = await SingleOutXMLAdsAzyk.find({organization}).distinct('district')
             return DistrictAzyk.find({organization, _id: {$nin: districts}}).lean()
        }
    },
     outXMLAdsShoros: async(parent, {organization, search}, {user}) => {
-        if (user.role === 'admin') {
+        if (user.role === roleList.admin) {
             let searchedDistricts;
             if (search) {
                 searchedDistricts = await DistrictAzyk.find({name: {$regex: reductionSearchText(search), $options: 'i'}}).distinct('_id').lean()
@@ -49,7 +50,7 @@ const resolvers = {
 
 const resolversMutation = {
     addOutXMLAdsShoro: async(parent, {organization, district, guid}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             // eslint-disable-next-line no-undef
             const [createdObject, districtData] = await Promise.all([
                 SingleOutXMLAdsAzyk.create({guid, organization, district}),
@@ -59,13 +60,13 @@ const resolversMutation = {
        }
    },
     setOutXMLAdsShoro: async(parent, {_id, guid}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             await SingleOutXMLAdsAzyk.updateOne({_id}, {guid})
        }
         return 'OK'
    },
     deleteOutXMLAdsShoro: async(parent, {_id}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             await SingleOutXMLAdsAzyk.deleteOne({_id})
        }
         return 'OK'

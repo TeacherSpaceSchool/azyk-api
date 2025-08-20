@@ -1,5 +1,6 @@
 const HistoryAzyk = require('../models/historyAzyk');
 const {reductionSearch, isNotEmpty, defaultLimit} = require('../module/const');
+const {roleList} = require('../module/enum');
 
 const type = `
   type History {
@@ -22,7 +23,7 @@ const query = `
 
 const resolvers = {
     histories: async(parent, {search, filter, skip}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             return await HistoryAzyk.find({
                 ...search?{object: {$regex: reductionSearch(search), $options: 'i'}}:{},
                 ...filter?{model: filter}:{},

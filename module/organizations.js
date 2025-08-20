@@ -14,14 +14,14 @@ const deliveryDateAzyk = require('../models/deliveryDateAzyk');const agentRouteA
 /*_id*/const userAzyk = require('../models/userAzyk');/*user*/const subscriberAzyk = require('../models/subscriberAzyk');
 /*provider*/const routeAzyk = require('../models/routeAzyk');/*_id*/const organizationAzyk = require('../models/organizationAzyk');
 /*item*/const orderAzyk = require('../models/orderAzyk');/*item*/const basketAzyk = require('../models/basketAzyk');
-/*item*/const historyStockAzyk = require('../models/historyStockAzyk');/*returned*/const historyReturnedAzyk = require('../models/historyReturnedAzyk');
+/*item*/const historyStockAzyk = require('../models/historyStockAzyk');
 /*invoice*/const historyOrderAzyk = require('../models/historyOrderAzyk');/*agent*/const agentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 //deleteOrganizations
 module.exports.deleteOrganizations = async(organizations) => {
     console.log('deleteOrganizations start')
     //by other field
     // eslint-disable-next-line no-undef
-    const [employments, employmentUsers, items, invoices, returneds] = await Promise.all([
+    const [employments, employmentUsers, items, invoices] = await Promise.all([
         employmentAzyk.find({organization: {$in: organizations}}).distinct('_id'), employmentAzyk.find({organization: {$in: organizations}}).distinct('user'),
         itemAzyk.find({organization: {$in: organizations}}).distinct('_id'), invoiceAzyk.find({organization: {$in: organizations}}).distinct('_id'),
         returnedAzyk.find({organization: {$in: organizations}}).distinct('_id')
@@ -30,8 +30,8 @@ module.exports.deleteOrganizations = async(organizations) => {
     await Promise.all([
         userAzyk.deleteMany({_id: {$in: employmentUsers}}), subscriberAzyk.deleteMany({user: {$in: employmentUsers}}),
         orderAzyk.deleteMany({item: {$in: items}}), basketAzyk.deleteMany({item: {$in: items}}), historyStockAzyk.deleteMany({item: {$in: items}}),
-        historyReturnedAzyk.deleteMany({returned: {$in: returneds}}), routeAzyk.deleteMany({provider: {$in: organizations}}),
-        agentHistoryGeoAzyk.deleteMany({agent: {$in: employments}}), historyOrderAzyk.deleteMany({invoice: {$in: invoices}}),
+        routeAzyk.deleteMany({provider: {$in: organizations}}), agentHistoryGeoAzyk.deleteMany({agent: {$in: employments}}),
+        historyOrderAzyk.deleteMany({invoice: {$in: invoices}}),
     ]);
     //by organization
     // eslint-disable-next-line no-undef

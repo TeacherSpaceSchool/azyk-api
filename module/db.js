@@ -8,7 +8,6 @@ const SingleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
 const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 const BasketAzyk = require('../models/basketAzyk');
 const ConnectionApplicationAzyk = require('../models/connectionApplicationAzyk');
-const HistoryReturnedAzyk = require('../models/historyReturnedAzyk');
 const MerchandisingAzyk = require('../models/merchandisingAzyk');
 
 const dates = [
@@ -21,7 +20,7 @@ const dates = [
 
 const models = [
     OrderAzyk, InvoiceAzyk, RouteAzyk, HistoryOrderAzyk, ReturnedAzyk, SingleOutXMLReturnedAzyk, SingleOutXMLAzyk, AgentHistoryGeoAzyk, BasketAzyk,
-    ConnectionApplicationAzyk, HistoryReturnedAzyk, MerchandisingAzyk
+    ConnectionApplicationAzyk, MerchandisingAzyk
 ]
 
 module.exports.reductionOldestDB = async() => {

@@ -8,6 +8,7 @@ const ClientAzyk = require('../models/clientAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const jwt = require('jsonwebtoken');
 const {unawaited} = require('./const');
+const {roleList} = require('./enum');
 
 let start = () => {
 //настройка паспорта
@@ -103,9 +104,9 @@ const verifydeuserGQL = async (req, res) => {
     return new Promise((resolve) => {passport.authenticate('jwt', async function (err, user) {
         try{
             if (user&&user.status==='active') {
-                if('admin'===user.role)
+                if(roleList.admin===user.role)
                     resolve(user)
-                else if('client'===user.role) {
+                else if(roleList.client===user.role) {
                     const client = await ClientAzyk.findOne({user: user._id}).select('_id name category city').lean()
                     user.client = client._id
                     user.name = client.name
@@ -218,7 +219,7 @@ const signinuserGQL = (req, res) => {
                     const token = await jwt.sign(payload, jwtsecret); //здесь создается JWT
                     await res.clearCookie('jwt');
                     await res.cookie('jwt', token, {maxAge: 10000*24*60*60*1000, sameSite: 'Lax' , secure: true});
-                    if(!['admin', 'client'].includes(user.role)) {
+                    if(![roleList.admin, roleList.client].includes(user.role)) {
                         let employment = await EmploymentAzyk.findOne({user: user._id}).select('organization').lean()
                         user.organization = employment.organization
                    }

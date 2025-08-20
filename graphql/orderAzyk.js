@@ -22,6 +22,7 @@ const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
 const { v1: uuidv1 } = require('uuid');
 const {calculateStock} = require('../module/stockAzyk');
 const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
+const {roleList} = require('../module/enum');
 
 const type = `
   type Order {
@@ -84,6 +85,7 @@ const type = `
     invoice: ID
     orders: [HistoryOrderElement]
     editor: String
+    status: String
  }
   type HistoryOrderElement {
     item: String
@@ -140,7 +142,7 @@ const subscription  = `
 
 const resolvers = {
     invoicesSimpleStatistic: async(parent, {search, filter, date, organization, city}, {user}) => {
-        if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперэкспедитор', 'суперагент'].includes(user.role)) {
+        if(['суперорганизация', 'организация', roleList.client, roleList.admin, 'менеджер', 'агент', 'экспедитор', 'суперэкспедитор', 'суперагент'].includes(user.role)) {
             //дата доставки
             let dateStart;
             let dateEnd;
@@ -226,7 +228,7 @@ const resolvers = {
         }
     },
     invoices: async(parent, {search, sort, filter, date, skip, organization, city}, {user}) =>  {
-        if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
+        if(['суперорганизация', 'организация', roleList.client, roleList.admin, 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
             //console.time('get BD')
             let dateStart;
             let dateEnd;
@@ -388,12 +390,12 @@ const resolvers = {
         }
     },
     orderHistorys: async(parent, {invoice}, {user}) => {
-        if(['admin', 'менеджер', 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'менеджер', 'суперорганизация', 'организация'].includes(user.role)) {
             return HistoryOrderAzyk.find({invoice}).sort('-createdAt').lean()
         }
     },
     invoicesForRouting: async(parent, {produsers, clients, dateStart, dateEnd, dateDelivery}, {user}) => {
-        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
+        if([roleList.admin, 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             if(dateDelivery) {
                 dateStart = checkDate(dateDelivery)
                 dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -433,7 +435,7 @@ const resolvers = {
         else  return []
     },
     invoice: async(parent, {_id}, {user}) => {
-        if(['агент', 'менеджер', 'суперорганизация', 'организация', 'экспедитор', 'суперагент', 'admin', 'суперэкспедитор', 'client'].includes(user.role)) {
+        if(['агент', 'менеджер', 'суперорганизация', 'организация', 'экспедитор', 'суперагент', roleList.admin, 'суперэкспедитор', roleList.client].includes(user.role)) {
             return InvoiceAzyk.findOne({
                 _id,
                 ...user.client ? {client: user.client} : {},
@@ -472,7 +474,7 @@ const resolvers = {
         }
     },
     invoicesFromDistrict: async(parent, {organization, district, date}, {user}) =>  {
-        if(['admin', 'агент', 'менеджер','суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'агент', 'менеджер','суперорганизация', 'организация'].includes(user.role)) {
             let dateStart;
             let dateEnd;
             dateStart = checkDate(date)
@@ -606,8 +608,8 @@ const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClie
     //накладная
     let object = await InvoiceAzyk.findById(invoice).populate('client')
     //проверка роли
-    let isAdmin = ['admin', 'суперагент', 'суперэкспедитор'].includes(user.role)
-    let isClient = 'client'===user.role&&user.client.toString()===object.client._id.toString()
+    let isAdmin = [roleList.admin, 'суперагент', 'суперэкспедитор'].includes(user.role)
+    let isClient = roleList.client===user.role&&user.client.toString()===object.client._id.toString()
     let isEmployment = ['менеджер', 'суперорганизация', 'организация', 'агент', 'экспедитор'].includes(user.role)&&object.organization.toString()===user.organization.toString();
     let isUndefinedClient = ['менеджер', 'суперорганизация', 'организация', 'экспедитор', 'агент'].includes(user.role)&&!object.client.user
     //optionUpdateOrder
@@ -679,7 +681,7 @@ const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClie
             //расчет времени
             let difference = (new Date()).getTime() - (object.cancelClient).getTime();
             let differenceMinutes = checkFloat(difference / 60000);
-            if (differenceMinutes < 10||user.role==='admin') {
+            if (differenceMinutes < 10||user.role===roleList.admin) {
                 object.cancelClient = null
                 optionUpdateOrder = {status: 'обработка'}
                 object.taken = null
@@ -699,7 +701,7 @@ const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClie
         else if(!cancelForwarder) {
             let difference = (new Date()).getTime() - (object.cancelForwarder).getTime();
             let differenceMinutes = checkFloat(difference / 60000);
-            if (differenceMinutes < 10||user.role==='admin') {
+            if (differenceMinutes < 10||user.role===roleList.admin) {
                 object.cancelForwarder = null
                 object.cancelClient = null
                 optionUpdateOrder = {status: 'обработка'}
@@ -830,9 +832,12 @@ const setOrder = async ({orders, invoice, user}) => {
     //история изменения
     unawaited(() => HistoryOrderAzyk.create({
         invoice: invoice._id, editor: invoice.editor,
-        orders: orders.map(order => {
-            return {item: order.name, count: order.count, returned: order.returned}
-        })
+        status: invoice.orders[0].status,
+        ...orders&&orders.length?{
+            orders: orders.map(order => {
+                return {item: order.name, count: order.count, returned: order.returned}
+            })
+        }:{}
     }))
     //ws
     unawaited(async () => {
@@ -842,7 +847,7 @@ const setOrder = async ({orders, invoice, user}) => {
             DistrictAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id, ...invoice.agent?{agent: invoice.agent._id}:{}}).select('organization manager agent').lean()
         ]);
         pubsub.publish(RELOAD_ORDER, {reloadOrder: {
-                who: user.role==='admin'?null:user._id,
+                who: user.role===roleList.admin?null:user._id,
                 client: invoice.client._id,
                 agent: district?district.agent:null,
                 superagent: superDistrict?superDistrict.agent:null,
@@ -968,7 +973,7 @@ const acceptOrders = async (dateEnd) => {
 
 const resolversMutation = {
     acceptOrders: async(parent, ctx, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             const dateEnd = new Date()
             dateEnd.setMinutes(dateEnd.getMinutes() - 10)
             await acceptOrders(dateEnd)
@@ -1237,7 +1242,7 @@ const resolversMutation = {
                         await calculateStock(objectInvoice.orders, newInvoice.organization._id, newInvoice.client._id)
                     //публикация
                     await pubsub.publish(RELOAD_ORDER, {reloadOrder: {
-                            who: user.role==='admin'?null:user._id,
+                            who: user.role===roleList.admin?null:user._id,
                             agent: district?district.agent:null,
                             superagent: superDistrict?superDistrict.agent:null,
                             client: client._id,
@@ -1254,7 +1259,7 @@ const resolversMutation = {
         return 'OK';
     },
     deleteOrders: async(parent, {ids}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             let objects = await InvoiceAzyk.find({_id: {$in: ids}})
             // eslint-disable-next-line no-undef
             await Promise.all(objects.map(async object => {
@@ -1269,7 +1274,7 @@ const resolversMutation = {
                         ...object.agent?{agent: object.agent}:{}}).select('agent manager organization').lean()
                 ]);
                 unawaited(() => pubsub.publish(RELOAD_ORDER, {reloadOrder: {
-                        who: user.role==='admin'?null:user._id,
+                        who: user.role===roleList.admin?null:user._id,
                         client: object.client,
                         agent: district?district.agent:null,
                         superagent: superDistrict?superDistrict.agent:null,
@@ -1303,7 +1308,7 @@ const resolversSubscription = {
                 return (
                     user&&user.role&&user._id&&user._id.toString()!==payload.reloadOrder.who&&
                     (
-                        'admin'===user.role||
+                        roleList.admin===user.role||
                         (user.client&&payload.reloadOrder.client&&payload.reloadOrder.client.toString()===user.client.toString())||
                         (user.employment&&payload.reloadOrder.superagent&&payload.reloadOrder.superagent.toString()===user.employment.toString())||
                         (user.employment&&payload.reloadOrder.agent&&payload.reloadOrder.agent.toString()===user.employment.toString())||

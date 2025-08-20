@@ -7,10 +7,10 @@ const randomstring = require('randomstring');
 const {setSingleOutXMLReturnedAzykLogic} = require('../module/singleOutXMLAzyk');
 const {checkFloat, reductionSearch, isNotEmpty, checkDate, dayStartDefault, defaultLimit, reductionSearchText} = require('../module/const');
 const RELOAD_RETURNED = 'RELOAD_RETURNED';
-const HistoryReturnedAzyk = require('../models/historyReturnedAzyk');
 const mongoose = require('mongoose');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const { v1: uuidv1 } = require('uuid');
+const {roleList} = require('../module/enum');
 
 const type = `
   type ReturnedItems {
@@ -54,11 +54,6 @@ const type = `
     sale: Organization
     allSize: Float
  }
-  type HistoryReturned {
-    createdAt: Date
-    returned: ID
-    editor: String
- }
   type ReloadReturned {
     who: ID
     client: ID
@@ -87,7 +82,6 @@ const query = `
     returnedsFromDistrict(organization: ID!, district: ID!, date: String!): [Returned]
     returneds(search: String!, sort: String!, date: String!, skip: Int, city: String): [Returned]
     returnedsSimpleStatistic(search: String!, date: String, city: String): [String]
-    returnedHistorys(returned: ID!): [HistoryReturned]
 `;
 
 const mutation = `
@@ -99,7 +93,7 @@ const mutation = `
 
 const resolvers = {
     returnedsSimpleStatistic: async(parent, {search, date, city}, {user}) => {
-        if(['суперорганизация', 'организация', 'агент', 'менеджер', 'admin', 'суперагент'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'агент', 'менеджер', roleList.admin, 'суперагент'].includes(user.role)) {
             //период
             let dateStart;
             let dateEnd;
@@ -178,7 +172,7 @@ const resolvers = {
        }
    },
     returnedsFromDistrict: async(parent, {organization, district, date}, {user}) =>  {
-        if(['суперорганизация', 'организация', 'агент', 'менеджер', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'агент', 'менеджер', roleList.admin].includes(user.role)) {
             //период
             let dateStart;
             let dateEnd;
@@ -289,13 +283,8 @@ const resolvers = {
                 ])
        }
    },
-    returnedHistorys: async(parent, {returned}, {user}) => {
-        if(['admin', 'менеджер', 'суперорганизация', 'организация'].includes(user.role)) {
-            return HistoryReturnedAzyk.find({returned: returned}).lean()
-       }
-   },
     returneds: async(parent, {search, sort, date, skip, city}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация', 'менеджер', 'суперагент', 'агент'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация', 'организация', 'менеджер', 'суперагент', 'агент'].includes(user.role)) {
             //период
             let dateStart;
             let dateEnd;
@@ -481,8 +470,6 @@ const setReturned = async ({items, returned, confirmationForwarder, cancelForwar
    }
     //обновление
     await ReturnedAzyk.updateOne({_id: returned._id}, {sync: returned.sync, allPrice: returned.allPrice, allTonnage: returned.allTonnage, items: returned.items, editor: returned.editor, confirmationForwarder: returned.confirmationForwarder, cancelForwarder: returned.cancelForwarder});
-    //History edit
-    await HistoryReturnedAzyk.create({returned, editor: returned.editor});
     return returned
 }
 
@@ -583,7 +570,7 @@ const resolversMutation = {
         return 'OK';
    },
     deleteReturneds: async(parent, {_ids}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             await ReturnedAzyk.updateMany({_id: {$in: _ids}}, {del: 'deleted'})
        }
         return 'OK';

@@ -1,14 +1,15 @@
 const UserAzyk = require('../models/userAzyk');
+const {roleList} = require('./enum');
 const adminLogin = require('./const').adminLogin,
     adminPass = require('./const').adminPass;
 
 module.exports.createAdmin = async () => {
-    await UserAzyk.deleteMany({$or:[{login: adminLogin, role: {$ne: 'admin'}}, {role: 'admin', login: {$ne: adminLogin}}]});
+    await UserAzyk.deleteMany({$or:[{login: adminLogin, role: {$ne: roleList.admin}}, {role: roleList.admin, login: {$ne: adminLogin}}]});
     let findAdmin = await UserAzyk.findOne({login: adminLogin});
     if(!findAdmin) {
         await UserAzyk.create({
             login: adminLogin,
-            role: 'admin',
+            role: roleList.admin,
             status: 'active',
             password: adminPass,
        });

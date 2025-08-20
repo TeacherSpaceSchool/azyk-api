@@ -29,7 +29,7 @@ router.post('/register', async (req, res) => {
                });
                 if (user) subscriptionModel.user = user._id
            }
-            if (user.role === 'client') {
+            if (user.role === roleList.client) {
                 let client = await ClientAzyk.findOne({user: user._id})
                 client.notification = true
                 await client.save()
@@ -57,7 +57,7 @@ router.post('/register', async (req, res) => {
 router.post('/unregister', async (req, res) => {
     try{
         let subscriptionModel = await SubscriberAzyk.findOne({number: req.body.number}).populate({path: 'user'})
-        if(subscriptionModel&&subscriptionModel.user&&subscriptionModel.user.role==='client'&&(await SubscriberAzyk.find({user: subscriptionModel.user._id}).select('_id').lean()).length===1) {
+        if(subscriptionModel&&subscriptionModel.user&&subscriptionModel.user.role===roleList.client&&(await SubscriberAzyk.find({user: subscriptionModel.user._id}).select('_id').lean()).length===1) {
             let client = await ClientAzyk.findOne({user: subscriptionModel.user._id})
             if(client) {
                 client.notification = false
@@ -77,7 +77,7 @@ router.post('/unregister', async (req, res) => {
 router.post('/delete', async (req, res) => {
     try{
         let subscriptionModel = await SubscriberAzyk.findOne({number: req.body.number}).populate({path: 'user'}).lean()
-        if(subscriptionModel&&subscriptionModel.user&&subscriptionModel.user.role==='client'&&(await SubscriberAzyk.find({user: subscriptionModel.user._id}).select('_id').lean()).length===1) {
+        if(subscriptionModel&&subscriptionModel.user&&subscriptionModel.user.role===roleList.client&&(await SubscriberAzyk.find({user: subscriptionModel.user._id}).select('_id').lean()).length===1) {
             let client = await ClientAzyk.findOne({user: subscriptionModel.user._id})
             if(client) {
                 client.notification = false

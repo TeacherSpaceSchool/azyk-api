@@ -5,10 +5,11 @@ const UserAzyk = require('../models/userAzyk');
 const NotificationStatisticAzyk = require('../models/notificationStatisticAzyk');
 const ModelsErrorAzyk = require('../models/errorAzyk');
 const {unawaited, formatErrorDetails} = require('../module/const');
+const {roleList} = require('../module/enum');
 
 router.get('/admin', async (req, res) => {
     try{
-        const adminUser = await UserAzyk.findOne({role: 'admin'}).select('_id').lean()
+        const adminUser = await UserAzyk.findOne({role: roleList.admin}).select('_id').lean()
         if(adminUser) {
             unawaited(() => sendWebPush({title: 'AZYK.STORE', message: 'Не забудьте сделать свой заказ', users: [adminUser._id]}))
             res.json('Push triggered');

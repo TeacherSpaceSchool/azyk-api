@@ -1,4 +1,5 @@
 const BasketAzyk = require('../models/basketAzyk');
+const {roleList} = require('../module/enum');
 
 const type = `
   type Basket {
@@ -24,7 +25,7 @@ const resolvers = {
 
 const resolversMutation = {
     addBasket: async(parent, {item, count}, {user}) => {
-        if(['суперагент','суперорганизация', 'организация', 'менеджер', 'агент', 'client', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
+        if(['суперагент','суперорганизация', 'организация', 'менеджер', 'агент', roleList.client, 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
             let basket = await BasketAzyk.findOne({item, ...user.client?{client: user.client}:{agent: user.employment}});
             if(!basket) {
                 await BasketAzyk.create({item, count, ...user.client?{client: user.client}:{agent: user.employment}})

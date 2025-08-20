@@ -2,6 +2,7 @@ const LimitItemClientAzyk = require('../models/limitItemClientAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const ItemAzyk = require('../models/itemAzyk');
+const {roleList} = require('../module/enum');
 
 const type = `
   type LimitItemClient {
@@ -28,7 +29,7 @@ const mutation = `
 const resolvers = {
     limitItemClients: async(parent, {client, organization}, {user}) => {
         if(user.role) {
-            if(user.role==='client') client = user.client
+            if(user.role===roleList.client) client = user.client
             if(organization) {
                 let subBrand = await SubBrandAzyk.findById(organization).select('organization').lean()
                 if(subBrand) {
@@ -56,7 +57,7 @@ const resolvers = {
        }
    },
     itemsForLimitItemClients: async(parent, {client, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [excludedItems, clientCity] = await Promise.all([
                 LimitItemClientAzyk.find({
@@ -74,7 +75,7 @@ const resolvers = {
 
 const resolversMutation = {
     addLimitItemClient: async(parent, {client, organization, limit, item}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)&&!(await LimitItemClientAzyk.findOne({item, client}).select('_id').lean())) {
+        if(['суперорганизация', 'организация', 'менеджер', roleList.admin, 'агент'].includes(user.role)&&!(await LimitItemClientAzyk.findOne({item, client}).select('_id').lean())) {
             // eslint-disable-next-line no-undef
             const [createdObject, itemData, clientData] = await Promise.all([
                 LimitItemClientAzyk.create({item, limit, client, organization}),
@@ -85,7 +86,7 @@ const resolversMutation = {
        }
    },
     setLimitItemClient: async(parent, {_id, limit}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', roleList.admin, 'агент'].includes(user.role)) {
             let object = await LimitItemClientAzyk.findById(_id)
             object.limit = limit
             await object.save();
@@ -93,7 +94,7 @@ const resolversMutation = {
         return 'OK';
    },
     deleteLimitItemClient: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', roleList.admin, 'агент'].includes(user.role)) {
             await LimitItemClientAzyk.deleteOne({_id})
        }
         return 'OK'

@@ -1,5 +1,6 @@
 const ConnectionApplicationAzyk = require('../models/connectionApplicationAzyk');
 const {isNotEmpty, defaultLimit} = require('../module/const');
+const {roleList} = require('../module/enum');
 
 const type = `
   type ConnectionApplication {
@@ -26,7 +27,7 @@ const mutation = `
 
 const resolvers = {
     connectionApplications: async(parent, {skip, filter}, {user}) => {
-        if('admin'===user.role) {
+        if(roleList.admin===user.role) {
             return await ConnectionApplicationAzyk.aggregate(
                 [
                     {
@@ -41,7 +42,7 @@ const resolvers = {
        }
    },
     connectionApplicationsSimpleStatistic: async(parent, {filter}, {user}) => {
-        if('admin'===user.role)
+        if(roleList.admin===user.role)
             return await ConnectionApplicationAzyk.countDocuments({
                 ...(filter === 'обработка' ? {taken: false} : {})
            }).lean()
@@ -62,7 +63,7 @@ const resolversMutation = {
        }
    },
     acceptConnectionApplication: async(parent, {_id}, {user}) => {
-        if('admin'===user.role) {
+        if(roleList.admin===user.role) {
             let object = await ConnectionApplicationAzyk.findById(_id)
             object.taken = true
             await object.save();
@@ -70,7 +71,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteConnectionApplication: async(parent, {_id}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             await ConnectionApplicationAzyk.deleteOne({_id})
        }
         return 'OK'

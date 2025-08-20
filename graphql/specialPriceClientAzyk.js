@@ -5,6 +5,7 @@ const SubBrandAzyk = require('../models/subBrandAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const ClientAzyk = require('../models/clientAzyk');
+const {roleList} = require('../module/enum');
 
 const type = `
   type SpecialPriceClient {
@@ -31,7 +32,7 @@ const mutation = `
 const resolvers = {
     specialPriceClients: async(parent, {client, organization}, {user}) => {
         if(user.role) {
-            if(user.role==='client') client = user.client
+            if(user.role===roleList.client) client = user.client
             if(organization) {
                 let subBrand = await SubBrandAzyk.findById(organization).select('organization').lean()
                 if(subBrand) {
@@ -58,7 +59,7 @@ const resolvers = {
        }
    },
     itemsForSpecialPriceClients: async(parent, {client, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', roleList.admin].includes(user.role)) {
             if(user.organization) organization = user.organization
             // eslint-disable-next-line no-undef
             let [excludedItems, city] = await Promise.all([
@@ -73,7 +74,7 @@ const resolvers = {
 
 const resolversMutation = {
     addSpecialPriceClient: async(parent, {client, organization, price, item}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)&&!(await SpecialPriceClient.findOne({item, client, organization: user.organization||organization}).select('_id').lean())) {
+        if(['суперорганизация', 'организация', 'менеджер', roleList.admin, 'агент'].includes(user.role)&&!(await SpecialPriceClient.findOne({item, client, organization: user.organization||organization}).select('_id').lean())) {
             // eslint-disable-next-line no-undef
             let [createdObject, organizationData, itemData, clientData] = await Promise.all([
                 SpecialPriceClient.create({
@@ -91,13 +92,13 @@ const resolversMutation = {
        }
    },
     setSpecialPriceClient: async(parent, {_id, price}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', roleList.admin, 'агент'].includes(user.role)) {
             await SpecialPriceClient.updateOne({_id}, {price})
        }
         return 'OK';
    },
     deleteSpecialPriceClient: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', roleList.admin, 'агент'].includes(user.role)) {
             await SpecialPriceClient.deleteOne({_id})
        }
         return 'OK'

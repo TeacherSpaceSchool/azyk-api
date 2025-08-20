@@ -3,6 +3,7 @@ const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const {weekDay, pdDDMMYYHHMM, checkFloat, month, checkDate, dayStartDefault, formatAmount} = require('../module/const');
+const {roleList} = require('../module/enum');
 
 const query = `
     ordersMap(organization: ID, date: Date, online: Boolean, city: String, district: ID): [[String]]
@@ -13,7 +14,7 @@ const query = `
 
 const resolvers = {
     ordersMap: async(parent, {organization, date, online, city}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             const dateStart = checkDate(date)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -38,7 +39,7 @@ const resolvers = {
         }
     },
     statisticOrdersOffRoute: async(parent, {type, organization, dateStart, dateEnd, online, city, district}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -174,7 +175,7 @@ const resolvers = {
        }
    },
     statisticHours: async(parent, {organization, dateStart, dateEnd, city, type}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -293,7 +294,7 @@ const resolvers = {
        }
    },
     statisticUnsyncOrder: async(parent, args, {user}) => {
-        if(['admin'].includes(user.role)) {
+        if([roleList.admin].includes(user.role)) {
             let res = []
             const organizations = await OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id')
             const dateStart = new Date()

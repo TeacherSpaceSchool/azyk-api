@@ -474,7 +474,7 @@ router.post('/:pass/put/client', async (req, res, next) => {
             await parallelPromise(clientsForCreate, async (clientForCreate) => {
                 const user = await UserAzyk.create({
                     login: randomstring.generate({length: 12, charset: 'numeric'}),
-                    role: 'client',
+                    role: roleList.client,
                     status: 'active',
                     password: '12345678',
                 });

@@ -11,6 +11,7 @@ const {
 } = require('../module/const');
 const {deleteOrganizations} = require('../module/organizations');
 const {addHistory, historyTypes} = require('../module/history');
+const {roleList} = require('../module/enum');
 
 const type = `
   type Organization {
@@ -72,7 +73,7 @@ const mutation = `
 const resolvers = {
     brandOrganizations: async (parent, {search, filter, city}, {user}) => {
         // Разрешаем выполнение только для указанных ролей
-        if (!['admin', 'экспедитор', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент', 'суперэкспедитор', 'client'].includes(user.role)) {
+        if (![roleList.admin, 'экспедитор', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент', 'суперэкспедитор', roleList.client].includes(user.role)) {
             return [];
        }
 
@@ -80,8 +81,8 @@ const resolvers = {
         const cityFilter = city || user.city;
 
         // Флаг для удобства: является ли пользователь клиентом
-        const isClient = user.role === 'client';
-        const isAdmin = user.role === 'admin';
+        const isClient = user.role === roleList.client;
+        const isAdmin = user.role === roleList.admin;
         const isSuperAgent = ['суперагент', 'суперэкспедитор'].includes(user.role);
 
         // Получаем все элементы (товары или позиции) из коллекции ItemAzyk с учетом города, статуса и удаления
@@ -150,7 +151,7 @@ const resolvers = {
 
         // Запрашиваем организации с фильтрами и сортируем по приоритету
         organizations = organizations.length?await OrganizationAzyk.find(getFilter(organizations))
-            .select('name autoAcceptAgent organization _id image miniInfo unite onlyIntegrate onlyDistrict priotiry catalog')
+            .select('createdAt status name autoAcceptAgent organization _id image miniInfo unite onlyIntegrate onlyDistrict priotiry catalog')
             .sort('name')
             .lean():[];
 
@@ -158,7 +159,7 @@ const resolvers = {
         subBrands = subBrands.length?await SubBrandAzyk.find(getFilter(subBrands))
             .populate({
                 path: 'organization',
-                select: 'autoAcceptAgent organization _id unite onlyIntegrate onlyDistrict'
+                select: 'createdAt status autoAcceptAgent organization _id unite onlyIntegrate onlyDistrict'
            })
             .sort('name')
             .lean():[];
@@ -199,12 +200,12 @@ const resolvers = {
     organizations: async(parent, {search, filter, city}, {user}) => {
         return await OrganizationAzyk.find({
             name: {$regex: reductionSearchText(search), $options: 'i'},
-            ...(isNotTestUser(user)&&user.role!=='admin')?{status:'active'}:filter?{status: filter}:{},
+            ...(isNotTestUser(user)&&user.role!==roleList.admin)?{status:'active'}:filter?{status: filter}:{},
             ...city?{cities: city}:{},
             ...user.organization?{_id: user.organization}:{},
             del: {$ne: 'deleted'}
        })
-            .select('name _id image miniInfo cities')
+            .select('name _id image miniInfo cities createdAt status')
             .sort('-priotiry')
             .lean()
    },
@@ -226,7 +227,7 @@ const resolvers = {
 
 const resolversMutation = {
     addOrganization: async(parent, {cities, catalog, addedClient, agentSubBrand, clientSubBrand, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             let {stream, filename} = await image;
             image = urlMain + await saveImage(stream, filename)
             if(catalog) {
@@ -269,7 +270,7 @@ const resolversMutation = {
        }
    },
     setOrganization: async(parent, {catalog, cities, addedClient, agentSubBrand, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, _id, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
-        if(user.role==='admin'||(['суперорганизация', 'организация'].includes(user.role)&&user.organization.toString()===_id.toString())) {
+        if(user.role===roleList.admin||(['суперорганизация', 'организация'].includes(user.role)&&user.organization.toString()===_id.toString())) {
             let object = await OrganizationAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'OrganizationAzyk', name: object.name, object: _id, data: {catalog, cities, addedClient, agentSubBrand, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}}))
             if (image) {
@@ -290,7 +291,7 @@ const resolversMutation = {
                 ])
                 object.catalog = urlMain+savedFilename
            }
-            if(user.role==='admin'&&isNotEmpty(pass)) object.pass = pass
+            if(user.role===roleList.admin&&isNotEmpty(pass)) object.pass = pass
             if(cities) {
                 object.cities = cities
                 await SubBrandAzyk.updateMany({organization: _id}, {cities})
@@ -325,7 +326,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteOrganization: async(parent, {_id}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             let organization = await OrganizationAzyk.findById(_id).select('name').lean()
             await deleteOrganizations([_id])
             unawaited(() => addHistory({user, type: historyTypes.delete, model: 'OrganizationAzyk', name: organization.name, object: _id}))
@@ -333,7 +334,7 @@ const resolversMutation = {
         return 'OK'
    },
     onoffOrganization: async(parent, {_id}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             const organization = await OrganizationAzyk.findById(_id).select('name status').lean()
             const newStatus = organization.status==='active'?'deactive':'active'
             let items = await ItemAzyk.find({organization: organization._id}).distinct('_id')

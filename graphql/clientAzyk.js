@@ -11,6 +11,7 @@ const mongoose = require('mongoose')
 const { v1: uuidv1 } = require('uuid');
 const randomstring = require('randomstring');
 const {addHistory, historyTypes} = require('../module/history');
+const {roleList} = require('../module/enum');
 
 const type = `
   type Client {
@@ -55,7 +56,7 @@ const mutation = `
 
 const resolvers = {
     clientsSimpleStatistic: async(parent, {search, date, filter, city}, {user}) => {
-        if(['менеджер', 'экспедитор', 'агент', 'суперагент', 'admin', 'суперорганизация', 'организация'].includes(user.role)) {
+        if(['менеджер', 'экспедитор', 'агент', 'суперагент', roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
             let dateStart;
             let dateEnd;
             if(date) {
@@ -127,7 +128,7 @@ const resolvers = {
        }
    },
     clientsSyncStatistic: async(parent, {search, organization, city}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             let clients = await ClientAzyk.find({
                 sync: organization.toString(),
                 ...city?{city}:{},
@@ -145,7 +146,7 @@ const resolvers = {
        }
    },
     clientsSync: async(parent, {search, organization, skip, city}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             let clients = await ClientAzyk
                 .aggregate(
                     [
@@ -296,7 +297,7 @@ const resolvers = {
        } else return []
    },
     client: async(parent, {_id}, {user}) => {
-        if (user.role === 'client')
+        if (user.role === roleList.admin)
             _id = user._id
         if(mongoose.Types.ObjectId.isValid(_id)) {
             return await ClientAzyk.findOne({$or: [{_id}, {user: _id}]}).populate({path: 'user'}).lean()
@@ -306,10 +307,10 @@ const resolvers = {
 
 const resolversMutation = {
     addClient: async(parent, {image, name, email, city, address, phone, inn, info, login, password, category}, {user}) => {
-        if(user.role==='admin'||(user.addedClient&&['суперорганизация', 'организация', 'агент'].includes(user.role))) {
+        if(user.role===roleList.admin||(user.addedClient&&['суперорганизация', 'организация', 'агент'].includes(user.role))) {
             let newUser = await UserAzyk.create({
                 login: login.trim(),
-                role: 'client',
+                role: roleList.admin,
                 status: 'active',
                 password,
                 category
@@ -345,7 +346,7 @@ const resolversMutation = {
    },
     setClient: async(parent, {_id, image, name, email, address, info, inn, newPass, phone, login, city, device, category}, {user}) => {
         if(
-            ['суперорганизация', 'организация', 'агент', 'admin', 'суперагент', 'экспедитор'].includes(user.role)
+            ['суперорганизация', 'организация', 'агент', roleList.admin, 'суперагент', 'экспедитор'].includes(user.role)
         ) {
             let object = await ClientAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'ClientAzyk', name: object.name, object: _id, data: {image, name, email, address, info, inn, newPass, phone, login, city, device, category}}))
@@ -381,7 +382,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteClient: async(parent, {_id}, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             let client = await ClientAzyk.findById(_id).select('name image user').lean()
             // eslint-disable-next-line no-undef
             const [districtIds] = await Promise.all([
@@ -404,12 +405,12 @@ const resolversMutation = {
         return 'OK'
    },
     clearClientsSync: async(parent, {organization}, {user}) => {
-        if(user.role==='admin')
+        if(user.role===roleList.admin)
             await ClientAzyk.updateMany({sync: organization.toString()}, {$pull: {sync: organization.toString()}});
         return 'OK'
    },
     onoffClient: async(parent, {_id}, {user}) => {
-        if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация'].includes(user.role)) {
+        if(['агент', roleList.admin, 'суперагент', 'суперорганизация', 'организация'].includes(user.role)) {
             //получаем ссылку на пользователя
             const client = await ClientAzyk.findById(_id).select('name user').lean()
             //находим пользователя

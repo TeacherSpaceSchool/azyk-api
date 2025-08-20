@@ -5,7 +5,6 @@ const path = require('path');
 const dirs = ['images', 'xlsx']
 const {deleteFile, urlMain} = require('../module/const');
 const ClientAzyk = require('../models/clientAzyk');
-const BlogAzyk = require('../models/blogAzyk');
 const ContactAzyk = require('../models/contactAzyk');
 const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
@@ -13,6 +12,7 @@ const ItemAzyk = require('../models/itemAzyk');
 const FaqAzyk = require('../models/faqAzyk');
 const EquipmentAzyk = require('../models/equipmentAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
+const {roleList} = require('../module/enum');
 
 const type = `
   type File {
@@ -35,7 +35,7 @@ const mutation = `
 
 const resolvers = {
     files: async(parent, args, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             let data = [], res = [], filesUrl = [], stat, size, createdAt, url
             for(let i = 0; i < dirs.length; i++) {
                 url = path.join(app.dirname, 'public', dirs[i])
@@ -50,9 +50,8 @@ const resolvers = {
                }
            }
             // eslint-disable-next-line no-undef
-            const [client, blog, contact, ads, organization, item, faq, equipment, subBrand] = await Promise.all([
+            const [client, contact, ads, organization, item, faq, equipment, subBrand] = await Promise.all([
                 ClientAzyk.find({image: {$in: filesUrl}}).select('name image').lean(),
-                BlogAzyk.find({image: {$in: filesUrl}}).select('title image').lean(),
                 ContactAzyk.find({image: {$in: filesUrl}}).select('image').lean(),
                 AdsAzyk.find({image: {$in: filesUrl}}).select('title image').lean(),
                 OrganizationAzyk.find({image: {$in: filesUrl}}).select('name image').lean(),
@@ -63,7 +62,6 @@ const resolvers = {
             ])
             res = [
                 ...client.map(element=>{return {...element, type: 'Клиент'}}),
-                ...blog.map(element=>{return {...element, name: element.title, type: 'Блог'}}),
                 ...contact.map(element=>{return {...element, name: 'Azyk.Store', type: 'Контакты'}}),
                 ...ads.map(element=>{return {...element, name: element.title, type: 'Акция'}}),
                 ...organization.map(element=>{return {...element, type: 'Организация'}}),
@@ -94,7 +92,7 @@ const resolvers = {
 
 const resolversMutation = {
     clearAllDeactiveFiles: async(parent, ctx, {user}) => {
-        if(user.role==='admin') {
+        if(user.role===roleList.admin) {
             let data = [], url
             for(let i = 0; i < dirs.length; i++) {
                 url = path.join(app.dirname, 'public', dirs[i])
@@ -104,9 +102,8 @@ const resolversMutation = {
                }
            }
             // eslint-disable-next-line no-undef
-            const [client, blog, contact, ads, organization, item, faq, equipment, subBrand] = await Promise.all([
+            const [client, contact, ads, organization, item, faq, equipment, subBrand] = await Promise.all([
                 ClientAzyk.find({image: {$in: data}}).distinct('image'),
-                BlogAzyk.find({image: {$in: data}}).distinct('image'),
                 ContactAzyk.find({image: {$in: data}}).distinct('image'),
                 AdsAzyk.find({image: {$in: data}}).distinct('image'),
                 OrganizationAzyk.find({image: {$in: data}}).distinct('image'),
@@ -116,7 +113,7 @@ const resolversMutation = {
                 SubBrandAzyk.find({image: {$in: data}}).distinct('image')
             ])
             let filesUrl = [
-                ...client, ...blog, ...contact, ...ads, ...organization, ...item, ...faq, ...equipment, ...subBrand]
+                ...client, ...contact, ...ads, ...organization, ...item, ...faq, ...equipment, ...subBrand]
             for(let i = 0; i < data.length; i++) {
                 if(!filesUrl.includes(data[i]))
                     await deleteFile(data[i])

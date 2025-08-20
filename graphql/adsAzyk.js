@@ -3,6 +3,7 @@ const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const {saveImage, deleteFile, urlMain, isNotTestUser, isNotEmpty, defaultLimit, reductionSearchText} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
+const {roleList} = require('../module/enum');
 
 const type = `
   type Ads {
@@ -301,7 +302,7 @@ const resolvers = {
 
 const resolversMutation = {
     addAds: async(parent, {xidNumber, xid, image, url, title, organization, item, count, targetItems, targetPrice, multiplier, targetType}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', roleList.admin].includes(user.role)) {
             let {stream, filename} = await image;
             image = urlMain + await saveImage(stream, filename)
             // eslint-disable-next-line no-undef
@@ -318,7 +319,7 @@ const resolversMutation = {
        }
    },
     setAds: async(parent, {xidNumber, xid, _id, image, url, title, item, count, targetItems, targetPrice, multiplier, targetType}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', roleList.admin].includes(user.role)) {
             let object = await AdsAzyk.findById(_id)
             object.item = item
             if (image) {
@@ -344,7 +345,7 @@ const resolversMutation = {
         }
    },
     deleteAds: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', roleList.admin].includes(user.role)) {
             let adsImage = await AdsAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}}).select('image').lean()
             // eslint-disable-next-line no-undef
             await Promise.all([

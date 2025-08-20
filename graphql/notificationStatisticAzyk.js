@@ -1,6 +1,7 @@
 const NotificationStatisticAzyk = require('../models/notificationStatisticAzyk');
 const {sendWebPush} = require('../module/webPush');
 const {saveImage, urlMain, reductionSearch, unawaited, reductionSearchText} = require('../module/const');
+const {roleList} = require('../module/enum');
 
 const type = `
   type NotificationStatistic {
@@ -27,7 +28,7 @@ const mutation = `
 
 const resolvers = {
     notificationStatistics: async(parent, {search}, {user}) => {
-        if('admin'===user.role)
+        if(roleList.admin===user.role)
             return await NotificationStatisticAzyk.find({
                 $or: [
                     {title: {$regex: reductionSearchText(search), $options: 'i'}},
@@ -45,7 +46,7 @@ const resolvers = {
 
 const resolversMutation = {
     addNotificationStatistic: async(parent, {text, title, tag , url, icon}, {user}) => {
-        if('admin'===user.role) {
+        if(roleList.admin===user.role) {
             let payload = {title, message: text, tag, url}
             if(icon) {
                 let {stream, filename} = await icon;

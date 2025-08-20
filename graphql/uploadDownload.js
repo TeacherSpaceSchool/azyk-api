@@ -17,6 +17,7 @@ const {urlMain, saveFile, deleteFile, checkFloat, checkInt} = require('../module
 const readXlsxFile = require('read-excel-file/node');
 const AutoAzyk = require('../models/autoAzyk');
 const {parallelPromise, parallelBulkWrite} = require('../module/parallel');
+const {roleList} = require('../module/enum');
 
 const query = `
     downloadInvoices(organization: ID!, dateStart: Date!, all: Boolean): String
@@ -37,7 +38,7 @@ const mutation = `
 
 const resolvers = {
     downloadOrders: async(parent, {filter, organization, dateStart}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
             dateStart = checkDate(dateStart)
@@ -155,7 +156,7 @@ const resolvers = {
        }
    },
     downloadInvoices: async(parent, {organization, dateStart}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
             let dateEnd
@@ -421,7 +422,7 @@ const resolvers = {
        }
    },
     downloadAdsOrders: async(parent, {organization, dateStart}, {user}) => {
-        if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация', 'организация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
             dateStart = new Date(dateStart)
@@ -526,7 +527,7 @@ const resolvers = {
        }
    },
     downloadClients: async(parent, {organization, city}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let cities
             if(organization!=='super')
@@ -588,7 +589,7 @@ const resolvers = {
        }
    },
     downloadEmployments: async(parent, {organization}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
             let employments = await EmploymentAzyk.find(
@@ -647,7 +648,7 @@ const resolvers = {
        }
    },
     downloadDistricts: async(parent, {organization}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
             let districts = await DistrictAzyk.find({organization: organization==='super'?null:organization}).populate('client').lean()
@@ -676,7 +677,7 @@ const resolvers = {
        }
    },
     downloadAgentRoutes: async(parent, {organization}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             organization = user.organization?user.organization:organization
             let workbook = new ExcelJS.Workbook();
             let agentRoutes = await AgentRouteAzyk
@@ -736,7 +737,7 @@ const resolvers = {
 
 const resolversMutation = {
     uploadItems: async(parent, {document, organization}, {user}) => {
-        if (user.role === 'admin') {
+        if (user.role === roleList.admin) {
             organization = await OrganizationAzyk.findByID(organization).select('_id cities').lean()
             let {stream, filename} = await document;
             let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
@@ -797,7 +798,7 @@ const resolversMutation = {
        }
    },
     uploadClients: async(parent, {document, organization}, {user}) => {
-        if (user.role === 'admin') {
+        if (user.role === roleList.admin) {
             let {stream, filename} = await document;
             let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
             let rows = await readXlsxFile(xlsxpath)
@@ -870,7 +871,7 @@ const resolversMutation = {
             await parallelPromise(clientsForCreate, async (clientForCreate) => {
                 const user = await UserAzyk.create({
                     login: randomstring.generate({length: 12, charset: 'numeric'}),
-                    role: 'client',
+                    role: roleList.client,
                     status: 'active',
                     password: '12345678',
                });
@@ -890,7 +891,7 @@ const resolversMutation = {
        }
    },
     uploadAgentRoute: async(parent, {document, agentRoute}, {user}) => {
-        if (user.role === 'admin') {
+        if (user.role === roleList.admin) {
             let {stream, filename} = await document;
             let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
             let rows = await readXlsxFile(xlsxpath)
@@ -919,7 +920,7 @@ const resolversMutation = {
        }
    },
     uploadDistricts: async(parent, {document, organization}, {user}) => {
-        if (user.role === 'admin') {
+        if (user.role === roleList.admin) {
             let {stream, filename} = await document;
             let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
             let rows = await readXlsxFile(xlsxpath)

@@ -7,6 +7,7 @@ const HistoryOrderAzykSchema = mongoose.Schema({
    },
     orders: mongoose.Schema.Types.Mixed,
     editor: String,
+    status: String,
 }, {
     timestamps: true
 });

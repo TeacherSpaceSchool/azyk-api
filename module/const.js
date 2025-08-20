@@ -5,8 +5,9 @@ const fs = require('fs');
 const path = require('path');
 const UserAzyk = require('../models/userAzyk');
 const {sendWebPush} = require('./webPush');
+const {roleList} = require('./enum');
 const urlMain = `${process.env.URL.trim()}:3000`,
-    adminLogin = 'admin',
+    adminLogin = roleList.admin,
     skip = 1,
     adminPass = 'hGNSKtmSBG'
 
@@ -235,7 +236,7 @@ module.exports.chunkArray = (array, size) => {
 }
 
 module.exports.sendPushToAdmin = async ({title, message}) => {
-    const adminUser = await UserAzyk.findOne({role: 'admin'}).select('_id').lean()
+    const adminUser = await UserAzyk.findOne({role: roleList.admin}).select('_id').lean()
     await sendWebPush({title: title, message, users: [adminUser._id]})
 }
 

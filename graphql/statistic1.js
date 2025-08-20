@@ -8,6 +8,7 @@ const AdsAzyk = require('../models/adsAzyk');
 const {checkDate, isNotEmpty, dayStartDefault, formatAmount} = require('../module/const');
 const {checkFloat} = require('../module/const');
 const OrganizationAzyk = require('../models/organizationAzyk');
+const {roleList} = require('../module/enum');
 
 const type = `
     type Statistic {
@@ -47,7 +48,7 @@ const mutation = `
 
 const resolvers = {
     checkAgentRoute: async(parent, {agentRoute}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             const problem = []
             agentRoute = await AgentRouteAzyk.findById(agentRoute).select('clients district').lean()
             const agentRouteClients = (agentRoute.clients.flat()).toString()
@@ -74,7 +75,7 @@ const resolvers = {
        }
    },
     statisticClients: async(parent, {organization, dateStart, filter, dateEnd, city, district}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             const onlyOnline = filter==='online'
             const onlyOffline = filter==='offline'
@@ -189,7 +190,7 @@ const resolvers = {
        }
    },
     statisticItems: async(parent, {dayStart, organization, dateStart, dateEnd, online, city}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             //console.time('get BD')
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
@@ -277,7 +278,7 @@ const resolvers = {
        }
    },
     statisticAdss: async(parent, {organization, dateStart, dateEnd, online, city}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -381,7 +382,7 @@ const resolvers = {
        }
    },
     statisticOrders: async(parent, {organization, dateStart, dateEnd, online, city}, {user}) => {
-        if(['admin', 'суперорганизация'].includes(user.role)) {
+        if([roleList.admin, 'суперорганизация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             dateStart = checkDate(dateStart)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
@@ -501,7 +502,7 @@ const resolvers = {
 
 const resolversMutation = {
     repairUnsyncOrder: async(parent, args, {user}) => {
-        if (user.role === 'admin') {
+        if (user.role === roleList.admin) {
             const dateStart = new Date()
             dateStart.setHours(dayStartDefault, 0, 0, 0)
             const dateEnd = new Date(dateStart)
