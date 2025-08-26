@@ -1,6 +1,5 @@
 const ContactAzyk = require('../models/contactAzyk');
 const {saveImage, deleteFile, urlMain} = require('../module/const');
-const {roleList} = require('../module/enum');
 
 const type = `
   type Contact {
@@ -32,7 +31,7 @@ const resolvers = {
 
 const resolversMutation = {
     setContact: async(parent, {warehouse, name, image, address, email, phone, info}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             let object = await ContactAzyk.findOne()
             if (image) {
                 let {stream, filename} = await image;

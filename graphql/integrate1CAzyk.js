@@ -9,7 +9,6 @@ const path = require('path');
 const app = require('../app');
 const {parallelBulkWrite} = require('../module/parallel');
 const OrganizationAzyk = require('../models/organizationAzyk');
-const {roleList} = require('../module/enum');
 
 const type = `
   type Integrate1C {
@@ -42,7 +41,7 @@ const mutation = `
 
 const resolvers = {
     integrate1CsSimpleStatistic: async(parent, {search, filter, organization}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             organization = organization==='super'?null:organization
             // eslint-disable-next-line no-undef
             const [searchedItems, searchedClients, searchedEmployments] = await Promise.all([
@@ -94,7 +93,7 @@ const resolvers = {
                     let agents =  await Integrate1CAzyk.find({organization, agent: {$ne: null}}).distinct('agent')
                     agents = await EmploymentAzyk.find({
                         name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: agents}, del: {$ne: 'deleted'}
-                   }).populate({path: 'user', match: {role: organization?roleList.agent:roleList.superAgent, status: 'active'}}).select('user').lean()
+                   }).populate({path: 'user', match: {role: organization?'агент':'суперагент', status: 'active'}}).select('user').lean()
                     agents = agents.filter(agent => (agent.user))
                     return agents.length
                })():null,
@@ -103,7 +102,7 @@ const resolvers = {
                     ecspeditors = await EmploymentAzyk.find({
                         name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
                    })
-                        .populate({path: 'user', match: {role: organization?roleList.ecspeditor:roleList.superEcspeditor, status: 'active'}}).lean()
+                        .populate({path: 'user', match: {role: organization?'экспедитор':'суперэкспедитор', status: 'active'}}).lean()
                     ecspeditors = ecspeditors.filter(ecspeditor => (ecspeditor.user))
                     return ecspeditors.length
                })():null,
@@ -129,7 +128,7 @@ const resolvers = {
        }
    },
     integrate1Cs: async(parent, {search, filter, organization, skip}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             organization = organization==='super'?null:organization
             // eslint-disable-next-line no-undef
             const [searchedItems, searchedClients, searchedEmployments] = await Promise.all([
@@ -205,32 +204,32 @@ const resolvers = {
        }
    },
     ecspeditorsIntegrate1C: async(parent, {search, organization}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             organization = organization==='super'?null:organization
             let ecspeditors =  await Integrate1CAzyk.find({organization, ecspeditor: {$ne: null}}).distinct('ecspeditor')
             ecspeditors = await EmploymentAzyk.find({
                 name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
            })
-                .populate({path: 'user', match: {role: organization?roleList.ecspeditor:roleList.superEcspeditor, status: 'active'}}).lean()
+                .populate({path: 'user', match: {role: organization?'экспедитор':'суперэкспедитор', status: 'active'}}).lean()
             ecspeditors = ecspeditors.filter(ecspeditor => (ecspeditor.user))
             return ecspeditors
        }
         else return []
    },
     agentsIntegrate1C: async(parent, {search, organization}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             organization = organization==='super'?null:organization
             let agents =  await Integrate1CAzyk.find({organization, agent: {$ne: null}}).distinct('agent')
             agents = await EmploymentAzyk.find({
                 name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: agents}, del: {$ne: 'deleted'}
-           }).populate({path: 'user', match: {role: organization?roleList.agent:roleList.superAgent, status: 'active'}}).lean()
+           }).populate({path: 'user', match: {role: organization?'агент':'суперагент', status: 'active'}}).lean()
             agents = agents.filter(agent => (agent.user))
             return agents
        }
         else return []
    },
     clientsIntegrate1C: async(parent, {search, organization}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             organization = await OrganizationAzyk.findById(organization).select('_id cities').lean()
             let clients =  await Integrate1CAzyk.find({organization: organization._id, client: {$ne: null}}).distinct('client')
             clients = await ClientAzyk.find({
@@ -251,7 +250,7 @@ const resolvers = {
         else return []
    },
     itemsIntegrate1C: async(parent, {search, organization}, {user}) => {
-        if(mongoose.Types.ObjectId.isValid(organization)&&user.role===roleList.admin) {
+        if(mongoose.Types.ObjectId.isValid(organization)&&user.role==='admin') {
             let items =  await Integrate1CAzyk.find({organization, item: {$ne: null}}).distinct('item')
             items = await ItemAzyk.find({
                 name: {$regex: reductionSearchText(search), $options: 'i'}, _id: {$nin: items}, organization, del: {$ne: 'deleted'}
@@ -264,7 +263,7 @@ const resolvers = {
 
 const resolversMutation = {
     addIntegrate1C: async(parent, {organization, item, client, guid, agent, ecspeditor}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(['admin'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [createdObject, agentData, ecspeditorData, itemData, clientData] = await Promise.all([
                 Integrate1CAzyk.create({...(organization==='super'?{organization: null}:{organization}), guid, item, client, agent, ecspeditor}),
@@ -278,18 +277,18 @@ const resolversMutation = {
         return null;
    },
     setIntegrate1C: async(parent, {_id, guid}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             await Integrate1CAzyk.updateOne({_id}, {guid})
        }
         return 'OK'
    },
     deleteIntegrate1C: async(parent, {_id}, {user}) => {
-        if(user.role===roleList.admin)
+        if(user.role==='admin')
             await Integrate1CAzyk.deleteOne({_id})
         return 'OK'
    },
     unloadingIntegrate1C: async(parent, {document, organization}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             let {stream, filename} = await document;
             let xlsxpath = path.join(app.dirname, 'public', await saveFile(stream, filename));
             let rows = await readXlsxFile(xlsxpath)

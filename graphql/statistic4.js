@@ -6,7 +6,6 @@ const {saveFile, deleteFile, checkFloat, formatAmount} = require('../module/cons
 const readXlsxFile = require('read-excel-file/node');
 const os = require('os');
 const mongoose = require('mongoose');
-const {roleList} = require('../module/enum');
 
 const query = `
     statisticDevice(filter: String): Statistic
@@ -18,7 +17,7 @@ const query = `
 
 const resolvers = {
     statisticDevice: async(parent, {filter}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(['admin'].includes(user.role)) {
             let statistic = {}
             let data = await ClientAzyk.find({device: {$ne: null}})
                 .select('device')
@@ -92,7 +91,7 @@ const resolvers = {
        }
    },
     statisticStorageSize: async(parent, ctx, {user}) => {
-        if(user.role===roleList.admin) {
+        if(['admin'].includes(user.role)) {
             let allSize = 0
             let allCount = 0
             let mbSize = 1048576
@@ -130,7 +129,7 @@ const resolvers = {
        }
    },
     statisticClientCity: async(parent, ctx, {user}) => {
-        if(user.role===roleList.admin) {
+        if(['admin'].includes(user.role)) {
             let data = {}
             let clients = await ClientAzyk.find({
                 del: {$ne: 'deleted'},
@@ -163,7 +162,7 @@ const resolvers = {
        }
    },
     checkIntegrateClient: async(parent, {organization, type, document}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             if(type!=='отличая от 1С') {
                 let statistic = [];
                 let sortStatistic = {};
@@ -282,7 +281,7 @@ const resolvers = {
        }
    },
     statisticRAM: async(parent, args, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             let totalmem = os.totalmem()
             let freemem = os.freemem()
             let usemem = totalmem - freemem

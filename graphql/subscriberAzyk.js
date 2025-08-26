@@ -1,7 +1,6 @@
 const ClientAzyk = require('../models/clientAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
 const SubscriberAzyk = require('../models/subscriberAzyk');
-const {roleList} = require('../module/enum');
 
 const type = `
   type Subscriber {
@@ -20,7 +19,7 @@ const query = `
 const resolvers = {
     subscribers: async(parent, ctx, {user}) => {
         let res = []
-        if(user.role===roleList.admin) {
+        if('admin'===user.role) {
             let findRes = await SubscriberAzyk
                 .find({})
                 .populate({path: 'user'})
@@ -57,17 +56,17 @@ const resolvers = {
                     const userId = item.user._id.toString();
                     const userRole = item.user.role;
 
-                    if (userRole === roleList.admin) {
-                        userText = roleList.admin;
+                    if (userRole === 'admin') {
+                        userText = 'admin';
                    }
-                    else if (userRole === roleList.client) {
+                    else if (userRole === 'client') {
                         const client = clientMap[userId];
                         if (client) {
                             userText = `${client.name}${client.address && client.address[0] ?
                                 ` (${client.address[0][2] ? `${client.address[0][2]}, ` : ''}${client.address[0][0]})` : ''}`;
                        }
                    }
-                    else if ([roleList.superAgent, roleList.superManager].includes(userRole)) {
+                    else if (['суперагент', 'суперменеджер'].includes(userRole)) {
                         const emp = employmentMap[userId];
                         if (emp) {
                             userText = `${userRole} ${emp.name}`;

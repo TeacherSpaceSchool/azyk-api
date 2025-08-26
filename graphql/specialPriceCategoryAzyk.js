@@ -4,7 +4,6 @@ const SubBrandAzyk = require('../models/subBrandAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
-const {roleList} = require('../module/enum');
 
 const type = `
   type SpecialPriceCategory {
@@ -32,7 +31,7 @@ const resolvers = {
     specialPriceCategories: async(parent, {category, client, organization}, {user}) => {
         if(user.role&&(category||client)) {
 
-            if(user.role===roleList.client) client = user.client
+            if(user.role==='client') client = user.client
 
             // eslint-disable-next-line no-undef
             const [subBrand, clientData] = await Promise.all([
@@ -64,7 +63,7 @@ const resolvers = {
        }
    },
     itemsForSpecialPriceCategories: async(parent, {category, organization}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.admin].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
             let excludedItems = await SpecialPriceCategory.find({
                 category,
                 organization: user.organization||organization
@@ -81,7 +80,7 @@ const resolvers = {
 
 const resolversMutation = {
     addSpecialPriceCategory: async(parent, {category, organization, price, item}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin, roleList.agent].includes(user.role)&&!(await SpecialPriceCategory.findOne({item, category}).select('_id').lean())) {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)&&!(await SpecialPriceCategory.findOne({item, category}).select('_id').lean())) {
             // eslint-disable-next-line no-undef
             const [createdObject, itemData, organizationData] = await Promise.all([
                 SpecialPriceCategory.create({item, price, category, organization}),
@@ -92,13 +91,13 @@ const resolversMutation = {
        }
    },
     setSpecialPriceCategory: async(parent, {_id, price}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin, roleList.agent].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
             await SpecialPriceCategory.updateOne({_id}, {price})
        }
         return 'OK';
    },
     deleteSpecialPriceCategory: async(parent, {_id}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin, roleList.agent].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
             await SpecialPriceCategory.deleteOne({_id})
        }
         return 'OK'

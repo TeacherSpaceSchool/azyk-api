@@ -1,7 +1,6 @@
 const ErrorAzyk = require('../models/errorAzyk');
 const UserAzyk = require('../models/userAzyk');
 const {checkFloat} = require('../module/const');
-const {roleList} = require('../module/enum');
 
 const type = `
   type Error {
@@ -32,12 +31,12 @@ const getLoginFromPath = (path) => {
 
 const resolvers = {
     errors: async(parent, ctx, {user}) => {
-        if(user.role===roleList.admin) {
+        if('admin'===user.role) {
             return await ErrorAzyk.find().sort('-createdAt').lean()
        }
    },
     errorsStatistic: async(parent, ctx, {user}) => {
-        if(user.role===roleList.admin) {
+        if('admin'===user.role) {
             const errors = await ErrorAzyk.find().sort('-createdAt').lean()
             let allErrors = 0, allClients = [], allEmployments = []
             const parsedErrors = {}
@@ -63,7 +62,7 @@ const resolvers = {
                 const login = getLoginFromPath(error.path)
                 if(login&&userByLogin[login]) {
                     const _id = userByLogin[login]._id.toString()
-                    if(userByLogin[login].role===roleList.client&&!parsedErrors[ID].clients.includes(_id)) {
+                    if(userByLogin[login].role==='client'&&!parsedErrors[ID].clients.includes(_id)) {
                         parsedErrors[ID].clients.push(_id)
                         if(!allClients.includes(_id))
                             allClients.push(_id)
@@ -117,7 +116,7 @@ const resolversMutation = {
         return 'OK'
     },
     clearAllErrors: async(parent, ctx, {user}) => {
-        if(user.role===roleList.admin) {
+        if('admin'===user.role) {
             await ErrorAzyk.deleteMany()
        }
         return 'OK'

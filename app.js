@@ -13,7 +13,6 @@ let graphql  = require('./graphql/index');
 const subscribe = require('./routes/subscribe');
 const push = require('./routes/push');
 const singleIntegrateRouter = require('./routes/singleIntegrate');
-const {roleList} = require('./module/enum');
 require('body-parser-xml-json')(bodyParser);
 
 passportEngine.start();
@@ -51,7 +50,7 @@ app.use(function(req, res, next) {
 });
 app.use(bodyParser.json({limit: '10mb'}));
 app.use(bodyParser.xml({limit: '10mb'}));
-app.use(express.static(path.join(__dirname, roleList.admin)));
+app.use(express.static(path.join(__dirname, 'admin')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(compression());
 /*// parse data with connect-multiparty.

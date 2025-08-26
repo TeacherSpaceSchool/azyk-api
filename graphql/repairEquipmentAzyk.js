@@ -4,7 +4,6 @@ const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
 const {reductionSearch, isNotEmpty, reductionSearchText} = require('../module/const');
-const {roleList} = require('../module/enum');
 
 const type = `
   type RepairEquipment {
@@ -39,10 +38,10 @@ const mutation = `
 
 const resolvers = {
     repairEquipments: async(parent, {organization, search, filter}, {user}) => {
-        if([roleList.admin, roleList.superOrganization, roleList.organization, roleList.manager, 'агент', roleList.repairMan].includes(user.role)) {
+        if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [employmentClients, searchedAgents, searchedClients] = await Promise.all([
-                [roleList.agent, roleList.manager].includes(user.role)?DistrictAzyk.find({agent: user.employment}).distinct('client'):null,
+                ['агент', 'менеджер'].includes(user.role)?DistrictAzyk.find({agent: user.employment}).distinct('client'):null,
                 search?EmploymentAzyk.find({name: {$regex: reductionSearchText(search), $options: 'i'}}).distinct('_id'):null,
                 search?ClientAzyk.find({$or: [
                         {name: {$regex: reductionSearchText(search), $options: 'i'}},
@@ -85,7 +84,7 @@ const resolvers = {
        }
    },
     repairEquipment: async(parent, {_id}, {user}) => {
-        if([roleList.admin, roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.repairMan].includes(user.role)) {
+        if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'ремонтник'].includes(user.role)) {
             return await RepairEquipmentAzyk.findOne({
                 _id,
                 ...user.organization ? {organization: user.organization} : {}
@@ -113,7 +112,7 @@ const resolvers = {
 
 const resolversMutation = {
     addRepairEquipment: async(parent, {equipment, client, defect, organization}, {user}) => {
-        if([roleList.agent, roleList.admin, roleList.superAgent, roleList.superOrganization, roleList.organization].includes(user.role)) {
+        if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация'].includes(user.role)) {
             let number = randomstring.generate({length: 12, charset: 'numeric'});
             while (await RepairEquipmentAzyk.findOne({number: number}).select('_id').lean())
                 number = randomstring.generate({length: 12, charset: 'numeric'});
@@ -136,9 +135,9 @@ const resolversMutation = {
        }
    },
     setRepairEquipment: async(parent, {_id, accept, done, cancel, defect, repair, equipment, client}, {user}) => {
-        if([roleList.agent, roleList.admin, roleList.superAgent, roleList.superOrganization, roleList.organization, roleList.repairMan].includes(user.role)) {
+        if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация', 'ремонтник'].includes(user.role)) {
             let object = await RepairEquipmentAzyk.findById(_id)
-            if(user.role===roleList.repairMan)object.repairMan = user.employment
+            if(user.role==='ремонтник')object.repairMan = user.employment
             if(defect&&!object.accept&&!object.cancel)object.defect = defect
             if(repair&&(object.accept||accept)&&!object.done)object.repair = repair
             if(equipment&&!object.accept&&!object.cancel)object.equipment = equipment
@@ -161,7 +160,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteRepairEquipment: async(parent, {_id}, {user}) => {
-        if([roleList.agent, roleList.admin, roleList.superAgent, roleList.superOrganization, roleList.organization].includes(user.role)) {
+        if(['агент', 'admin', 'суперагент', 'суперорганизация', 'организация'].includes(user.role)) {
             await RepairEquipmentAzyk.deleteOne({_id, ...user.organization?{organization: user.organization}:{}})
        }
         return 'OK'

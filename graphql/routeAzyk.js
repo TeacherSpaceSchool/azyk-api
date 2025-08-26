@@ -13,7 +13,6 @@ const {urlMain, pdDDMMYYYY, checkInt, checkFloat} = require('../module/const');
 const app = require('../app');
 const fs = require('fs');
 const path = require('path');
-const {roleList} = require('../module/enum');
 
 const type = `
   type Route {
@@ -62,7 +61,7 @@ const mutation = `
 
 const resolvers = {
     unloadingInvoicesFromRouting: async(parent, {orders, organization}, {user}) => {
-        if([roleList.admin, roleList.agent, roleList.superOrganization, roleList.organization, roleList.manager, roleList.ecspeditor, roleList.superEcspeditor].includes(user.role)) {
+        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
             if(organization!=='super')
                 organization = await OrganizationAzyk.findById(organization).select('name address phone').lean()
             else
@@ -461,7 +460,7 @@ const resolvers = {
        }
    },
     listDownload: async(parent, {orders}, {user}) => {
-        if([roleList.admin, roleList.agent, roleList.superOrganization, roleList.organization, roleList.superEcspeditor, roleList.ecspeditor, roleList.manager].includes(user.role)) {
+        if(['admin', 'агент', 'суперорганизация', 'организация', 'суперэкспедитор', 'экспедитор', 'менеджер'].includes(user.role)) {
             orders = await InvoiceAzyk.find({_id: {$in: orders}})
                 .select('orders allPrice adss')
                 .populate({
@@ -559,7 +558,7 @@ const resolvers = {
        }
    },
     listUnload: async(parent, {orders}, {user}) => {
-        if([roleList.admin, roleList.agent, roleList.superOrganization, roleList.organization, roleList.manager].includes(user.role)) {
+        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             orders = await InvoiceAzyk.find({_id: {$in: orders}})
                 .select('orders')
                 .populate({
@@ -583,7 +582,7 @@ const resolvers = {
        }
    },
     routes: async(parent, {organization, search, sort, filter, date, skip}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, roleList.admin, roleList.ecspeditor, roleList.superEcspeditor].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
             let dateStart;
             let dateEnd;
             if(date) {
@@ -599,7 +598,7 @@ const resolvers = {
                     name: {$regex: reductionSearchText(search), $options: 'i'}
                }).distinct('_id')
            }
-            if([roleList.manager, roleList.agent].includes(user.role)) {
+            if(['менеджер', 'агент'].includes(user.role)) {
                 district = await DistrictAzyk.find({
                     agent: user.employment
                }).distinct('_id')
@@ -609,8 +608,8 @@ const resolvers = {
                 status: {$regex: filter, $options: 'i'},
                 ...(search ? {selectEcspeditor: {$in: searchedEmployments}} : {}),
                 ...date ? {createdAt: {$gte: dateStart, $lt: dateEnd}} : {},
-                ...roleList.agent===user.role?{selectDistricts: {$in: district}}:{},
-                ...[roleList.ecspeditor, roleList.superEcspeditor].includes(user.role)?{selectEcspeditor: user.employment}:{}
+                ...'агент'===user.role?{selectDistricts: {$in: district}}:{},
+                ...['экспедитор', 'суперэкспедитор'].includes(user.role)?{selectEcspeditor: user.employment}:{}
            })
                 .populate({
                     path: 'selectEcspeditor',
@@ -661,9 +660,9 @@ const resolvers = {
                 .lean()
             if (route &&
                 (
-                    [roleList.admin, roleList.superEcspeditor].includes(user.role) ||
-                    (user.role === roleList.ecspeditor && route.selectEcspeditor._id.toString() === user.employment.toString()) ||
-                    ([roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent].includes(user.role) && route.provider._id.toString() === user.organization.toString())
+                    ['admin', 'суперэкспедитор'].includes(user.role) ||
+                    (user.role === 'экспедитор' && route.selectEcspeditor._id.toString() === user.employment.toString()) ||
+                    (['суперорганизация', 'организация', 'менеджер', 'агент'].includes(user.role) && route.provider._id.toString() === user.organization.toString())
                 )
             ) {
                 for(let i=0; i<route.deliverys.length; i++) {
@@ -682,7 +681,7 @@ const resolvers = {
 
 const resolversMutation = {
     buildRoute: async(parent, {provider, autoTonnage, orders, length}, {user}) => {
-        if([roleList.admin, roleList.agent, roleList.superOrganization, roleList.organization, roleList.manager].includes(user.role)) {
+        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             if(provider!=='super')
                 provider = (await OrganizationAzyk.findById(provider).select('warehouse').lean()).warehouse.replace(', ', ',');
             else
@@ -739,7 +738,7 @@ const resolversMutation = {
         return 'OK';
    },
     setRoute: async(parent, {route, deletedOrders}, {user}) => {
-        if([roleList.admin, roleList.agent, roleList.superOrganization, roleList.organization, roleList.manager, roleList.ecspeditor, roleList.superEcspeditor].includes(user.role)) {
+        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер', 'экспедитор', 'суперэкспедитор'].includes(user.role)) {
             route = await RouteAzyk.findOne({_id: route, ...user.organization?{provider: user.organization}:{}})
             if(route) {
                 for(let i = 0; i < deletedOrders.length; i++) {
@@ -767,7 +766,7 @@ const resolversMutation = {
         return 'OK';
    },
     addRoute: async(parent, {deliverys, provider, selectProdusers, selectDistricts, selectEcspeditor, selectAuto, selectedOrders, dateDelivery, allTonnage}, {user}) => {
-        if([roleList.admin, roleList.agent, roleList.superOrganization, roleList.organization, roleList.manager].includes(user.role)) {
+        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             let number = await randomstring.generate({length: 12, charset: 'numeric'});
             while (await RouteAzyk.findOne({number: number}).select('_id').lean())
                 number = await randomstring.generate({length: 12, charset: 'numeric'});
@@ -783,7 +782,7 @@ const resolversMutation = {
         return 'OK';
    },
     deleteRoute: async(parent, {_id, selectedOrders}, {user}) => {
-        if(![roleList.ecspeditor, roleList.superEcspeditor].includes(user.role)) {
+        if(!['экспедитор', 'суперэкспедитор'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             await Promise.all([
                 RouteAzyk.deleteOne({_id}),

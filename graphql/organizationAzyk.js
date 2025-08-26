@@ -11,7 +11,6 @@ const {
 } = require('../module/const');
 const {deleteOrganizations} = require('../module/organizations');
 const {addHistory, historyTypes} = require('../module/history');
-const {roleList} = require('../module/enum');
 
 const type = `
   type Organization {
@@ -73,7 +72,7 @@ const mutation = `
 const resolvers = {
     brandOrganizations: async (parent, {search, filter, city}, {user}) => {
         // Разрешаем выполнение только для указанных ролей
-        if (!user.role) {
+        if (!['admin', 'экспедитор', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент', 'суперэкспедитор', 'client'].includes(user.role)) {
             return [];
        }
 
@@ -81,9 +80,9 @@ const resolvers = {
         const cityFilter = city || user.city;
 
         // Флаг для удобства: является ли пользователь клиентом
-        const isClient = user.role === roleList.client;
-        const isAdmin = user.role === roleList.admin;
-        const isSuperAgent = [roleList.superAgent, roleList.superEcspeditor].includes(user.role);
+        const isClient = user.role === 'client';
+        const isAdmin = user.role === 'admin';
+        const isSuperAgent = ['суперагент', 'суперэкспедитор'].includes(user.role);
 
         // Получаем все элементы (товары или позиции) из коллекции ItemAzyk с учетом города, статуса и удаления
         const brandItems = await ItemAzyk.find({
@@ -200,7 +199,7 @@ const resolvers = {
     organizations: async(parent, {search, filter, city}, {user}) => {
         return await OrganizationAzyk.find({
             name: {$regex: reductionSearchText(search), $options: 'i'},
-            ...(isNotTestUser(user)&&user.role!==roleList.admin)?{status:'active'}:filter?{status: filter}:{},
+            ...(isNotTestUser(user)&&user.role!=='admin')?{status:'active'}:filter?{status: filter}:{},
             ...city?{cities: city}:{},
             ...user.organization?{_id: user.organization}:{},
             del: {$ne: 'deleted'}
@@ -227,7 +226,7 @@ const resolvers = {
 
 const resolversMutation = {
     addOrganization: async(parent, {cities, catalog, addedClient, agentSubBrand, clientSubBrand, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             let {stream, filename} = await image;
             image = urlMain + await saveImage(stream, filename)
             if(catalog) {
@@ -270,7 +269,7 @@ const resolversMutation = {
        }
    },
     setOrganization: async(parent, {catalog, cities, addedClient, agentSubBrand, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, _id, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
-        if(user.role===roleList.admin||([roleList.superOrganization, roleList.organization].includes(user.role)&&user.organization.toString()===_id.toString())) {
+        if(user.role==='admin'||(['суперорганизация', 'организация'].includes(user.role)&&user.organization.toString()===_id.toString())) {
             let object = await OrganizationAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'OrganizationAzyk', name: object.name, object: _id, data: {catalog, cities, addedClient, agentSubBrand, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}}))
             if (image) {
@@ -291,7 +290,7 @@ const resolversMutation = {
                 ])
                 object.catalog = urlMain+savedFilename
            }
-            if(user.role===roleList.admin&&isNotEmpty(pass)) object.pass = pass
+            if(user.role==='admin'&&isNotEmpty(pass)) object.pass = pass
             if(cities) {
                 object.cities = cities
                 await SubBrandAzyk.updateMany({organization: _id}, {cities})
@@ -326,7 +325,7 @@ const resolversMutation = {
         return 'OK'
    },
     deleteOrganization: async(parent, {_id}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             let organization = await OrganizationAzyk.findById(_id).select('name').lean()
             await deleteOrganizations([_id])
             unawaited(() => addHistory({user, type: historyTypes.delete, model: 'OrganizationAzyk', name: organization.name, object: _id}))
@@ -334,7 +333,7 @@ const resolversMutation = {
         return 'OK'
    },
     onoffOrganization: async(parent, {_id}, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             const organization = await OrganizationAzyk.findById(_id).select('name status').lean()
             const newStatus = organization.status==='active'?'deactive':'active'
             let items = await ItemAzyk.find({organization: organization._id}).distinct('_id')

@@ -1,6 +1,5 @@
 const DeliveryDate = require('../models/deliveryDateAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const {roleList} = require('../module/enum');
 
 const type = `
   type DeliveryDate {
@@ -39,7 +38,7 @@ const resolvers = {
 
 const resolversMutation = {
     setDeliveryDate: async(parent, {organization, days}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.admin].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'admin'].includes(user.role)) {
             if(user.organization) organization = user.organization
             const deliveryDate = await DeliveryDate.findOne({organization})
             if(!deliveryDate) {

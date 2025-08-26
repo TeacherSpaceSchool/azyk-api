@@ -10,6 +10,7 @@ const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
 const HistoryAzyk = require('../models/historyAzyk');
 const IntegrationLogAzyk = require('../models/integrationLogAzyk');
+const NotificationStatisticAzyk = require('../models/notificationStatisticAzyk');
 
 connectDB.connect();
 
@@ -32,7 +33,8 @@ if(!isMainThread) {
                 AgentHistoryGeoAzyk.deleteMany({createdAt: {$lte: date}}),
                 HistoryOrderAzyk.deleteMany({createdAt: {$lte: date}}),
                 HistoryAzyk.deleteMany({createdAt: {$lte: date}}),
-                IntegrationLogAzyk.deleteMany({createdAt: {$lte: date}})
+                IntegrationLogAzyk.deleteMany({createdAt: {$lte: date}}),
+                NotificationStatisticAzyk.deleteMany({createdAt: {$lte: date}})
             ])
 
        }

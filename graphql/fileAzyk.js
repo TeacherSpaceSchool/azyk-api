@@ -1,5 +1,5 @@
 const app = require('../app');
-const {pdDDMMYYHHMM} = require('../module/const');
+const {pdDDMMYY} = require('../module/const');
 const fs = require('fs');
 const path = require('path');
 const dirs = ['images', 'xlsx']
@@ -12,7 +12,6 @@ const ItemAzyk = require('../models/itemAzyk');
 const FaqAzyk = require('../models/faqAzyk');
 const EquipmentAzyk = require('../models/equipmentAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const {roleList} = require('../module/enum');
 
 const type = `
   type File {
@@ -35,7 +34,7 @@ const mutation = `
 
 const resolvers = {
     files: async(parent, args, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             let data = [], res = [], filesUrl = [], stat, size, createdAt, url
             for(let i = 0; i < dirs.length; i++) {
                 url = path.join(app.dirname, 'public', dirs[i])
@@ -43,7 +42,7 @@ const resolvers = {
                 for(let name of files) {
                     url = path.join(app.dirname, 'public', dirs[i], name)
                     stat = fs.statSync(url)
-                    createdAt = pdDDMMYYHHMM(stat.atime)
+                    createdAt = pdDDMMYY(stat.atime)
                     size = Math.round((stat.size/1000000) * 1000)/1000;
                     data.push({name, size, url: dirs[i], createdAt});
                     filesUrl.push(`${urlMain}/${dirs[i]}/${name}`)
@@ -92,7 +91,7 @@ const resolvers = {
 
 const resolversMutation = {
     clearAllDeactiveFiles: async(parent, ctx, {user}) => {
-        if(user.role===roleList.admin) {
+        if(user.role==='admin') {
             let data = [], url
             for(let i = 0; i < dirs.length; i++) {
                 url = path.join(app.dirname, 'public', dirs[i])

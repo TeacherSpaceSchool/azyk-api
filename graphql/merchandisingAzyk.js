@@ -2,10 +2,10 @@ const MerchandisingAzyk = require('../models/merchandisingAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const mongoose = require('mongoose');
-const {saveBase64ToFile, urlMain, deleteFile, unawaited, isNotEmpty, reductionSearchText} = require('../module/const');
+const {saveBase64ToFile, urlMain, deleteFile, unawaited, isNotEmpty, reductionSearchText, defaultLimit} = require('../module/const');
 const {sendWebPush} = require('../module/webPush');
 const EmploymentAzyk = require('../models/employmentAzyk');
-const {roleList} = require('../module/enum');
+const {parallelPromise} = require('../module/parallel');
 
 const type = `
   type Merchandising {
@@ -60,7 +60,7 @@ const mutation = `
 
 const resolvers = {
     merchandisings: async(parent, {organization, agent, search, date, client, sort, filter, skip}, {user}) => {
-        if([roleList.admin, roleList.superAgent, roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, 'мерчендайзер'].includes(user.role)) {
+        if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
             let dateStart;
             let dateEnd;
             if(date&&date!=='') {
@@ -71,7 +71,7 @@ const resolvers = {
            }
             // eslint-disable-next-line no-undef
             const [districtClients, searchedClients] = await Promise.all([
-                [roleList.superAgent, roleList.agent, roleList.manager].includes(user.role)?DistrictAzyk
+                ['суперагент', 'агент', 'менеджер'].includes(user.role)?DistrictAzyk
                     .find({$or: [{manager: user.employment}, {agent: user.employment}]})
                     .distinct('client'):null,
                 search?ClientAzyk.find({$or: [
@@ -89,7 +89,7 @@ const resolvers = {
                     :{},
                 ...date?{date: {$gte: dateStart, $lt:dateEnd}}:{},
                 $and: [
-                    {...[roleList.superAgent, roleList.agent].includes(user.role) && districtClients.length||user.role===roleList.manager?{client: {$in: districtClients}}:[roleList.superAgent, roleList.agent, 'мерчендайзер'].includes(user.role)?{employment: user.employment}:{}},
+                    {...['суперагент', 'агент'].includes(user.role) && districtClients.length||user.role==='менеджер'?{client: {$in: districtClients}}:['суперагент', 'агент', 'мерчендайзер'].includes(user.role)?{employment: user.employment}:{}},
                     {...search?{client: {$in: searchedClients}}:{}},
                 ]
            })
@@ -104,7 +104,7 @@ const resolvers = {
                })
                 .sort(sort)
                 .skip(isNotEmpty(skip) ? skip : 0)
-                .limit(isNotEmpty(skip) ? 200 : 10000000000)
+                .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
                 .lean()
        }
    },
@@ -129,7 +129,7 @@ const resolvers = {
 
 const resolversMutation = {
     addMerchandising: async(parent, {organization, type, client, geo, productAvailability, productInventory, productConditions, productLocation, images, fhos, needFho, stateProduct, comment}, {user}) => {
-        if([roleList.admin, roleList.superAgent, roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, 'мерчендайзер'].includes(user.role)) {
+        if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
             let _object = new MerchandisingAzyk({
                 organization: user.organization||(organization==='super'?null:organization),
                 employment: user.employment?user.employment:null,
@@ -143,14 +143,15 @@ const resolversMutation = {
                 needFho: needFho,
                 stateProduct: stateProduct,
                 comment: comment,
-                images: [],
                 fhos: [],
                 geo: geo,
                 check: false
            });
-            for(let i=0; i<images.length; i++) {
-                _object.images.push(urlMain + await saveBase64ToFile(images[i]))
-           }
+            const images = []
+            await parallelPromise(images, async image => {
+                images.push(urlMain + await saveBase64ToFile(image))
+            })
+            _object.images = images
             for(let i=0; i<fhos.length; i++) {
                 _object.fhos.push(fhos[i])
            }
@@ -159,7 +160,7 @@ const resolversMutation = {
        }
    },
     checkMerchandising: async(parent, {_id, reviewerScore, reviewerComment}, {user}) => {
-        if([roleList.admin, roleList.superOrganization, roleList.organization, roleList.manager].includes(user.role)) {
+        if(['admin', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
             let object = await MerchandisingAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
             object.check = true
             object.reviewerScore = reviewerScore
@@ -183,12 +184,14 @@ const resolversMutation = {
         return 'OK'
    },
     deleteMerchandising: async(parent, {_id}, {user}) => {
-        if([roleList.admin, roleList.superAgent, roleList.superOrganization, roleList.organization, roleList.manager, roleList.agent, 'мерчендайзер'].includes(user.role)) {
+        if(['admin', 'суперагент', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
             const merchandisingImages = await MerchandisingAzyk.findOne({...user.organization?{organization: user.organization}:{}, _id}).select('images').lean()
             // eslint-disable-next-line no-undef
-            await Promise.all(merchandisingImages.images.map(image => deleteFile(image)));
-            await MerchandisingAzyk.deleteOne({_id, ...user.organization?{organization: user.organization}:{}})
-       }
+            await Promise.all([
+                ...merchandisingImages.images.map(image => deleteFile(image)),
+                MerchandisingAzyk.deleteOne({_id, ...user.organization?{organization: user.organization}:{}})
+            ])
+        }
         return 'OK'
    }
 };

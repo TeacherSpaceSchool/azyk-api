@@ -4,7 +4,6 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const UserAzyk = require('../models/userAzyk');
 const {getGeoDistance, pdDDMMYYHHMM, checkDate, dayStartDefault} = require('../module/const');
 const {parallelPromise} = require('../module/parallel');
-const {roleList} = require('../module/enum');
 
 const type = `
   type AgentHistoryGeo {
@@ -27,7 +26,7 @@ const mutation = `
 
 const resolvers = {
     agentHistoryGeos: async(parent, {organization, agent, date}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
             if(user.organization) organization = user.organization
             // Устанавливаем дату начала и конца (день с 3:00)
             let dateStart = checkDate(date)
@@ -41,7 +40,7 @@ const resolvers = {
                 if (organization !== 'super')
                     agents = await EmploymentAzyk.find({organization}).distinct('_id')
                 else {
-                    agents = await UserAzyk.find({role: roleList.superAgent}).distinct('_id')
+                    agents = await UserAzyk.find({role: 'суперагент'}).distinct('_id')
                     agents = await EmploymentAzyk.find({user: {$in: agents}}).distinct('_id')
                }
            }
@@ -131,7 +130,7 @@ const resolvers = {
        }
    },
     agentMapGeos: async(parent, {agent, date}, {user}) => {
-        if([roleList.superOrganization, roleList.organization, roleList.manager, roleList.admin].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
             let dateStart = checkDate(date)
             dateStart.setHours(dayStartDefault, 0, 0, 0)
             let dateEnd = new Date(dateStart)
@@ -183,7 +182,7 @@ const resolvers = {
 
 const resolversMutation = {
     addAgentHistoryGeo: async(parent, {client, geo}, {user}) => {
-        if([roleList.agent, roleList.superAgent].includes(user.role)) {
+        if(['агент', 'суперагент'].includes(user.role)) {
             let dateStart = new Date()
             dateStart.setHours(dayStartDefault, 0, 0, 0)
             let dateEnd = new Date(dateStart)

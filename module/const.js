@@ -5,9 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const UserAzyk = require('../models/userAzyk');
 const {sendWebPush} = require('./webPush');
-const {roleList} = require('./enum');
 const urlMain = `${process.env.URL.trim()}:3000`,
-    adminLogin = roleList.admin,
+    adminLogin = 'admin',
     skip = 1,
     adminPass = 'hGNSKtmSBG'
 
@@ -156,7 +155,7 @@ const pdDDMMYY = date =>
 }
 const pdDDMMYYHHMM = date => {
     date = new Date(date)
-    date = `${date.getDate()<10?'0':''}${date.getDate()}.${date.getMonth()<9?'0':''}${date.getMonth()+1}.${date.getFullYear()} ${date.getHours()<10?'0':''}${date.getHours()}:${date.getMinutes()<10?'0':''}${date.getMinutes()}`
+    date = `${date.getDate()<10?'0':''}${date.getDate()}.${date.getMonth()<9?'0':''}${date.getMonth()+1}.${date.getYear()-100} ${date.getHours()<10?'0':''}${date.getHours()}:${date.getMinutes()<10?'0':''}${date.getMinutes()}`
     return date
 }
 const pdHHMM = date => {
@@ -236,7 +235,7 @@ module.exports.chunkArray = (array, size) => {
 }
 
 module.exports.sendPushToAdmin = async ({title, message}) => {
-    const adminUser = await UserAzyk.findOne({role: roleList.admin}).select('_id').lean()
+    const adminUser = await UserAzyk.findOne({role: 'admin'}).select('_id').lean()
     await sendWebPush({title: title, message, users: [adminUser._id]})
 }
 
@@ -261,7 +260,7 @@ module.exports.formatErrorDetails = err => (err.stack&&err.message).slice(0, 250
 
 module.exports.formatAmount = amount => amount&&amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
 
-module.exports.defaultLimit = 20;
+module.exports.defaultLimit = 30;
 module.exports.statsCollection = statsCollection;
 module.exports.getGeoDistance = getGeoDistance;
 module.exports.checkInt = checkInt;
