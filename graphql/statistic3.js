@@ -309,7 +309,7 @@ const resolvers = {
             // Получаем всех клиентов, закреплённых за агентом
             const districtsClients = await DistrictAzyk.find({organization, agent}).distinct('client').lean()
             // Получаем все мерчендайзинговые визиты по этим клиентам в заданный период
-            const merchandisings = await MerchandisingAzyk.find({
+            const merchandisings1 = await MerchandisingAzyk.find({
                 createdAt: {$gte: dateStart, $lt: dateEnd},
                 ...(type ? {type} : {}),
                 organization,
@@ -318,6 +318,16 @@ const resolvers = {
                 path: 'client',
                 select: 'name _id'
            }).sort('-createdAt').lean()
+            // eslint-disable-next-line no-undef
+            const seen = [];
+            const merchandisings = merchandisings1.filter(merchandising => {
+                const clientId = merchandising.client._id.toString();
+                if (seen.includes(clientId)) {
+                    return false;
+                } // уже встречался → пропускаем
+                seen.push(clientId);                   // первый раз → сохраняем
+                return true;
+            });
             // Формируем множество использованных клиентов и итоговый массив данных
             // eslint-disable-next-line no-undef
             const usedClients = []
@@ -366,11 +376,21 @@ const resolvers = {
             select: 'name _id'
        }).lean()
 
-        const data = await MerchandisingAzyk.find({
+        const merchandisings1 = await MerchandisingAzyk.find({
             createdAt: {$gte: dateStart, $lt: dateEnd},
             organization,
             ...(type ? {type} : {})
        }).select('client type check').lean()
+        // eslint-disable-next-line no-undef
+        const seen = [];
+        const data = merchandisings1.filter(merchandising => {
+            const clientId = merchandising.client.toString();
+            if (seen.includes(clientId)) {
+                return false;
+            } // уже встречался → пропускаем
+            seen.push(clientId);                   // первый раз → сохраняем
+            return true;
+        });
 
         // eslint-disable-next-line no-undef
         const clientToDistrict = {}
