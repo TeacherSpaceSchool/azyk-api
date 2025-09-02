@@ -147,11 +147,10 @@ const resolversMutation = {
                 geo: geo,
                 check: false
            });
-            const images = []
+            _object.images = []
             await parallelPromise(images, async image => {
-                images.push(urlMain + await saveBase64ToFile(image))
+                _object.images.push(urlMain + await saveBase64ToFile(image))
             })
-            _object.images = images
             for(let i=0; i<fhos.length; i++) {
                 _object.fhos.push(fhos[i])
            }
