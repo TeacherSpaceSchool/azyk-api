@@ -144,13 +144,14 @@ const resolversMutation = {
                 stateProduct: stateProduct,
                 comment: comment,
                 fhos: [],
+                images: [],
                 geo: geo,
                 check: false
            });
-            _object.images = []
-            await parallelPromise(images, async image => {
-                _object.images.push(urlMain + await saveBase64ToFile(image))
-            })
+            if(images&&images.length)
+                _object.images = await parallelPromise(images, async image => {
+                    return urlMain + await saveBase64ToFile(image)
+                })
             for(let i=0; i<fhos.length; i++) {
                 _object.fhos.push(fhos[i])
            }
