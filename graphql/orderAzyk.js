@@ -118,9 +118,9 @@ const type = `
 `;
 
 const query = `
-    invoices(search: String!, sort: String!, filter: String!, date: String!, skip: Int, organization: ID, city: String): [Invoice]
+    invoices(search: String!, sort: String!, filter: String!, date: String!, skip: Int, organization: ID, city: String, agent: ID, district: ID): [Invoice]
     invoicesFromDistrict(organization: ID!, district: ID!, date: String!): [Invoice]
-   invoicesSimpleStatistic(search: String!, filter: String!, date: String, organization: ID, city: String): [String]
+   invoicesSimpleStatistic(search: String!, filter: String!, date: String, organization: ID, city: String, agent: ID, district: ID): [String]
     orderHistorys(invoice: ID!): [HistoryOrder]
     invoicesForRouting(produsers: [ID]!, clients: [ID]!, dateStart: Date, dateEnd: Date, dateDelivery: Date): [Invoice]
     invoice(_id: ID!): Invoice
@@ -140,7 +140,7 @@ const subscription  = `
 `;
 
 const resolvers = {
-    invoicesSimpleStatistic: async(parent, {search, filter, date, organization, city}, {user}) => {
+    invoicesSimpleStatistic: async(parent, {search, filter, date, organization, city, agent, district}, {user}) => {
         if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперэкспедитор', 'суперагент'].includes(user.role)) {
             //дата доставки
             let dateStart;
@@ -175,9 +175,8 @@ const resolvers = {
             }
             //поиск
             // eslint-disable-next-line no-undef
-            // eslint-disable-next-line no-undef
             const [districtClients, superagentOrganizations, integrationOrganizations] = await Promise.all([
-                ['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
+                district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
                 user.role==='суперагент'?OrganizationAzyk.find({superagent: true}).distinct('_id'):null,
                 filter==='Не синхронизированные'?OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id'):null
             ]);
@@ -193,6 +192,8 @@ const resolvers = {
                     ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
                     //город
                     ...city ? {city} : {},
+                    //агент
+                    ...agent ? {agent} : {},
                     //клиент только свои
                     ...user.client ? {client: user.client} : {},
                     //суперагент только в доступных организациях
@@ -226,7 +227,7 @@ const resolvers = {
             return [lengthList.toString(), checkFloat(price).toString(), checkFloat(tonnage).toString()]
         }
     },
-    invoices: async(parent, {search, sort, filter, date, skip, organization, city}, {user}) =>  {
+    invoices: async(parent, {search, sort, filter, date, skip, organization, city, agent, district}, {user}) =>  {
         if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
             //console.time('get BD')
             let dateStart;
@@ -268,7 +269,7 @@ const resolvers = {
             _sort[sort[0] === '-' ? sort.substring(1) : sort] = sort[0] === '-' ? -1 : 1
             // eslint-disable-next-line no-undef
             const [districtClients, superagentOrganizations, integrationOrganizations] = await Promise.all([
-                ['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
+                district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
                 user.role==='суперагент'?OrganizationAzyk.find({superagent: true}).distinct('_id'):null,
                 filter==='Не синхронизированные'?OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id'):null
             ]);
@@ -278,6 +279,8 @@ const resolvers = {
                     $match: {
                         //не удален
                         del: {$ne: 'deleted'},
+                        //агент
+                        ...agent ? {agent} : {},
                         //город
                         ...city ? {city} : {},
                         //только в своей организации

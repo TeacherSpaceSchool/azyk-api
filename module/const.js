@@ -260,6 +260,14 @@ module.exports.formatErrorDetails = err => (err.stack&&err.message).slice(0, 250
 
 module.exports.formatAmount = amount => amount&&amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
 
+module.exports.isSameDay = (d1, d2) => {
+    return (
+        d1.getFullYear() === d2.getFullYear() &&
+        d1.getMonth() === d2.getMonth() &&
+        d1.getDate() !== d2.getDate()
+    );
+}
+
 module.exports.defaultLimit = 30;
 module.exports.statsCollection = statsCollection;
 module.exports.getGeoDistance = getGeoDistance;

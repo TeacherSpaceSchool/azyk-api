@@ -1,9 +1,10 @@
 const FhoClientAzyk = require('../models/fhoClientAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const {saveBase64ToFile, urlMain, deleteFile, isNotEmpty, reductionSearchText, defaultLimit} = require('../module/const');
+const {saveBase64ToFile, urlMain, deleteFile, isNotEmpty, reductionSearchText, defaultLimit, dayStartDefault, isSameDay} = require('../module/const');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
+const AgentRouteAzyk = require('../models/agentRouteAzyk');
 
 const type = `
   type FhoClient {
@@ -13,6 +14,7 @@ const type = `
       client: Client
       images: [String]
       history: [FhoClientHistory]
+      required: Boolean
  }
   type FhoClientHistory {
        date: Date
@@ -23,7 +25,8 @@ const type = `
 const query = `
     fhoClients(organization: ID!, client: ID, search: String!, filter: String!, skip: Int): [FhoClient]
     fhoClient(_id: ID!, organization: ID): FhoClient
-    clientsForFhoClient(search: String!, organization: ID!): [Client]
+    clientsForFhoClient(search: String!, organization: ID!, district: ID): [Client]
+    requiredFhoClient(client: ID): Boolean
 `;
 
 const mutation = `
@@ -76,25 +79,35 @@ const resolvers = {
                     organization = subBrand.organization
             }
             if(user.organization) organization = user.organization
-            return await FhoClientAzyk.findOne({
+            const res = await FhoClientAzyk.findOne({
                 ...organization?{organization}:{},
                 $or: [{_id}, {client: _id}]
-           })
+            })
                 .populate({
                     path: 'client',
                     select: '_id name address'
-               })
+                })
                 .lean()
+            if(user.role==='агент'&&res) {
+                const today = new Date()
+                const dayWeek = (today.getDay() + 6) % 7;
+                const districts = await DistrictAzyk.find({agent: user.employment}).distinct('_id')
+                const agentRoutes = await AgentRouteAzyk.find({district: {$in: districts}}).select('clients').lean()
+                let required = false
+                for(const agentRoute of agentRoutes) {
+                    required = agentRoute.clients[dayWeek].toString().includes(res.client._id.toString())
+                    if(required) break
+                }
+                res.required = required&&!isSameDay(res.updatedAt, today)
+            }
+            return res
        }
    },
-    clientsForFhoClient: async(parent, {search, organization}, {user}) => {
+    clientsForFhoClient: async(parent, {search, organization, district}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [districtClients, usedClients, organizationCities] = await Promise.all([
-                ['менеджер', 'агент'].includes(user.role)?DistrictAzyk.find({
-                    ...user.role==='агент'?{agent: user.employment}:{},
-                    ...user.role==='менеджер'?{manager: user.employment}:{},
-                }).distinct('client'):null,
+                district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
                 FhoClientAzyk.find({organization: user.organization||organization}).distinct('client'),
                 OrganizationAzyk.findById(organization).select('cities').lean()
             ])
@@ -116,7 +129,7 @@ const resolvers = {
                 .limit(100)
                 .lean()
         }
-    },
+    }
 };
 
 const resolversMutation = {

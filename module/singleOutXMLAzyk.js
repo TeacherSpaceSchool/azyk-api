@@ -56,11 +56,13 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
             if (district) {
                 //интеграции
                 // eslint-disable-next-line no-undef
-                const [integrateClient, integrateAgent, integrateEcspeditor] = await Promise.all([
+                const [integrateClient, integrateEcspeditor, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
                     Integrate1CAzyk.findOne({client: returned.client._id, organization: returned.organization._id}).select('guid').lean(),
-                    Integrate1CAzyk.findOne({agent: returned.agent?returned.agent._id:district.agent, organization: returned.organization._id}).select('guid').lean(),
-                    Integrate1CAzyk.findOne({ecspeditor: district.ecspeditor, organization: returned.organization._id}).select('guid').lean()
+                    Integrate1CAzyk.findOne({ecspeditor: district.ecspeditor, organization: returned.organization._id}).select('guid').lean(),
+                    returned.agent?Integrate1CAzyk.findOne({agent: returned.agent._id, organization: returned.organization._id}).select('guid').lean():null,
+                    Integrate1CAzyk.findOne({agent: district.agent, organization: returned.organization._id}).select('guid').lean(),
                 ])
+                const integrateAgent = integrateInvoiceAgent||integrateDistrictAgent
                 if (integrateClient && integrateAgent && integrateEcspeditor) {
                     //дата доставки
                     let date
@@ -171,11 +173,13 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
             if (district) {
                 //интеграции
                 // eslint-disable-next-line no-undef
-                const [integrateClient, integrateAgent, integrateEcspeditor] = await Promise.all([
+                const [integrateClient, integrateEcspeditor, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
                     Integrate1CAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id}).select('guid').lean(),
-                    Integrate1CAzyk.findOne({agent: invoice.agent?invoice.agent._id:district.agent, organization: invoice.organization._id}).select('guid').lean(),
-                    Integrate1CAzyk.findOne({ecspeditor: district.ecspeditor, organization: invoice.organization._id}).select('guid').lean()
+                    Integrate1CAzyk.findOne({ecspeditor: district.ecspeditor, organization: invoice.organization._id}).select('guid').lean(),
+                    invoice.agent?Integrate1CAzyk.findOne({agent: invoice.agent._id, organization: invoice.organization._id}).select('guid').lean():null,
+                    Integrate1CAzyk.findOne({agent: district.agent, organization: invoice.organization._id}).select('guid').lean(),
                 ])
+                const integrateAgent = integrateInvoiceAgent||integrateDistrictAgent
                 if (integrateClient && integrateAgent && integrateEcspeditor) {
                     //добавляем интеграцию
                     // eslint-disable-next-line no-undef
