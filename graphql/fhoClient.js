@@ -65,7 +65,7 @@ const resolvers = {
                     path: 'client',
                     select: '_id name address'
                })
-                .sort('-createdAt')
+                .sort('-updatedAt')
                 .skip(isNotEmpty(skip) ? skip : 0)
                 .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
                 .lean()
@@ -98,7 +98,7 @@ const resolvers = {
                     required = agentRoute.clients[dayWeek].toString().includes(res.client._id.toString())
                     if(required) break
                 }
-                res.required = required&&!isSameDay(res.updatedAt, today)
+                res.required = required&&isSameDay(res.updatedAt, today)
             }
             return res
        }
@@ -161,7 +161,7 @@ const resolversMutation = {
             ])
             await FhoClientAzyk.updateOne(
                 {$or: [{_id}, {client: _id}]},
-                {images, $push: {history: {date: new Date(), editor: `${user.role}${user.name?` ${user.name}`:''}`}}}
+                {images, history: [{date: new Date(), editor: `${user.role}${user.name?` ${user.name}`:''}`}]}
             )
         }
         return 'OK'

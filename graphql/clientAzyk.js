@@ -39,7 +39,7 @@ const type = `
 
 const query = `
     clientsSimpleStatistic(search: String!, filter: String!, date: String, city: String): String
-    clients(search: String!, sort: String!, filter: String!, date: String, skip: Int, city: String, catalog: Boolean): [Client]
+    clients(search: String!, sort: String!, filter: String!, date: String, skip: Int, district: ID, city: String, catalog: Boolean): [Client]
     clientsSync(search: String!, organization: ID!, skip: Int!, city: String): [Client]
     clientsSyncStatistic(search: String!, organization: ID!, city: String): String
     client(_id: ID!): Client
@@ -184,7 +184,7 @@ const resolvers = {
             return clients
        }
    },
-    clients: async(parent, {search, sort, date, skip, filter, city, catalog}, {user}) => {
+    clients: async(parent, {search, sort, date, skip, filter, city, catalog, district}, {user}) => {
         let dateStart;
         let dateEnd;
         let availableClients
@@ -219,6 +219,14 @@ const resolvers = {
             ]);
             if(districtClients||integrateClients) availableClients = [...districtClients?districtClients:[], ...integrateClients?integrateClients:[]]
        }
+        if(district) {
+            district = await DistrictAzyk.findById(district).select('client').lean()
+            if(availableClients) {
+                district = district.clients.toString()
+                availableClients = availableClients.filter(availableClient => district.includes(availableClient.toString()))
+            }
+            else availableClients = district.clients
+        }
         if(isNotEmpty(skip)||search.length>2) {
             return await ClientAzyk
                 .aggregate(
