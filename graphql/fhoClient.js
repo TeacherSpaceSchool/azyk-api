@@ -1,7 +1,7 @@
 const FhoClientAzyk = require('../models/fhoClientAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const {saveBase64ToFile, urlMain, deleteFile, isNotEmpty, reductionSearchText, defaultLimit, dayStartDefault, isSameDay} = require('../module/const');
+const {saveBase64ToFile, urlMain, deleteFile, isNotEmpty, reductionSearchText, defaultLimit, isSameDay} = require('../module/const');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
@@ -23,7 +23,7 @@ const type = `
 `;
 
 const query = `
-    fhoClients(organization: ID!, client: ID, search: String!, filter: String!, skip: Int): [FhoClient]
+    fhoClients(organization: ID!, client: ID, district: ID, search: String!, filter: String!, skip: Int): [FhoClient]
     fhoClient(_id: ID!, organization: ID): FhoClient
     clientsForFhoClient(search: String!, organization: ID!, district: ID): [Client]
     requiredFhoClient(client: ID): Boolean
@@ -36,12 +36,12 @@ const mutation = `
 `;
 
 const resolvers = {
-    fhoClients: async(parent, {organization, agent, search, client, filter, skip}, {user}) => {
+    fhoClients: async(parent, {organization, agent, search, client, filter, skip, district}, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'мерчендайзер'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [districtClients, searchedClients] = await Promise.all([
-                ['агент', 'менеджер'].includes(user.role)?DistrictAzyk
-                    .find({$or: [{manager: user.employment}, {agent: user.employment}]})
+                ['агент', 'менеджер'].includes(user.role)||district?DistrictAzyk
+                    .find(district?{_id: district}:{$or: [{manager: user.employment}, {agent: user.employment}]})
                     .distinct('client'):null,
                 search?ClientAzyk.find({$or: [
                     {name: {$regex: reductionSearchText(search), $options: 'i'}},
@@ -50,10 +50,10 @@ const resolvers = {
                 ]}).distinct('_id'):null
             ])
             return await FhoClientAzyk.find({
-                ...client||searchedClients||['менеджер', 'агент'].includes(user.role)? {
+                ...client||searchedClients||districtClients? {
                     $and: [
-                        ...client?[client]:[],
-                        ...['менеджер', 'агент'].includes(user.role)?[{client: {$in: districtClients}}]:[],
+                        ...client?[{client}]:[],
+                        ...districtClients?[{client: {$in: districtClients}}]:[],
                         ...search?[{client: {$in: searchedClients}}]:[]
                     ]
                 }:{},
@@ -107,7 +107,7 @@ const resolvers = {
         if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [districtClients, usedClients, organizationCities] = await Promise.all([
-                district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
+                district||['агент', 'менеджер'].includes(user.role)?DistrictAzyk.find(district?{_id: district}:{$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
                 FhoClientAzyk.find({organization: user.organization||organization}).distinct('client'),
                 OrganizationAzyk.findById(organization).select('cities').lean()
             ])

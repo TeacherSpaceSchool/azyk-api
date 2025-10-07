@@ -32,14 +32,15 @@ const type = `
     del: String
     organization: Organization
     notification: Boolean
+    network: ClientNetwork
     
     reiting: Int
  }
 `;
 
 const query = `
-    clientsSimpleStatistic(search: String!, filter: String!, date: String, city: String): String
-    clients(search: String!, sort: String!, filter: String!, date: String, skip: Int, district: ID, city: String, catalog: Boolean): [Client]
+    clientsSimpleStatistic(network: ID, search: String!, filter: String!, date: String, city: String): String
+    clients(network: ID, search: String!, sort: String!, filter: String!, date: String, skip: Int, district: ID, city: String, catalog: Boolean): [Client]
     clientsSync(search: String!, organization: ID!, skip: Int!, city: String): [Client]
     clientsSyncStatistic(search: String!, organization: ID!, city: String): String
     client(_id: ID!): Client
@@ -47,14 +48,14 @@ const query = `
 
 const mutation = `
     clearClientsSync(organization: ID!): String
-    addClient(category: String!, image: Upload, name: String!, email: String, city: String!, address: [[String]]!, phone: [String]!, info: String, inn: String, password: String!, login: String!): ID
-    setClient(category: String, _id: ID!, device: String, image: Upload, name: String, city: String, phone: [String], login: String, email: String, address: [[String]], inn: String, info: String, newPass: String): String
+    addClient(network: ID, category: String!, image: Upload, name: String!, email: String, city: String!, address: [[String]]!, phone: [String]!, info: String, inn: String, password: String!, login: String!): ID
+    setClient(network: ID, category: String, _id: ID!, device: String, image: Upload, name: String, city: String, phone: [String], login: String, email: String, address: [[String]], inn: String, info: String, newPass: String): String
     deleteClient(_id: ID!): String
     onoffClient(_id: ID!): String
 `;
 
 const resolvers = {
-    clientsSimpleStatistic: async(parent, {search, date, filter, city}, {user}) => {
+    clientsSimpleStatistic: async(parent, {search, date, filter, city, network}, {user}) => {
         if(['менеджер', 'экспедитор', 'агент', 'суперагент', 'admin', 'суперорганизация', 'организация'].includes(user.role)) {
             let dateStart;
             let dateEnd;
@@ -77,6 +78,7 @@ const resolvers = {
                         {
                             $match:{
                                 ...city?{city}:{},
+                                ...network?{network: mongoose.Types.ObjectId(network)}:{},
                                 ...user.cities?{city: {$in: user.cities}}:{},
                                 ...(filter==='Выключенные'?{image: {$ne: null}}:{}),
                                 ...(filter==='Без геолокации'?{address: {$elemMatch: {$elemMatch: {$eq: ''}}}}:{}),
@@ -184,7 +186,7 @@ const resolvers = {
             return clients
        }
    },
-    clients: async(parent, {search, sort, date, skip, filter, city, catalog, district}, {user}) => {
+    clients: async(parent, {network, search, sort, date, skip, filter, city, catalog, district}, {user}) => {
         let dateStart;
         let dateEnd;
         let availableClients
@@ -217,8 +219,13 @@ const resolvers = {
                 user.onlyDistrict?DistrictAzyk.find({organization: user.organization}).distinct('client').lean():null,
                 user.onlyIntegrate?Integrate1CAzyk.find({organization: user.organization}).distinct('client').lean():null,
             ]);
-            if(districtClients||integrateClients) availableClients = [...districtClients?districtClients:[], ...integrateClients?integrateClients:[]]
-       }
+            if(districtClients&&integrateClients) {
+                districtClients = districtClients.map(id => id.toString())
+                integrateClients = integrateClients.map(id => id?id.toString():'')
+                availableClients = integrateClients.filter(id => districtClients.includes(id));
+            }
+            else if(districtClients||integrateClients) availableClients = [...districtClients?districtClients:[], ...integrateClients?integrateClients:[]]
+        }
         if(district) {
             district = await DistrictAzyk.findById(district).select('client').lean()
             if(availableClients) {
@@ -238,6 +245,7 @@ const resolvers = {
                                 ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$elemMatch: {$eq: ''}}}} : {}),
                                 ...date?{createdAt: {$gte: dateStart, $lt: dateEnd}}:{},
                                 ...city ? {city} : {},
+                                ...network?{network: mongoose.Types.ObjectId(network)}:{},
                                 ...user.cities?{city: {$in: user.cities}}:{},
                                 ...availableClients? {_id: {$in: availableClients}} : {},
                                 del: {$ne: 'deleted'},
@@ -313,7 +321,7 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addClient: async(parent, {image, name, email, city, address, phone, inn, info, login, password, category}, {user}) => {
+    addClient: async(parent, {image, name, email, city, address, phone, inn, info, login, password, category, network}, {user}) => {
         if(user.role==='admin'||(user.addedClient&&['суперорганизация', 'организация', 'агент'].includes(user.role))) {
             let newUser = await UserAzyk.create({
                 login: login.trim(),
@@ -338,7 +346,8 @@ const resolversMutation = {
                 info,
                 inn,
                 notification: false,
-                image
+                image,
+                network
            });
             if(user.organization) {
                 // eslint-disable-next-line no-undef
@@ -351,7 +360,7 @@ const resolversMutation = {
             return createdObject._id
         }
    },
-    setClient: async(parent, {_id, image, name, email, address, info, inn, newPass, phone, login, city, device, category}, {user}) => {
+    setClient: async(parent, {_id, image, name, email, address, info, inn, newPass, phone, login, city, device, category, network}, {user}) => {
         if(
             ['суперорганизация', 'организация', 'агент', 'admin', 'суперагент', 'экспедитор'].includes(user.role)
         ) {
@@ -375,6 +384,7 @@ const resolversMutation = {
             if(phone) object.phone = phone
             if(device) object.device = device
             if(category) object.category = category
+            if(network) object.network = network
             object.sync = []
 
             if(newPass||login) {

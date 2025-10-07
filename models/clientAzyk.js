@@ -32,6 +32,10 @@ const ClientAzykSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'UserAzyk'
    },
+    network: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ClientNetworkAzyk'
+   },
     notification: Boolean,
     del: String,
 }, {
