@@ -118,8 +118,8 @@ const type = `
 `;
 
 const query = `
-    invoices(search: String!, sort: String!, filter: String!, date: String!, skip: Int, organization: ID, city: String, forwarder: ID, dateDelivery: Date, agent: ID, district: ID): [Invoice]
-    invoicesSimpleStatistic(search: String!, filter: String!, date: String, organization: ID, city: String, forwarder: ID, dateDelivery: Date, agent: ID, district: ID): [String]
+    invoices(search: String!, sort: String!, filter: String!, date: String!, skip: Int, organization: ID, city: String, track: Int, forwarder: ID, dateDelivery: Date, agent: ID, district: ID): [Invoice]
+    invoicesSimpleStatistic(search: String!, filter: String!, date: String, organization: ID, city: String, forwarder: ID, track: Int, dateDelivery: Date, agent: ID, district: ID): [String]
     orderHistorys(invoice: ID!): [HistoryOrder]
     invoicesForRouting(produsers: [ID]!, clients: [ID]!, dateStart: Date, dateEnd: Date, dateDelivery: Date): [Invoice]
     invoice(_id: ID!): Invoice
@@ -891,7 +891,7 @@ const resolversMutation = {
             SpecialPriceClientAzyk.find({organization, client: client._id}).select('item price').lean(),
             SpecialPriceCategory.find({organization, category: client.category}).select('item price').lean(),
             DistrictAzyk.findOne({organization: null, client: client._id}).select('agent').lean(),
-            DistrictAzyk.findOne({organization, client: client._id, ...user.role==='агент'?{agent: user.employment}:{}}).select('agent manager ecspeditor organization').lean()
+            DistrictAzyk.findOne({organization, client: client._id, ...user.role==='агент'?{agent: user.employment}:{}}).select('agent manager forwarder organization').lean()
         ])
         //фильтруем нулевые значения
         baskets = baskets.filter(basket => basket.count)

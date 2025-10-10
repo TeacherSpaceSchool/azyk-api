@@ -16,7 +16,7 @@ const type = `
       createdAt: Date
       guid: String
       organization: Organization
-      ecspeditor: Employment
+      forwarder: Employment
       client: Client
       agent: Employment
       item: Item
@@ -26,14 +26,14 @@ const type = `
 const query = `
     integrate1Cs(organization: ID!, search: String!, filter: String!, skip: Int): [Integrate1C]
     integrate1CsSimpleStatistic(organization: ID!, search: String!, filter: String!): [String]
-    ecspeditorsIntegrate1C(search: String!, organization: ID!): [Employment]
+    forwardersIntegrate1C(search: String!, organization: ID!): [Employment]
     agentsIntegrate1C(search: String!, organization: ID!): [Employment]
     itemsIntegrate1C(search: String!, organization: ID!): [Item]
     clientsIntegrate1C(search: String!, organization: ID!): [Client]
 `;
 
 const mutation = `
-    addIntegrate1C(organization: ID!, item: ID, client: ID, guid: String, agent: ID, ecspeditor: ID): Integrate1C
+    addIntegrate1C(organization: ID!, item: ID, client: ID, guid: String, agent: ID, forwarder: ID): Integrate1C
     setIntegrate1C(_id: ID!, guid: String): String
     deleteIntegrate1C(_id: ID!): String
     unloadingIntegrate1C(document: Upload!, organization: ID!): String
@@ -71,7 +71,7 @@ const resolvers = {
                             {agent: {$ne: null}}
                             :
                             filter==='экспедитор'?
-                                {ecspeditor: {$ne: null}}
+                                {forwarder: {$ne: null}}
                                 :
                                 filter==='товар'?
                                     {item: {$ne: null}}
@@ -84,7 +84,7 @@ const resolvers = {
                     ...search?{$or: [
                             ...!filter||filter==='агент'?[{agent: {$in: searchedEmployments}}]:[],
                             ...!filter||filter==='клиент'?[{client: {$in: searchedClients}}]:[],
-                            ...!filter||filter==='экспедитор'?[{ecspeditor: {$in: searchedEmployments}}]:[],
+                            ...!filter||filter==='экспедитор'?[{forwarder: {$in: searchedEmployments}}]:[],
                             ...!filter||filter==='товар'?[{item: {$in: searchedItems}}]:[],
                             {guid: {$regex: reductionSearch(search), $options: 'i'}}
                         ]}:{}
@@ -98,13 +98,13 @@ const resolvers = {
                     return agents.length
                })():null,
                 !filter||filter==='экспедитор'?(async () => {
-                    let ecspeditors =  await Integrate1CAzyk.find({organization, ecspeditor: {$ne: null}}).distinct('ecspeditor')
-                    ecspeditors = await EmploymentAzyk.find({
-                        name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
+                    let forwarders =  await Integrate1CAzyk.find({organization, forwarder: {$ne: null}}).distinct('forwarder')
+                    forwarders = await EmploymentAzyk.find({
+                        name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: forwarders}, del: {$ne: 'deleted'}
                    })
                         .populate({path: 'user', match: {role: organization?'экспедитор':'суперэкспедитор', status: 'active'}}).lean()
-                    ecspeditors = ecspeditors.filter(ecspeditor => (ecspeditor.user))
-                    return ecspeditors.length
+                    forwarders = forwarders.filter(forwarder => (forwarder.user))
+                    return forwarders.length
                })():null,
                 !filter||filter==='товар'?(async () => {
                     let items =  await Integrate1CAzyk.find({organization, item: {$ne: null}}).distinct('item')
@@ -155,7 +155,7 @@ const resolvers = {
                         {agent: {$ne: null}}
                         :
                         filter==='экспедитор'?
-                            {ecspeditor: {$ne: null}}
+                            {forwarder: {$ne: null}}
                             :
                             filter==='товар'?
                                 {item: {$ne: null}}
@@ -168,7 +168,7 @@ const resolvers = {
                 ...search?{$or: [
                         ...!filter||filter==='агент'?[{agent: {$in: searchedEmployments}}]:[],
                         ...!filter||filter==='клиент'?[{client: {$in: searchedClients}}]:[],
-                        ...!filter||filter==='экспедитор'?[{ecspeditor: {$in: searchedEmployments}}]:[],
+                        ...!filter||filter==='экспедитор'?[{forwarder: {$in: searchedEmployments}}]:[],
                         ...!filter||filter==='товар'?[{item: {$in: searchedItems}}]:[],
                         {guid: {$regex: reductionSearch(search), $options: 'i'}}
                     ]}:{}
@@ -182,7 +182,7 @@ const resolvers = {
                     select: '_id address name'
                })
                 .populate({
-                    path: 'ecspeditor',
+                    path: 'forwarder',
                     select: '_id name'
                })
                 .populate({
@@ -203,16 +203,16 @@ const resolvers = {
             return integrate1Cs
        }
    },
-    ecspeditorsIntegrate1C: async(parent, {search, organization}, {user}) => {
+    forwardersIntegrate1C: async(parent, {search, organization}, {user}) => {
         if(user.role==='admin') {
             organization = organization==='super'?null:organization
-            let ecspeditors =  await Integrate1CAzyk.find({organization, ecspeditor: {$ne: null}}).distinct('ecspeditor')
-            ecspeditors = await EmploymentAzyk.find({
-                name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: ecspeditors}, del: {$ne: 'deleted'}
+            let forwarders =  await Integrate1CAzyk.find({organization, forwarder: {$ne: null}}).distinct('forwarder')
+            forwarders = await EmploymentAzyk.find({
+                name: {$regex: reductionSearchText(search), $options: 'i'}, organization, _id: {$nin: forwarders}, del: {$ne: 'deleted'}
            })
                 .populate({path: 'user', match: {role: organization?'экспедитор':'суперэкспедитор', status: 'active'}}).lean()
-            ecspeditors = ecspeditors.filter(ecspeditor => (ecspeditor.user))
-            return ecspeditors
+            forwarders = forwarders.filter(forwarder => (forwarder.user))
+            return forwarders
        }
         else return []
    },
@@ -262,17 +262,17 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addIntegrate1C: async(parent, {organization, item, client, guid, agent, ecspeditor}, {user}) => {
+    addIntegrate1C: async(parent, {organization, item, client, guid, agent, forwarder}, {user}) => {
         if(['admin'].includes(user.role)) {
             // eslint-disable-next-line no-undef
-            const [createdObject, agentData, ecspeditorData, itemData, clientData] = await Promise.all([
-                Integrate1CAzyk.create({...(organization==='super'?{organization: null}:{organization}), guid, item, client, agent, ecspeditor}),
+            const [createdObject, agentData, forwarderData, itemData, clientData] = await Promise.all([
+                Integrate1CAzyk.create({...(organization==='super'?{organization: null}:{organization}), guid, item, client, agent, forwarder}),
                 agent?EmploymentAzyk.findById(agent).select('_id name').lean():null,
-                ecspeditor?EmploymentAzyk.findById(ecspeditor).select('_id name').lean():null,
+                forwarder?EmploymentAzyk.findById(forwarder).select('_id name').lean():null,
                 item?ItemAzyk.findById(item).select('_id name').lean():null,
                 client?ClientAzyk.findById(client).select('_id name address').lean():null
             ]);
-            return {...createdObject.toObject(), agent: agentData, ecspeditor: ecspeditorData, item: itemData, client: clientData}
+            return {...createdObject.toObject(), agent: agentData, forwarder: forwarderData, item: itemData, client: clientData}
        }
         return null;
    },

@@ -533,11 +533,11 @@ router.post('/:pass/put/employment', async (req, res, next) => {
             const integrates = await Integrate1CAzyk.find({
                 organization: organization._id,
                 guid: {$in: req.body.elements[0].elements.map(element => element.attributes.guid)},
-                $or: [{agent: {$ne: null}}, {ecspeditor: {$ne: null}}]
-            }).select('agent ecspeditor guid').lean()
+                $or: [{agent: {$ne: null}}, {forwarder: {$ne: null}}]
+            }).select('agent forwarder guid').lean()
             const employmentByGuid = {}
             for(const integrate of integrates) {
-                employmentByGuid[integrate.guid] = integrate.ecspeditor||integrate.agent
+                employmentByGuid[integrate.guid] = integrate.forwarder||integrate.agent
             }
             // подготовим массив операций
             const employmentBulkOperations = [];
@@ -591,7 +591,7 @@ router.post('/:pass/put/employment', async (req, res, next) => {
                 });
                 integrateBulkOperations.push({insertOne: {document: {
                             organization: organization._id, guid: employmentForCreate.guid,
-                            ...req.body.elements[0].attributes.mode === 'forwarder' ? {ecspeditor: employment._id} : {agent: employment._id}
+                            ...req.body.elements[0].attributes.mode === 'forwarder' ? {forwarder: employment._id} : {agent: employment._id}
                         }}});
             })
             // если есть обновления — выполним bulkWrite

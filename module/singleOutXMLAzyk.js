@@ -48,17 +48,17 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
         //новый
         else {
             //район
-            let district = await DistrictAzyk.findOne({organization: returned.organization._id, client: returned.client._id, ...returned.agent?{agent: returned.agent._id}:{}}).select('agent ecspeditor').lean()
+            let district = await DistrictAzyk.findOne({organization: returned.organization._id, client: returned.client._id, ...returned.agent?{agent: returned.agent._id}:{}}).select('agent forwarder').lean()
             if(!district&&returned.agent)
-                district = await DistrictAzyk.findOne({organization: returned.organization._id, agent: returned.agent._id}).select('agent ecspeditor').lean()
+                district = await DistrictAzyk.findOne({organization: returned.organization._id, agent: returned.agent._id}).select('agent forwarder').lean()
             if(!district)
-                district = await DistrictAzyk.findOne({organization: returned.organization._id, client: returned.client._id}).select('agent ecspeditor').lean()
+                district = await DistrictAzyk.findOne({organization: returned.organization._id, client: returned.client._id}).select('agent forwarder').lean()
             if (district) {
                 //интеграции
                 // eslint-disable-next-line no-undef
                 const [integrateClient, integrateEcspeditor, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
                     Integrate1CAzyk.findOne({client: returned.client._id, organization: returned.organization._id}).select('guid').lean(),
-                    Integrate1CAzyk.findOne({ecspeditor: district.ecspeditor, organization: returned.organization._id}).select('guid').lean(),
+                    Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: returned.organization._id}).select('guid').lean(),
                     returned.agent?Integrate1CAzyk.findOne({agent: returned.agent._id, organization: returned.organization._id}).select('guid').lean():null,
                     Integrate1CAzyk.findOne({agent: district.agent, organization: returned.organization._id}).select('guid').lean(),
                 ])
@@ -165,17 +165,17 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
         //нету
         else {
             //район
-            let district = await DistrictAzyk.findOne({organization: invoice.organization._id, client: invoice.client._id, ...invoice.agent?{agent: invoice.agent._id}:{}}).select('agent ecspeditor').lean()
+            let district = await DistrictAzyk.findOne({organization: invoice.organization._id, client: invoice.client._id, ...invoice.agent?{agent: invoice.agent._id}:{}}).select('agent forwarder').lean()
             if(!district&&invoice.agent)
-                district = await DistrictAzyk.findOne({organization: invoice.organization._id, agent: invoice.agent._id}).select('agent ecspeditor').lean()
+                district = await DistrictAzyk.findOne({organization: invoice.organization._id, agent: invoice.agent._id}).select('agent forwarder').lean()
             if(!district)
-                district = await DistrictAzyk.findOne({organization: invoice.organization._id, client: invoice.client._id}).select('agent ecspeditor').lean()
+                district = await DistrictAzyk.findOne({organization: invoice.organization._id, client: invoice.client._id}).select('agent forwarder').lean()
             if (district) {
                 //интеграции
                 // eslint-disable-next-line no-undef
                 const [integrateClient, integrateEcspeditor, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
                     Integrate1CAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id}).select('guid').lean(),
-                    Integrate1CAzyk.findOne({ecspeditor: district.ecspeditor, organization: invoice.organization._id}).select('guid').lean(),
+                    Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: invoice.organization._id}).select('guid').lean(),
                     invoice.agent?Integrate1CAzyk.findOne({agent: invoice.agent._id, organization: invoice.organization._id}).select('guid').lean():null,
                     Integrate1CAzyk.findOne({agent: district.agent, organization: invoice.organization._id}).select('guid').lean(),
                 ])
@@ -225,7 +225,7 @@ module.exports.setSingleOutXMLAzykLogic = async(invoices, forwarder, track) => {
         if (isNotEmpty(track) || forwarder) {
             let guidEcspeditor
             if (forwarder)
-                guidEcspeditor = await Integrate1CAzyk.findOne({ecspeditor: forwarder}).select('guid').lean()
+                guidEcspeditor = await Integrate1CAzyk.findOne({forwarder: forwarder}).select('guid').lean()
             // eslint-disable-next-line no-undef
             await Promise.all([
                 SingleOutXMLAzyk.updateMany(
@@ -251,7 +251,7 @@ module.exports.setSingleOutXMLReturnedAzykLogic = async(returneds, forwarder, tr
         if(isNotEmpty(track)||forwarder) {
             let guidEcspeditor
             if (forwarder)
-                guidEcspeditor = await Integrate1CAzyk.findOne({ecspeditor: forwarder}).select('guid').lean()
+                guidEcspeditor = await Integrate1CAzyk.findOne({forwarder: forwarder}).select('guid').lean()
             // eslint-disable-next-line no-undef
             await Promise.all([
                 SingleOutXMLReturnedAzyk.updateMany(
@@ -492,9 +492,9 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
         // eslint-disable-next-line no-undef
         const [integrates, districts, outXMLAdss, adss, adsOrders] = await Promise.all([
             Integrate1CAzyk.find({
-                $or: [{agent: {$ne: null}}, {ecspeditor: {$ne: null}}, {item: {$ne: null}}], organization
-           }).select('guid agent item ecspeditor').populate('item').lean(),
-            DistrictAzyk.find({organization}).select('_id agent ecspeditor client name').lean(),
+                $or: [{agent: {$ne: null}}, {forwarder: {$ne: null}}, {item: {$ne: null}}], organization
+           }).select('guid agent item forwarder').populate('item').lean(),
+            DistrictAzyk.find({organization}).select('_id agent forwarder client name').lean(),
             SingleOutXMLAdsAzyk.find({organization}).select('district guid').lean(),
             AdsAzyk.find({del: {$ne: 'deleted'}, organization}).lean(),
             InvoiceAzyk.find({
@@ -533,7 +533,7 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
             else if(integrate.item)
                 integrateItemByItem[integrate.item._id] = {...integrate.item, guid: integrate.guid}
             else
-                guidByEcspeditor[integrate.ecspeditor] = integrate.guid
+                guidByEcspeditor[integrate.forwarder] = integrate.guid
        }
         //bulkOperations
         const bulkOperations = [];
@@ -545,7 +545,7 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
                 // eslint-disable-next-line no-undef
                 const orders = ordersByDistrict[district._id];
                 //гуиды
-                const guidAgent = guidByAgent[district.agent], guidEcspeditor = guidByEcspeditor[district.ecspeditor]
+                const guidAgent = guidByAgent[district.agent], guidEcspeditor = guidByEcspeditor[district.forwarder]
                 if (guidAgent && guidEcspeditor) {
                     if (orders&&orders.length) {
                         let newOutXMLAzyk = {

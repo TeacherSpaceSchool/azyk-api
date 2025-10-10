@@ -325,8 +325,8 @@ const resolvers = {
                     worksheet.getCell(`B${row}`).value = invoice.client.phone[i1];
                }
                 /*if(forwarder) {
-                    let district = await DistrictAzyk.findOne({client: invoice.client._id, organization: forwarder!=='super'?forwarder:null}).populate('ecspeditor').lean()
-                    invoice.forwarder = district&&district.ecspeditor?district.ecspeditor:{}
+                    let district = await DistrictAzyk.findOne({client: invoice.client._id, organization: forwarder!=='super'?forwarder:null}).populate('forwarder').lean()
+                    invoice.forwarder = district&&district.forwarder?district.forwarder:{}
                }*/
                 if(invoice.forwarder) {
                     row+=1;
@@ -601,12 +601,12 @@ const resolvers = {
                 organization: organization==='super'?null:organization,
                 $or: [
                     {agent: {$in: employments.map(employment => employment._id)}},
-                    {ecspeditor: {$in: employments.map(employment => employment._id)}}
+                    {forwarder: {$in: employments.map(employment => employment._id)}}
                 ]
-           }).select('agent ecspeditor guid').lean()
+           }).select('agent forwarder guid').lean()
             const guidByEmployment = {}
             for(const integrate of integrates) {
-                guidByEmployment[(integrate.agent||integrate.ecspeditor)] = integrate.guid
+                guidByEmployment[(integrate.agent||integrate.forwarder)] = integrate.guid
            }
             let worksheet;
             worksheet = await workbook.addWorksheet('Сотрудники');
