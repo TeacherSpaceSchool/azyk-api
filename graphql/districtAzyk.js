@@ -18,7 +18,7 @@ const type = `
       client: [Client]
       name: String
       agent: Employment
-      ecspeditor: Employment
+      forwarder: Employment
       manager: Employment
       warehouse: Warehouse
  }
@@ -32,8 +32,8 @@ const query = `
 `;
 
 const mutation = `
-    addDistrict(organization: ID, client: [ID]!, name: String!, agent: ID, manager: ID, ecspeditor: ID, warehouse: ID, city: String): String
-    setDistrict(_id: ID!, client: [ID], name: String, agent: ID, manager: ID, ecspeditor: ID, warehouse: ID): String
+    addDistrict(organization: ID, client: [ID]!, name: String!, agent: ID, manager: ID, forwarder: ID, warehouse: ID, city: String): String
+    setDistrict(_id: ID!, client: [ID], name: String, agent: ID, manager: ID, forwarder: ID, warehouse: ID): String
     deleteDistrict(_id: ID!): String
 `;
 
@@ -60,7 +60,7 @@ const resolvers = {
                     $or: [
                         {name: {$regex: reductionSearchText(search), $options: 'i'}},
                         {agent: {$in: searchedEmployments}},
-                        {ecspeditor: {$in: searchedEmployments}},
+                        {forwarder: {$in: searchedEmployments}},
                         {manager: {$in: searchedEmployments}},
                         {client: {$in: searchedClients}},
                     ]
@@ -73,7 +73,7 @@ const resolvers = {
                     select: 'name _id'
                })
                 .populate({
-                    path: 'ecspeditor',
+                    path: 'forwarder',
                     select: 'name _id'
                })
                 .populate({
@@ -135,7 +135,7 @@ const resolvers = {
                     populate: [{path: 'user', select: 'status'}]
                 })
                 .populate({
-                    path: 'ecspeditor',
+                    path: 'forwarder',
                     select: 'name _id'
                })
                 .populate({
@@ -162,7 +162,7 @@ const resolvers = {
                 client: user.client,
                 organization
            })
-                .select('organization agent manager ecspeditor')
+                .select('organization agent manager forwarder')
                 .populate({
                     path: 'agent',
                     select: 'name phone'
@@ -172,7 +172,7 @@ const resolvers = {
                     select: 'name phone'
                })
                 .populate({
-                    path: 'ecspeditor',
+                    path: 'forwarder',
                     select: 'name phone'
                })
                 .lean()
@@ -181,13 +181,13 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addDistrict: async(parent, {organization, client, name, agent, ecspeditor, manager, warehouse}, {user}) => {
+    addDistrict: async(parent, {organization, client, name, agent, forwarder, manager, warehouse}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
             const createdObject = await DistrictAzyk.create({
                 name,
                 client,
                 agent,
-                ecspeditor,
+                forwarder,
                 warehouse,
                 organization: user.organization||(organization!=='super'?organization:null),
                 manager,
@@ -196,10 +196,10 @@ const resolversMutation = {
             return createdObject._id;
         }
    },
-    setDistrict: async(parent, {_id, client, ecspeditor, name, agent, manager, warehouse}, {user}) => {
+    setDistrict: async(parent, {_id, client, forwarder, name, agent, manager, warehouse}, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             let object = await DistrictAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
-            unawaited(() => addHistory({user, type: historyTypes.set, model: 'DistrictAzyk', name: object.name, object: _id, data: {client: `${object.client.length}->${client.length}`, ecspeditor, name, agent, manager, warehouse}}))
+            unawaited(() => addHistory({user, type: historyTypes.set, model: 'DistrictAzyk', name: object.name, object: _id, data: {client: `${object.client.length}->${client.length}`, forwarder, name, agent, manager, warehouse}}))
             if(name) object.name = name
             if(client) {
                 // Приводим старых клиентов преобразуем в строку
@@ -233,7 +233,7 @@ const resolversMutation = {
            }
             if(warehouse) object.warehouse = warehouse
             if(agent) object.agent = agent
-            if(ecspeditor) object.ecspeditor = ecspeditor
+            if(forwarder) object.forwarder = forwarder
             if(manager) object.manager = manager
             await object.save();
        }

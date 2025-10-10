@@ -1,6 +1,8 @@
 const {createAdmin} = require('../module/user');
 const {Worker, isMainThread} = require('worker_threads');
 const {reductionBannersAzyk} = require('./banners');
+const {reductionIntegrate1C} = require('./integrate1C');
+const {reductionDistrict} = require('./district');
 
 let startDeleteBD = async () => {
     if(isMainThread) {
@@ -71,6 +73,8 @@ let start = async () => {
     await startDeleteBD();
     //reductions
     await reductionBannersAzyk()
+    await reductionIntegrate1C()
+    await reductionDistrict()
     //reduction DB
     /*setTimeout(async () => {
         console.time('reduction DB')

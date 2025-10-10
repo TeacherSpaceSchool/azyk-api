@@ -13,6 +13,7 @@ const StockAzykSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'WarehouseAzyk'
    },
+    unlimited: Boolean,
     count: Number
 }, {
     timestamps: true

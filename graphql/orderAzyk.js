@@ -118,9 +118,8 @@ const type = `
 `;
 
 const query = `
-    invoices(search: String!, sort: String!, filter: String!, date: String!, skip: Int, organization: ID, city: String, agent: ID, district: ID): [Invoice]
-    invoicesFromDistrict(organization: ID!, district: ID!, date: String!): [Invoice]
-   invoicesSimpleStatistic(search: String!, filter: String!, date: String, organization: ID, city: String, agent: ID, district: ID): [String]
+    invoices(search: String!, sort: String!, filter: String!, date: String!, skip: Int, organization: ID, city: String, forwarder: ID, dateDelivery: Date, agent: ID, district: ID): [Invoice]
+    invoicesSimpleStatistic(search: String!, filter: String!, date: String, organization: ID, city: String, forwarder: ID, dateDelivery: Date, agent: ID, district: ID): [String]
     orderHistorys(invoice: ID!): [HistoryOrder]
     invoicesForRouting(produsers: [ID]!, clients: [ID]!, dateStart: Date, dateEnd: Date, dateDelivery: Date): [Invoice]
     invoice(_id: ID!): Invoice
@@ -140,7 +139,7 @@ const subscription  = `
 `;
 
 const resolvers = {
-    invoicesSimpleStatistic: async(parent, {search, filter, date, organization, city, agent, district}, {user}) => {
+    invoicesSimpleStatistic: async(parent, {search, filter, date, organization, city, agent, district, forwarder, dateDelivery}, {user}) => {
         if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперэкспедитор', 'суперагент'].includes(user.role)) {
             //дата доставки
             let dateStart;
@@ -173,6 +172,8 @@ const resolvers = {
                 dateStart.setHours(dayStartDefault, 0, 0, 0)
                 dateEnd.setHours(dayStartDefault, 0, 0, 0)
             }
+            //dateDelivery
+            if(dateDelivery) dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             //поиск
             // eslint-disable-next-line no-undef
             const [districtClients, superagentOrganizations, integrationOrganizations] = await Promise.all([
@@ -192,6 +193,10 @@ const resolvers = {
                     ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
                     //город
                     ...city ? {city} : {},
+                    //forwarder
+                    ...forwarder ? {forwarder} : {},
+                    //dateDelivery
+                    ...dateDelivery ? {dateDelivery} : {},
                     //агент
                     ...agent ? {agent} : {},
                     //клиент только свои
@@ -227,7 +232,7 @@ const resolvers = {
             return [lengthList.toString(), checkFloat(price).toString(), checkFloat(tonnage).toString()]
         }
     },
-    invoices: async(parent, {search, sort, filter, date, skip, organization, city, agent, district}, {user}) =>  {
+    invoices: async(parent, {search, sort, filter, date, skip, organization, city, agent, district, forwarder, dateDelivery}, {user}) =>  {
         if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
             //console.time('get BD')
             let dateStart;
@@ -264,6 +269,8 @@ const resolvers = {
                 dateStart.setYear(dateStart.getFullYear()-1)
                 dateStart.setHours(dayStartDefault, 0, 0, 0)
             }
+            //dateDelivery
+            if(dateDelivery) dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             //сортировка
             let _sort = {}
             _sort[sort[0] === '-' ? sort.substring(1) : sort] = sort[0] === '-' ? -1 : 1
@@ -283,6 +290,10 @@ const resolvers = {
                         ...agent ? {agent} : {},
                         //город
                         ...city ? {city} : {},
+                        //forwarder
+                        ...forwarder ? {forwarder} : {},
+                        //dateDelivery
+                        ...dateDelivery ? {dateDelivery} : {},
                         //только в своей организации
                         ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
                         //клиент только свои
@@ -473,130 +484,6 @@ const resolvers = {
                     path: 'adss',
                 })
                 .lean()
-        }
-    },
-    invoicesFromDistrict: async(parent, {organization, district, date}, {user}) =>  {
-        if(['admin', 'агент', 'менеджер','суперорганизация', 'организация'].includes(user.role)) {
-            let dateStart;
-            let dateEnd;
-            dateStart = checkDate(date)
-            dateStart.setHours(dayStartDefault, 0, 0, 0)
-            dateEnd = new Date(dateStart)
-            dateEnd.setDate(dateEnd.getDate() + 1)
-            if (['суперагент', 'агент', 'менеджер'].includes(user.role)) {
-                let now = new Date()
-                now.setDate(now.getDate() + 1)
-                now.setHours(dayStartDefault, 0, 0, 0)
-                let differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
-                if (differenceDates > user.agentHistory) {
-                    dateStart = new Date()
-                    dateEnd = new Date(dateStart)
-                    dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
-                }
-            }
-            let _clients
-            if (['агент', 'менеджер'].includes(user.role)) {
-                _clients = await DistrictAzyk
-                    .find({$or: [{manager: user.employment}, {agent: user.employment}]})
-                    .distinct('client')
-            }
-            else {
-                _clients = await DistrictAzyk.findById(district).distinct('client');
-            }
-            return await InvoiceAzyk.aggregate(
-                [
-                    {
-                        $match: {
-                            createdAt: {$gte: dateStart, $lt: dateEnd},
-                            taken: true,
-                            del: {$ne: 'deleted'},
-                            client: {$in: _clients},
-                            $or: [
-                                {organization: user.organization ? user.organization : new mongoose.Types.ObjectId(organization)},
-                            ]
-                        }
-                    },
-                    {$sort: {createdAt: -1}},
-                    {
-                        $lookup:
-                            {
-                                from: ClientAzyk.collection.collectionName,
-                                let: {client: '$client'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$client', '$_id']}}},
-                                ],
-                                as: 'client'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: false,
-                            path: '$client'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: EmploymentAzyk.collection.collectionName,
-                                let: {agent: '$agent'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$agent', '$_id']}}},
-                                ],
-                                as: 'agent'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$agent'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: EmploymentAzyk.collection.collectionName,
-                                let: {forwarder: '$forwarder'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$forwarder', '$_id']}}},
-                                ],
-                                as: 'forwarder'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$forwarder'
-                        }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: AdsAzyk.collection.collectionName,
-                                let: {adss: '$adss'},
-                                pipeline: [
-                                    {$match: {$expr: {$in: ['$_id', '$$adss']}}},
-                                ],
-                                as: 'adss'
-                            }
-                    },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {organization: '$organization'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$organization', '$_id']}}},
-                                ],
-                                as: 'organization'
-                            }
-                    },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$organization'
-                        }
-                    },
-                ])
         }
     },
 };
@@ -1004,7 +891,7 @@ const resolversMutation = {
             SpecialPriceClientAzyk.find({organization, client: client._id}).select('item price').lean(),
             SpecialPriceCategory.find({organization, category: client.category}).select('item price').lean(),
             DistrictAzyk.findOne({organization: null, client: client._id}).select('agent').lean(),
-            DistrictAzyk.findOne({organization, client: client._id, ...user.role==='агент'?{agent: user.employment}:{}}).select('agent manager organization').lean()
+            DistrictAzyk.findOne({organization, client: client._id, ...user.role==='агент'?{agent: user.employment}:{}}).select('agent manager ecspeditor organization').lean()
         ])
         //фильтруем нулевые значения
         baskets = baskets.filter(basket => basket.count)

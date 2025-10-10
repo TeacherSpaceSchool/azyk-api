@@ -1,5 +1,5 @@
 const StockAzyk = require('../models/stockAzyk');
-const {reductionSearchText} = require('../module/const');
+const {reductionSearchText, isNotEmpty} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const Item = require('../models/itemAzyk');
@@ -13,18 +13,19 @@ const type = `
     item: Item
     organization: Organization
     warehouse: Warehouse
+    unlimited: Boolean
     count: Float
  }
 `;
 
 const query = `
     itemsForStocks(organization: ID!, warehouse: ID): [Item]
-    stocks(search: String!, client: ID, organization: ID!): [Stock]
+    stocks(search: String!, client: ID, organization: ID!, unlimited: Boolean): [Stock]
 `;
 
 const mutation = `
-    addStock(item: ID!, organization: ID!, count: Float!, warehouse: ID): Stock
-    setStock(_id: ID!, count: Float!): String
+    addStock(item: ID!, organization: ID!, unlimited: Boolean, count: Float!, warehouse: ID): Stock
+    setStock(_id: ID!, count: Float, unlimited: Boolean): String
     deleteStock(_id: ID!): String
 `;
 
@@ -45,7 +46,7 @@ const resolvers = {
                 .lean()
        }
    },
-    stocks: async(parent, {organization, client, search}, {user}) => {
+    stocks: async(parent, {organization, client, search, unlimited}, {user}) => {
         if(user.role) {
             if(user.client)
                 client = user.client
@@ -64,6 +65,7 @@ const resolvers = {
            }
             return await StockAzyk.find({
                 organization,
+                ...isNotEmpty(unlimited)?{unlimited: unlimited?true:{$ne: true}}:{},
                 ...client?{warehouse}:{},
                 ...search?{item: {$in: searchedItems}}:{}
            })
@@ -82,23 +84,26 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addStock: async(parent, {item, organization, count, warehouse}, {user}) => {
+    addStock: async(parent, {item, organization, count, warehouse, unlimited}, {user}) => {
         if(
             ['admin', 'суперорганизация', 'организация'].includes(user.role)&&
             !(await StockAzyk.countDocuments({item, organization: user.organization||organization, warehouse}).lean())
         ) {
             // eslint-disable-next-line no-undef
             const [createdObject, itemData, warehouseData] = await Promise.all([
-                StockAzyk.create({item, count, warehouse, organization: user.organization||organization}),
+                StockAzyk.create({item, count, warehouse, unlimited, organization: user.organization||organization}),
                 ItemAzyk.findById(item).select('_id name').lean(),
                 warehouse?WarehouseAzyk.findById(warehouse).select('_id name').lean():null
             ]);
             return {...createdObject.toObject(), item: itemData, warehouse: warehouseData}
        }
    },
-    setStock: async(parent, {_id, count}, {user}) => {
+    setStock: async(parent, {_id, count, unlimited}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
-            await StockAzyk.updateOne({_id}, {count})
+            const stock = await StockAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
+            if(isNotEmpty(count)) stock.count = count
+            if(isNotEmpty(unlimited)) stock.unlimited = unlimited
+            await stock.save()
        }
         return 'OK'
    },

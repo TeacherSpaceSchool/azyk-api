@@ -68,7 +68,7 @@ const resolvers = {
             let availableClients
             if(['менеджер', 'экспедитор', 'агент', 'суперагент'].includes(user.role)) {
                 availableClients = await DistrictAzyk
-                    .find({$or: [{manager: user.employment}, {ecspeditor: user.employment}, {agent: user.employment}]})
+                    .find({$or: [{manager: user.employment}, {forwarder: user.employment}, {agent: user.employment}]})
                     .distinct('client')
                     .lean()
            }
@@ -200,7 +200,7 @@ const resolvers = {
         _sort[sort[0]==='-'?sort.substring(1):sort]=sort[0]==='-'?-1:1
         if(['менеджер', 'экспедитор', 'агент', 'суперагент'].includes(user.role)) {
             availableClients = await DistrictAzyk
-                .find({$or: [{manager: user.employment}, {ecspeditor: user.employment}, {agent: user.employment}]})
+                .find({$or: [{manager: user.employment}, {forwarder: user.employment}, {agent: user.employment}]})
                 .distinct('client')
                 .lean()
             if(user.onlyIntegrate) {
@@ -223,6 +223,7 @@ const resolvers = {
                 districtClients = districtClients.map(id => id.toString())
                 integrateClients = integrateClients.map(id => id?id.toString():'')
                 availableClients = integrateClients.filter(id => districtClients.includes(id));
+                availableClients = availableClients.map(e => mongoose.Types.ObjectId(e))
             }
             else if(districtClients||integrateClients) availableClients = [...districtClients?districtClients:[], ...integrateClients?integrateClients:[]]
         }
@@ -235,7 +236,7 @@ const resolvers = {
             else availableClients = district.clients
         }
         if(isNotEmpty(skip)||search.length>2) {
-            return await ClientAzyk
+            const res = await ClientAzyk
                 .aggregate(
                     [
                         {
@@ -308,7 +309,9 @@ const resolvers = {
                                    }
                                 ]
                         )
-                    ])
+                    ]
+                )
+            return res
        } else return []
    },
     client: async(parent, {_id}, {user}) => {

@@ -13,7 +13,7 @@ module.exports.calculateStock = async(orderIds, organizationId, clientId) => {
     const warehouse = district.warehouse
     // eslint-disable-next-line no-undef
     await parallelPromise(orders, async order => {
-        const stockAzyk = await StockAzyk.findOne({item: order.item, warehouse})
+        const stockAzyk = await StockAzyk.findOne({item: order.item, warehouse, unlimited: {$ne: true}})
         if(stockAzyk) {
             //старый
             const historyStockAzyk = await HistoryStockAzyk.findOne({order: order._id, item: order.item}).lean()
