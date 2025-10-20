@@ -3,8 +3,7 @@ const warehouseAzyk = require('../models/warehouseAzyk');const subBrandAzyk = re
 const specialPriceClientAzyk = require('../models/specialPriceClientAzyk');const specialPriceCategoryAzyk = require('../models/specialPriceCategoryAzyk');
 const singleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');const singleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 const singleOutXMLAdsAzyk = require('../models/singleOutXMLAdsAzyk');const reviewAzyk = require('../models/reviewAzyk');
-const returnedAzyk = require('../models/returnedAzyk');const repairEquipmentAzyk = require('../models/repairEquipmentAzyk');
-const autoAzyk = require('../models/autoAzyk');const planClientAzyk = require('../models/planClientAzyk');
+const returnedAzyk = require('../models/returnedAzyk');const planClientAzyk = require('../models/planClientAzyk');
 const merchandisingAzyk = require('../models/merchandisingAzyk');const limitItemClientAzyk = require('../models/limitItemClientAzyk');
 const itemAzyk = require('../models/itemAzyk');const invoiceAzyk = require('../models/invoiceAzyk');const integrate1CAzyk = require('../models/integrate1CAzyk');
 const equipmentAzyk = require('../models/equipmentAzyk');const employmentAzyk = require('../models/employmentAzyk');const adsAzyk = require('../models/adsAzyk');
@@ -12,9 +11,8 @@ const districtAzyk = require('../models/districtAzyk');const discountClientAzyk 
 const deliveryDateAzyk = require('../models/deliveryDateAzyk');const agentRouteAzyk = require('../models/agentRouteAzyk');
 //other
 /*_id*/const userAzyk = require('../models/userAzyk');/*user*/const subscriberAzyk = require('../models/subscriberAzyk');
-/*provider*/const routeAzyk = require('../models/routeAzyk');/*_id*/const organizationAzyk = require('../models/organizationAzyk');
-/*item*/const orderAzyk = require('../models/orderAzyk');/*item*/const basketAzyk = require('../models/basketAzyk');
-/*item*/const historyStockAzyk = require('../models/historyStockAzyk');
+/*_id*/const organizationAzyk = require('../models/organizationAzyk');/*item*/const orderAzyk = require('../models/orderAzyk');
+/*item*/const basketAzyk = require('../models/basketAzyk');/*item*/const historyStockAzyk = require('../models/historyStockAzyk');
 /*invoice*/const historyOrderAzyk = require('../models/historyOrderAzyk');/*agent*/const agentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
 //deleteOrganizations
 module.exports.deleteOrganizations = async(organizations) => {

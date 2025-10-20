@@ -14,7 +14,8 @@ const StockAzykSchema = mongoose.Schema({
         ref: 'WarehouseAzyk'
    },
     unlimited: Boolean,
-    count: Number
+    count: Number,
+    logisticName: String
 }, {
     timestamps: true
 });

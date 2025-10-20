@@ -56,14 +56,14 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
             if (district) {
                 //интеграции
                 // eslint-disable-next-line no-undef
-                const [integrateClient, integrateEcspeditor, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
+                const [integrateClient, integrateForwarder, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
                     Integrate1CAzyk.findOne({client: returned.client._id, organization: returned.organization._id}).select('guid').lean(),
                     Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: returned.organization._id}).select('guid').lean(),
                     returned.agent?Integrate1CAzyk.findOne({agent: returned.agent._id, organization: returned.organization._id}).select('guid').lean():null,
                     Integrate1CAzyk.findOne({agent: district.agent, organization: returned.organization._id}).select('guid').lean(),
                 ])
                 const integrateAgent = integrateInvoiceAgent||integrateDistrictAgent
-                if (integrateClient && integrateAgent && integrateEcspeditor) {
+                if (integrateClient && integrateAgent && integrateForwarder) {
                     //дата доставки
                     let date
                     if (returned.dateDelivery)
@@ -85,7 +85,7 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
                         inv: returned.inv,
                         client: integrateClient.guid,
                         agent: integrateAgent.guid,
-                        forwarder: integrateEcspeditor.guid,
+                        forwarder: integrateForwarder.guid,
                         returned: returned._id,
                         status: 'create',
                         organization: returned.organization._id,
@@ -93,7 +93,7 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
                     return 1
                }
                 else {
-                    const message = `${returned.number}${!integrateClient?' Отсутствует guidClient':''}${!integrateAgent?' Отсутствует guidAgent':''}${!integrateEcspeditor?' Отсутствует guidEcspeditor':''}`
+                    const message = `${returned.number}${!integrateClient?' Отсутствует guidClient':''}${!integrateAgent?' Отсутствует guidAgent':''}${!integrateForwarder?' Отсутствует guidForwarder':''}`
                     unawaited(() => ModelsErrorAzyk.create({err: message, path: 'setSingleOutXMLReturnedAzyk'}))
                     unawaited(() => sendPushToAdmin({message}))
                }
@@ -173,14 +173,16 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
             if (district) {
                 //интеграции
                 // eslint-disable-next-line no-undef
-                const [integrateClient, integrateEcspeditor, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
+                const [integrateClient, integrateInvoiceForwarder, integrateDistrictForwarder, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
                     Integrate1CAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id}).select('guid').lean(),
+                    invoice.forwarder?Integrate1CAzyk.findOne({forwarder: invoice.forwarder._id||invoice.forwarder, organization: invoice.organization._id}).select('guid').lean():null,
                     Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: invoice.organization._id}).select('guid').lean(),
                     invoice.agent?Integrate1CAzyk.findOne({agent: invoice.agent._id, organization: invoice.organization._id}).select('guid').lean():null,
                     Integrate1CAzyk.findOne({agent: district.agent, organization: invoice.organization._id}).select('guid').lean(),
                 ])
                 const integrateAgent = integrateInvoiceAgent||integrateDistrictAgent
-                if (integrateClient && integrateAgent && integrateEcspeditor) {
+                const integrateForwarder = integrateInvoiceForwarder||integrateDistrictForwarder
+                if (integrateClient && integrateAgent && integrateForwarder) {
                     //добавляем интеграцию
                     // eslint-disable-next-line no-undef
                     await SingleOutXMLAzyk.create({
@@ -191,7 +193,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
                         number: invoice.number,
                         client: integrateClient.guid,
                         agent: integrateAgent.guid,
-                        forwarder: integrateEcspeditor.guid,
+                        forwarder: integrateForwarder.guid,
                         invoice: invoice._id,
                         status: 'create',
                         inv: invoice.inv,
@@ -200,7 +202,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
                     return 1
                }
                 else {
-                    const message = `${invoice.number}${!integrateClient?' Отсутствует guidClient':''}${!integrateAgent?' Отсутствует guidAgent':''}${!integrateEcspeditor?' Отсутствует guidEcspeditor':''}`
+                    const message = `${invoice.number}${!integrateClient?' Отсутствует guidClient':''}${!integrateAgent?' Отсутствует guidAgent':''}${!integrateForwarder?' Отсутствует guidForwarder':''}`
                     unawaited(() =>  ModelsErrorAzyk.create({err: message, path: 'setSingleOutXMLAzyk'}))
                     unawaited(() =>  sendPushToAdmin({message}))
                }
@@ -220,21 +222,35 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
     return 0
 }
 
-module.exports.setSingleOutXMLAzykLogic = async(invoices, forwarder, track) => {
+module.exports.setSingleOutXMLAzykLogic = async({invoices, forwarder, track, dateDelivery}) => {
     try {
         if (isNotEmpty(track) || forwarder) {
-            let guidEcspeditor
-            if (forwarder)
-                guidEcspeditor = await Integrate1CAzyk.findOne({forwarder: forwarder}).select('guid').lean()
+            // eslint-disable-next-line no-undef
+            const [guidForwarder, clients] = await Promise.all([
+                forwarder?Integrate1CAzyk.findOne({forwarder: forwarder}).select('guid').lean():null,
+                InvoiceAzyk.find({_id: {$in: invoices}}).distinct('client')
+            ])
+            const returneds = await ReturnedAzyk.find({client: {$in: clients}, dateDelivery}).distinct('_id')
+            //dateDelivery
+            dateDelivery.setHours(dayStartDefault, 0, 0, 0)
+            //change
             // eslint-disable-next-line no-undef
             await Promise.all([
-                SingleOutXMLAzyk.updateMany(
-                    {invoice: {$in: invoices}},
-                    {status: 'update', ...isNotEmpty(track)?{track}:{}, ...guidEcspeditor?{forwarder: guidEcspeditor.guid}:{}}
-                ),
                 InvoiceAzyk.updateMany(
                     {_id: {$in: invoices}},
-                    {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidEcspeditor?{forwarder}:{}}
+                    {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}}
+                ),
+                SingleOutXMLAzyk.updateMany(
+                    {invoice: {$in: invoices}},
+                    {status: 'update', ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder: guidForwarder.guid}:{}}
+                ),
+                ReturnedAzyk.updateMany(
+                    {_id: {$in: returneds}},
+                    {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}}
+                ),
+                SingleOutXMLReturnedAzyk.updateMany(
+                    {_id: {$in: returneds}},
+                    {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}}
                 )
             ])
        }
@@ -243,30 +259,6 @@ module.exports.setSingleOutXMLAzykLogic = async(invoices, forwarder, track) => {
         console.error(err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLAzykLogic'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLAzykLogic'}))
-   }
-}
-
-module.exports.setSingleOutXMLReturnedAzykLogic = async(returneds, forwarder, track) => {
-    try {
-        if(isNotEmpty(track)||forwarder) {
-            let guidEcspeditor
-            if (forwarder)
-                guidEcspeditor = await Integrate1CAzyk.findOne({forwarder: forwarder}).select('guid').lean()
-            // eslint-disable-next-line no-undef
-            await Promise.all([
-                SingleOutXMLReturnedAzyk.updateMany(
-                    {returned: {$in: returneds}}, {status: 'update', ...isNotEmpty(track)?{track}:{}, ...guidEcspeditor?{forwarder: guidEcspeditor.guid}:{}}
-                ),
-                ReturnedAzyk.updateMany(
-                    {_id: {$in: returneds}}, {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidEcspeditor?{forwarder}:{}}
-                )
-            ])
-       }
-   }
-    catch (err) {
-        console.error(err)
-        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLReturnedAzykLogic'}))
-        unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLReturnedAzykLogic'}))
    }
 }
 
@@ -525,15 +517,15 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
         for(const outXMLAds of outXMLAdss) {
             guidByDistrict[outXMLAds.district] = outXMLAds.guid
        }
-        //guidByAgent guidByEcspeditor
-        const guidByAgent = {}, guidByEcspeditor = {}, integrateItemByItem = {}
+        //guidByAgent guidByForwarder
+        const guidByAgent = {}, guidByForwarder = {}, integrateItemByItem = {}
         for(const integrate of integrates) {
             if(integrate.agent)
                 guidByAgent[integrate.agent] = integrate.guid
             else if(integrate.item)
                 integrateItemByItem[integrate.item._id] = {...integrate.item, guid: integrate.guid}
             else
-                guidByEcspeditor[integrate.forwarder] = integrate.guid
+                guidByForwarder[integrate.forwarder] = integrate.guid
        }
         //bulkOperations
         const bulkOperations = [];
@@ -545,8 +537,8 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
                 // eslint-disable-next-line no-undef
                 const orders = ordersByDistrict[district._id];
                 //гуиды
-                const guidAgent = guidByAgent[district.agent], guidEcspeditor = guidByEcspeditor[district.forwarder]
-                if (guidAgent && guidEcspeditor) {
+                const guidAgent = guidByAgent[district.agent], guidForwarder = guidByForwarder[district.forwarder]
+                if (guidAgent && guidForwarder) {
                     if (orders&&orders.length) {
                         let newOutXMLAzyk = {
                             data: [],
@@ -555,7 +547,7 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
                             number: `акции ${district.name}`,
                             client: guidDistrict,
                             agent: guidAgent,
-                            forwarder: guidEcspeditor,
+                            forwarder: guidForwarder,
                             invoice: null,
                             status: 'create',
                             promo: 1,

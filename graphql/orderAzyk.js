@@ -121,7 +121,6 @@ const query = `
     invoices(search: String!, sort: String!, filter: String!, date: String!, skip: Int, organization: ID, city: String, track: Int, forwarder: ID, dateDelivery: Date, agent: ID, district: ID): [Invoice]
     invoicesSimpleStatistic(search: String!, filter: String!, date: String, organization: ID, city: String, forwarder: ID, track: Int, dateDelivery: Date, agent: ID, district: ID): [String]
     orderHistorys(invoice: ID!): [HistoryOrder]
-    invoicesForRouting(produsers: [ID]!, clients: [ID]!, dateStart: Date, dateEnd: Date, dateDelivery: Date): [Invoice]
     invoice(_id: ID!): Invoice
 `;
 
@@ -130,7 +129,7 @@ const mutation = `
     addOrders(dateDelivery: Date!, info: String, inv: Boolean, unite: Boolean, paymentMethod: String, organization: ID!, client: ID!): String
     setOrder(orders: [OrderInput], invoice: ID): Invoice
     setInvoice(adss: [ID], taken: Boolean, invoice: ID!, confirmationClient: Boolean, confirmationForwarder: Boolean, cancelClient: Boolean, cancelForwarder: Boolean): String
-    setInvoicesLogic(track: Int, forwarder: ID, invoices: [ID]!): String
+    setInvoicesLogic(dateDelivery: Date, track: Int, forwarder: ID, invoices: [ID]!): String
     deleteOrders(ids: [ID]!): String
 `;
 
@@ -139,7 +138,7 @@ const subscription  = `
 `;
 
 const resolvers = {
-    invoicesSimpleStatistic: async(parent, {search, filter, date, organization, city, agent, district, forwarder, dateDelivery}, {user}) => {
+    invoicesSimpleStatistic: async(parent, {search, filter, date, organization, city, agent, track, district, forwarder, dateDelivery}, {user}) => {
         if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперэкспедитор', 'суперагент'].includes(user.role)) {
             //дата доставки
             let dateStart;
@@ -176,11 +175,13 @@ const resolvers = {
             if(dateDelivery) dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             //поиск
             // eslint-disable-next-line no-undef
-            const [districtClients, superagentOrganizations, integrationOrganizations] = await Promise.all([
+            const [districtClients, superagentOrganizations, integrationOrganizations, forwarderClients] = await Promise.all([
                 district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
                 user.role==='суперагент'?OrganizationAzyk.find({superagent: true}).distinct('_id'):null,
-                filter==='Не синхронизированные'?OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id'):null
+                filter==='Не синхронизированные'?OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id'):null,
+                forwarder?DistrictAzyk.find({forwarder}).distinct('client'):null,
             ]);
+            //return
             const invoices = await InvoiceAzyk.find(
                 {
                     //не удален
@@ -193,12 +194,14 @@ const resolvers = {
                     ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
                     //город
                     ...city ? {city} : {},
-                    //forwarder
-                    ...forwarder ? {forwarder} : {},
+                    //экспедитор
+                    ...forwarder? {$or: [{client: {$in: forwarderClients}}, {forwarder}]} : {},
+                    //рейс
+                    ...track ? {track} : {},
                     //dateDelivery
                     ...dateDelivery ? {dateDelivery} : {},
                     //агент
-                    ...agent ? {agent} : {},
+                    ...agent ? {agent: new mongoose.Types.ObjectId(agent)} : {},
                     //клиент только свои
                     ...user.client ? {client: user.client} : {},
                     //суперагент только в доступных организациях
@@ -232,7 +235,7 @@ const resolvers = {
             return [lengthList.toString(), checkFloat(price).toString(), checkFloat(tonnage).toString()]
         }
     },
-    invoices: async(parent, {search, sort, filter, date, skip, organization, city, agent, district, forwarder, dateDelivery}, {user}) =>  {
+    invoices: async(parent, {search, sort, filter, date, skip, organization, city, agent, district, forwarder, dateDelivery, track}, {user}) =>  {
         if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
             //console.time('get BD')
             let dateStart;
@@ -275,10 +278,11 @@ const resolvers = {
             let _sort = {}
             _sort[sort[0] === '-' ? sort.substring(1) : sort] = sort[0] === '-' ? -1 : 1
             // eslint-disable-next-line no-undef
-            const [districtClients, superagentOrganizations, integrationOrganizations] = await Promise.all([
+            const [districtClients, superagentOrganizations, integrationOrganizations, forwarderClients] = await Promise.all([
                 district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
                 user.role==='суперагент'?OrganizationAzyk.find({superagent: true}).distinct('_id'):null,
-                filter==='Не синхронизированные'?OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id'):null
+                filter==='Не синхронизированные'?OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id'):null,
+                forwarder?DistrictAzyk.find({forwarder}).distinct('client'):null,
             ]);
             //console.timeEnd('get BD')
             return await InvoiceAzyk.aggregate([
@@ -287,11 +291,13 @@ const resolvers = {
                         //не удален
                         del: {$ne: 'deleted'},
                         //агент
-                        ...agent ? {agent} : {},
+                        ...agent ? {agent: new mongoose.Types.ObjectId(agent)} : {},
                         //город
                         ...city ? {city} : {},
-                        //forwarder
-                        ...forwarder ? {forwarder} : {},
+                        //экспедитор
+                        ...forwarder? {$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]} : {},
+                        //рейс
+                        ...track ? {track} : {},
                         //dateDelivery
                         ...dateDelivery ? {dateDelivery} : {},
                         //только в своей организации
@@ -407,46 +413,6 @@ const resolvers = {
             return HistoryOrderAzyk.find({invoice}).sort('-createdAt').lean()
         }
     },
-    invoicesForRouting: async(parent, {produsers, clients, dateStart, dateEnd, dateDelivery}, {user}) => {
-        if(['admin', 'агент', 'суперорганизация', 'организация', 'менеджер'].includes(user.role)) {
-            if(dateDelivery) {
-                dateStart = checkDate(dateDelivery)
-                dateStart.setHours(dayStartDefault, 0, 0, 0)
-                dateEnd = new Date(dateStart)
-                dateEnd.setDate(dateEnd.getDate() + 1)
-            }
-            else {
-                dateStart = checkDate(dateStart)
-                dateStart.setHours(dayStartDefault, 0, 0, 0)
-                if(dateEnd) {
-                    dateEnd = checkDate(dateEnd)
-                    dateEnd.setDate(dateEnd.getDate() + 1)
-                    dateEnd.setHours(dayStartDefault, 0, 0, 0)
-                }
-                else {
-                    dateEnd = new Date(dateStart)
-                    dateEnd.setDate(dateEnd.getDate() + 1)
-                }
-            }
-            return await InvoiceAzyk.find({
-                del: {$ne: 'deleted'},
-                taken: true,
-                distributed: {$ne: true},
-                organization: {$in: produsers},
-                ...clients.length ? {client: {$in: clients}} : {},
-                ...dateDelivery?{dateDelivery: {$gte: dateStart, $lt: dateEnd}} : {createdAt: {$gte: dateStart, $lt: dateEnd}}
-            })
-                .select('_id agent createdAt updatedAt allTonnage client allPrice returnedPrice address adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder taken sync dateDelivery')
-                .populate({path: 'client', select: '_id name'})
-                .populate({path: 'agent', select: '_id name'})
-                .populate({path: 'forwarder', select: '_id name'})
-                .populate({path: 'adss', select: '_id title'})
-                .populate({path: 'organization', select: '_id name'})
-                .sort('createdAt')
-                .lean()
-        }
-        else  return []
-    },
     invoice: async(parent, {_id}, {user}) => {
         if(['агент', 'менеджер', 'суперорганизация', 'организация', 'экспедитор', 'суперагент', 'admin', 'суперэкспедитор', 'client'].includes(user.role)) {
             return InvoiceAzyk.findOne({
@@ -491,7 +457,6 @@ const resolvers = {
 const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder, user}) => {
     const OrderAzyk = require('../models/orderAzyk');
     const InvoiceAzyk = require('../models/invoiceAzyk');
-    const RouteAzyk = require('../models/routeAzyk');
     const {checkFloat, isNotEmpty} = require('../module/const');
     const {checkAdss} = require('../graphql/adsAzyk');
     //накладная
@@ -540,23 +505,6 @@ const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClie
     //заказ доставлен подтвержден клиентом и поставщиком
     if(object.taken&&object.confirmationForwarder&&object.confirmationClient) {
         optionUpdateOrder = {status: 'выполнен'}
-    }
-    //подтвеждение доставки в маршруте экспедитора
-    if(object.taken&&(object.confirmationForwarder||object.confirmationClient)) {
-        //маршрут экспедитора
-        let route = await RouteAzyk.findOne({invoices: invoice}).populate({path: 'invoices', select: 'cancelForwarder'}).lean();
-        if(route) {
-            let completedRoute = true;
-            for(let i = 0; i<route.invoices.length; i++) {
-                if(!route.invoices[i].cancelForwarder)
-                    completedRoute = false;
-            }
-            if(completedRoute)
-                route.status = 'выполнен';
-            else
-                route.status = 'выполняется';
-            await RouteAzyk.updateOne({invoices: invoice}, {status: route.status})
-        }
     }
     //отмена/возврат клиентом
     if(isNotEmpty(cancelClient)&&(cancelClient||isNotEmpty(object.cancelClient))&&!object.cancelForwarder&&(isAdmin||isClient)) {
@@ -1176,8 +1124,8 @@ const resolversMutation = {
             return 'OK';
         }
     },
-    setInvoicesLogic: async(parent, {track, forwarder, invoices}) => {
-        await setSingleOutXMLAzykLogic(invoices, forwarder, track)
+    setInvoicesLogic: async(parent, {dateDelivery, track, forwarder, invoices}) => {
+        await setSingleOutXMLAzykLogic({invoices, forwarder, track, dateDelivery})
         return 'OK';
     },
     setOrder: async(parent, {orders, invoice}, {user}) => {

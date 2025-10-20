@@ -2,7 +2,6 @@ const OrderAzyk = require('../models/orderAzyk');
 const ReturnedAzyk = require('../models/returnedAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
-const RouteAzyk = require('../models/routeAzyk');
 const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 const SingleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
 const AgentHistoryGeoAzyk = require('../models/agentHistoryGeoAzyk');
@@ -19,7 +18,7 @@ const dates = [
 ]
 
 const models = [
-    OrderAzyk, InvoiceAzyk, RouteAzyk, HistoryOrderAzyk, ReturnedAzyk, SingleOutXMLReturnedAzyk, SingleOutXMLAzyk, AgentHistoryGeoAzyk, BasketAzyk,
+    OrderAzyk, InvoiceAzyk, HistoryOrderAzyk, ReturnedAzyk, SingleOutXMLReturnedAzyk, SingleOutXMLAzyk, AgentHistoryGeoAzyk, BasketAzyk,
     ConnectionApplicationAzyk, MerchandisingAzyk
 ]
 

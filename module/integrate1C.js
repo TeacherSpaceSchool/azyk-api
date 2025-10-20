@@ -9,5 +9,5 @@ module.exports.reductionIntegrate1C = async () => {
 
     }
     if(bulkOperations.length) await parallelBulkWrite(Integrate1C, bulkOperations);
-    console.log('reductionDistrict', bulkOperations.length)
+    console.log('reductionIntegrate1C', bulkOperations.length)
 }

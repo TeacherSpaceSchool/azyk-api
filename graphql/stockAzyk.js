@@ -15,6 +15,7 @@ const type = `
     warehouse: Warehouse
     unlimited: Boolean
     count: Float
+    logisticName: String
  }
 `;
 
@@ -24,8 +25,8 @@ const query = `
 `;
 
 const mutation = `
-    addStock(item: ID!, organization: ID!, unlimited: Boolean, count: Float!, warehouse: ID): Stock
-    setStock(_id: ID!, count: Float, unlimited: Boolean): String
+    addStock(item: ID!, logisticName: String, organization: ID!, unlimited: Boolean, count: Float!, warehouse: ID): Stock
+    setStock(_id: ID!, logisticName: String, count: Float, unlimited: Boolean): String
     deleteStock(_id: ID!): String
 `;
 
@@ -84,25 +85,26 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addStock: async(parent, {item, organization, count, warehouse, unlimited}, {user}) => {
+    addStock: async(parent, {item, organization, count, warehouse, unlimited, logisticName}, {user}) => {
         if(
             ['admin', 'суперорганизация', 'организация'].includes(user.role)&&
             !(await StockAzyk.countDocuments({item, organization: user.organization||organization, warehouse}).lean())
         ) {
             // eslint-disable-next-line no-undef
             const [createdObject, itemData, warehouseData] = await Promise.all([
-                StockAzyk.create({item, count, warehouse, unlimited, organization: user.organization||organization}),
+                StockAzyk.create({item, count, warehouse, unlimited, logisticName, organization: user.organization||organization}),
                 ItemAzyk.findById(item).select('_id name').lean(),
                 warehouse?WarehouseAzyk.findById(warehouse).select('_id name').lean():null
             ]);
             return {...createdObject.toObject(), item: itemData, warehouse: warehouseData}
        }
    },
-    setStock: async(parent, {_id, count, unlimited}, {user}) => {
+    setStock: async(parent, {_id, count, unlimited, logisticName}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
             const stock = await StockAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
             if(isNotEmpty(count)) stock.count = count
             if(isNotEmpty(unlimited)) stock.unlimited = unlimited
+            if(logisticName) stock.logisticName = logisticName
             await stock.save()
        }
         return 'OK'

@@ -260,6 +260,8 @@ module.exports.formatErrorDetails = err => (err.stack&&err.message).slice(0, 250
 
 module.exports.formatAmount = amount => amount&&amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
 
+module.exports.getClientTitle = client => client&&client.address&&client.address[0]?`${client.address[0][2]}${client.address[0][0]&&client.address[0][2]?', ':''}${client.address[0][0]}`:'';
+
 module.exports.isSameDay = (d1, d2) => {
     return (
         d1.getFullYear() === d2.getFullYear() &&
@@ -267,6 +269,10 @@ module.exports.isSameDay = (d1, d2) => {
         d1.getDate() !== d2.getDate()
     );
 }
+
+module.exports.sum = arr => arr.reduce((a, b) => a + b, 0)
+
+module.exports.isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 module.exports.defaultLimit = 30;
 module.exports.statsCollection = statsCollection;

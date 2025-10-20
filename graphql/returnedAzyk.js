@@ -4,7 +4,6 @@ const EmploymentAzyk = require('../models/employmentAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
-const {setSingleOutXMLReturnedAzykLogic} = require('../module/singleOutXMLAzyk');
 const {checkFloat, reductionSearch, isNotEmpty, checkDate, dayStartDefault, defaultLimit, reductionSearchText} = require('../module/const');
 const RELOAD_RETURNED = 'RELOAD_RETURNED';
 const mongoose = require('mongoose');
@@ -78,20 +77,18 @@ const type = `
 `;
 
 const query = `
-    returnedsFromDistrict(organization: ID!, district: ID!, date: String!): [Returned]
-    returneds(search: String!, sort: String!, date: String!, skip: Int, city: String): [Returned]
-    returnedsSimpleStatistic(search: String!, date: String, city: String): [String]
+    returneds(search: String!, sort: String!, date: String!, skip: Int, organization: ID, city: String, track: Int, forwarder: ID, dateDelivery: Date, agent: ID, district: ID): [Returned]
+    returnedsSimpleStatistic(search: String!, date: String!, organization: ID, city: String, track: Int, forwarder: ID, dateDelivery: Date, agent: ID, district: ID): [String]
 `;
 
 const mutation = `
-    setReturnedLogic(track: Int, forwarder: ID, returneds: [ID]!): String
     addReturned(info: String, unite: Boolean, inv: Boolean, dateDelivery: Date!, address: [[String]], organization: ID!, items: [ReturnedItemsInput], client: ID!): String
     setReturned(items: [ReturnedItemsInput], returned: ID, confirmationForwarder: Boolean, cancelForwarder: Boolean): Returned
     deleteReturneds(_ids: [ID]!): String
 `;
 
 const resolvers = {
-    returnedsSimpleStatistic: async(parent, {search, date, city}, {user}) => {
+    returnedsSimpleStatistic: async(parent, {search, date, organization, city, agent, district, forwarder, dateDelivery, track}, {user}) => {
         if(['суперорганизация', 'организация', 'агент', 'менеджер', 'admin', 'суперагент'].includes(user.role)) {
             //период
             let dateStart;
@@ -127,20 +124,29 @@ const resolvers = {
            }
             //доступные организации для суперагента, клиенты сотрудника
             // eslint-disable-next-line no-undef
-            const [superagentOrganizations, districtClients] = await Promise.all([
+            const [superagentOrganizations, districtClients, forwarderClients] = await Promise.all([
                 user.role==='суперагент'?OrganizationAzyk.find({superagent: true}).distinct('_id'):null,
-                ['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null
+                district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
+                forwarder?DistrictAzyk.find({forwarder}).distinct('client'):null,
             ])
             //возвраты
             let returneds = await ReturnedAzyk.find({
                 //не удален
                 del: {$ne: 'deleted'},
+                //agent
+                ...agent ? {agent: new mongoose.Types.ObjectId(agent)} : {},
+                //экспедитор
+                ...forwarder? {$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]} : {},
+                //рейс
+                ...track ? {track} : {},
                 //в период
                 createdAt: {$gte: dateStart, $lt: dateEnd},
                 //принят
                 confirmationForwarder: true,
                 //суперагент только в доступных организациях
                 ...user.role==='суперагент'?{organization: {$in: superagentOrganizations}}:{},
+                //dateDelivery
+                ...dateDelivery ? {dateDelivery} : {},
                 //город
                 ...city?{city}:{},
                 //поиск
@@ -151,7 +157,7 @@ const resolvers = {
                         ]
                    }:{},
                 //только в своей организации
-                ...user.organization ? {organization: user.organization}:{},
+                ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
                 //только в достпуных клиентах
                 ...districtClients?{client: {$in: districtClients}}:{},
            }).lean()
@@ -170,119 +176,7 @@ const resolvers = {
             return [lengthList.toString(), checkFloat(price).toString(), checkFloat(tonnage).toString()]
        }
    },
-    returnedsFromDistrict: async(parent, {organization, district, date}, {user}) =>  {
-        if(['суперорганизация', 'организация', 'агент', 'менеджер', 'admin'].includes(user.role)) {
-            //период
-            let dateStart;
-            let dateEnd;
-            dateStart = checkDate(date)
-            dateStart.setHours(dayStartDefault, 0, 0, 0)
-            dateEnd = new Date(dateStart)
-            dateEnd.setDate(dateEnd.getDate() + 1)
-            if (user.role === 'агент') {
-                let now = new Date()
-                now.setDate(now.getDate() + 1)
-                now.setHours(dayStartDefault, 0, 0, 0)
-                let differenceDates = (now - dateStart) / (1000 * 60 * 60 * 24)
-                if (differenceDates > user.agentHistory) {
-                    dateStart = new Date()
-                    dateEnd = new Date(dateStart)
-                    dateEnd = new Date(dateEnd.setDate(dateEnd.getDate() - user.agentHistory))
-               }
-           }
-            //клиенты сотрудника
-            let districtClients
-            if (['агент', 'менеджер'].includes(user.role))
-                districtClients = await DistrictAzyk
-                    .find({$or: [{manager: user.employment}, {agent: user.employment}]})
-                    .distinct('client')
-            else
-                districtClients = await DistrictAzyk.findOne({
-                    _id: district,
-               }).distinct('client');
-            return await ReturnedAzyk.aggregate([
-                    {
-                        $match: {
-                            del: {$ne: 'deleted'},
-                            createdAt: {$gte: dateStart, $lt: dateEnd},
-                            confirmationForwarder: true,
-                            client: {$in: districtClients},
-                            organization: user.organization ? user.organization : new mongoose.Types.ObjectId(organization)
-                       }
-                   },
-                    {$sort: {createdAt: -1}},
-                    {
-                        $lookup:
-                            {
-                                from: ClientAzyk.collection.collectionName,
-                                let: {client: '$client'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$client', '$_id']}}},
-                                ],
-                                as: 'client'
-                           }
-                   },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: false,
-                            path: '$client'
-                       }
-                   },
-                    {
-                        $lookup:
-                            {
-                                from: EmploymentAzyk.collection.collectionName,
-                                let: {agent: '$agent'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$agent', '$_id']}}},
-                                ],
-                                as: 'agent'
-                           }
-                   },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$agent'
-                       }
-                   },
-                    {
-                        $lookup:
-                            {
-                                from: EmploymentAzyk.collection.collectionName,
-                                let: {forwarder: '$forwarder'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$forwarder', '$_id']}}},
-                                ],
-                                as: 'forwarder'
-                           }
-                   },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$forwarder'
-                       }
-                   },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {organization: '$organization'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$organization', '$_id']}}},
-                                ],
-                                as: 'organization'
-                           }
-                   },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$organization'
-                       }
-                   },
-                ])
-       }
-   },
-    returneds: async(parent, {search, sort, date, skip, city}, {user}) => {
+    returneds: async(parent, {search, sort, date, skip, organization, city, agent, district, forwarder, dateDelivery, track}, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер', 'суперагент', 'агент'].includes(user.role)) {
             //период
             let dateStart;
@@ -313,26 +207,37 @@ const resolvers = {
                 dateStart = new Date(dateEnd)
                 dateStart = new Date(dateStart.setDate(dateStart.getDate() - user.agentHistory))
            }
+            //dateDelivery
+            if(dateDelivery) dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             //сортировка
             let _sort = {}
             _sort[sort[0]==='-'?sort.substring(1):sort]=sort[0]==='-'?-1:1
             //доступные организации для суперагента, клиенты сотрудника
             // eslint-disable-next-line no-undef
-            const [superagentOrganizations, districtClients] = await Promise.all([
+            const [superagentOrganizations, districtClients, forwarderClients] = await Promise.all([
                 user.role==='суперагент'?OrganizationAzyk.find({superagent: true}).distinct('_id'):null,
-                ['суперагент', 'агент', 'менеджер'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client').lean():null
+                district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
+                forwarder?DistrictAzyk.find({forwarder}).distinct('client'):null,
             ])
             return await ReturnedAzyk.aggregate([
                 {
                     $match: {
                         //не удален
                         del: {$ne: 'deleted'},
+                        //агент
+                        ...agent ? {agent: new mongoose.Types.ObjectId(agent)} : {},
                         //в период
                         ...dateStart?{createdAt: {$gte: dateStart, $lt: dateEnd}}:{},
                         //суперагент только в доступных организациях
                         ...user.role==='суперагент'?{organization: {$in: superagentOrganizations}}:{},
                         //город
                         ...city?{city}:{},
+                        //экспедитор
+                        ...forwarder? {$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]} : {},
+                        //рейс
+                        ...track ? {track} : {},
+                        //dateDelivery
+                        ...dateDelivery ? {dateDelivery} : {},
                         //поиск
                         ...search?{$or: [
                                 {number: {$regex: reductionSearchText(search), $options: 'i'}},
@@ -340,7 +245,7 @@ const resolvers = {
                                 {address: {$regex: reductionSearchText(search), $options: 'i'}}
                             ]}:{},
                         //только в своей организации
-                        ...user.organization ? {organization: user.organization}:{},
+                        ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
                         //только в районах
                         ...districtClients?{client: {$in: districtClients}}:{}
                     }
@@ -572,10 +477,6 @@ const resolversMutation = {
         if(user.role==='admin') {
             await ReturnedAzyk.updateMany({_id: {$in: _ids}}, {del: 'deleted'})
        }
-        return 'OK';
-   },
-    setReturnedLogic: async(parent, {track, forwarder, returneds}) => {
-        await setSingleOutXMLReturnedAzykLogic(returneds, forwarder, track)
         return 'OK';
    },
     setReturned: async(parent, {items, returned, confirmationForwarder, cancelForwarder}, {user}) => {

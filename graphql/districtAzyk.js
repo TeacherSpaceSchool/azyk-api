@@ -196,10 +196,10 @@ const resolversMutation = {
             return createdObject._id;
         }
    },
-    setDistrict: async(parent, {_id, client, forwarder, name, agent, manager, warehouse}, {user}) => {
+    setDistrict: async(parent, {_id, client, forwarder, name, agent, manager, ...args}, {user}) => {
         if(['admin', 'суперорганизация', 'организация', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
             let object = await DistrictAzyk.findOne({_id, ...user.organization?{organization: user.organization}:{}})
-            unawaited(() => addHistory({user, type: historyTypes.set, model: 'DistrictAzyk', name: object.name, object: _id, data: {client: `${object.client.length}->${client.length}`, forwarder, name, agent, manager, warehouse}}))
+            unawaited(() => addHistory({user, type: historyTypes.set, model: 'DistrictAzyk', name: object.name, object: _id, data: {client: `${object.client.length}->${client.length}`, forwarder, name, agent, manager, ...'warehouse' in args?{warehouse: args.warehouse}:{}}}))
             if(name) object.name = name
             if(client) {
                 // Приводим старых клиентов преобразуем в строку
@@ -231,7 +231,7 @@ const resolversMutation = {
                 object.client = client
                 object.markModified('client');
            }
-            if(warehouse) object.warehouse = warehouse
+            if('warehouse' in args) object.warehouse = args.warehouse
             if(agent) object.agent = agent
             if(forwarder) object.forwarder = forwarder
             if(manager) object.manager = manager

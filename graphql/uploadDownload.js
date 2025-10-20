@@ -15,7 +15,6 @@ const fs = require('fs');
 const path = require('path');
 const {urlMain, saveFile, deleteFile, checkFloat, checkInt} = require('../module/const');
 const readXlsxFile = require('read-excel-file/node');
-const AutoAzyk = require('../models/autoAzyk');
 const {parallelPromise, parallelBulkWrite} = require('../module/parallel');
 
 const query = `
@@ -198,7 +197,6 @@ const resolvers = {
             ])
             organization = organizationData
             let worksheet;
-            let auto
             let itemOrders = {}
             let allCount = 0
             let allPrice = 0
@@ -339,16 +337,10 @@ const resolvers = {
                         worksheet.getCell(`A${row}`).value = 'Тел:';
                         worksheet.getCell(`B${row}`).value = invoice.forwarder.phone
                    }
-                    auto = await AutoAzyk.findOne({employment: invoice.forwarder._id})
                     row+=1;
                     worksheet.getCell(`A${row}`).font = {bold: true};
                     worksheet.getCell(`A${row}`).value = '№ рейса:';
                     worksheet.getCell(`B${row}`).value = invoice.track;
-                    if(auto&&auto.number) {
-                        worksheet.getCell(`C${row}`).font = {bold: true};
-                        worksheet.getCell(`C${row}`).value = '№ авто:';
-                        worksheet.getCell(`D${row}`).value = auto.number;
-                   }
                }
                 if(invoice.adss) {
                     row+=1;
