@@ -11,10 +11,11 @@ const alphabet = [
 const horizontalAlignments = {left: 'left', center: 'center', right: 'right', justify: 'justify'}
 const setCell = ({worksheet, data, idx}) => {
     if(!isObject(data)) data = {value: data}
-    const  {value, bold, wrap, horizontalAlignment} = data
+    const  {value, bold, wrap, horizontalAlignment, border} = data
     const cell = worksheet.getCell(idx);
+    cell.alignment = { ...cell.alignment, vertical: 'top', horizontal: horizontalAlignment||horizontalAlignments.left}
     if(bold) cell.font = { ...cell.font, bold }
-    if(horizontalAlignment) cell.alignment = { ...cell.alignment, horizontal: horizontalAlignment }
+    if(border) cell.border = {top: { style: 'thin', color: { argb: 'FF000000' } }, left: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'thin', color: { argb: 'FF000000' } }, right: { style: 'thin', color: { argb: 'FF000000' } }}
     if(wrap) cell.alignment = { ...cell.alignment, wrapText: true }
     cell.value = value;
 
@@ -27,6 +28,12 @@ module.exports.getExcelSheet = async({name, worksheetsData}) => {
     for(const worksheetData of worksheetsData) {
         const {name, columnsWidth = {}, rows = []} = worksheetData
         const worksheet = await workbook.addWorksheet(name);
+        //pageSetup
+        worksheet.pageSetup = {
+            fitToPage: true, /*включаем подгонку под страницу*/ fitToWidth: 1, /*помещать по ширине на 1 страницу*/
+            fitToHeight: 0, /*не ограничивать по высоте*/ orientation: 'portrait', /*альбомная ориентация*/
+            margins: {left: 0.7, right: 0.7, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3}
+        };
         //columns
         const columnsLength = Math.max(...rows.map(row => row.length));
         for(let i = 0; i < columnsLength; i += 1) {

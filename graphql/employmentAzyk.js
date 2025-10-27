@@ -20,7 +20,7 @@ const type = `
 `;
 
 const query = `
-    employments(organization: ID, search: String!, filter: String!, skip: Int): [Employment]
+    employments(organization: ID, sort: String, search: String!, filter: String!, skip: Int): [Employment]
     employmentsCount(organization: ID, search: String!, filter: String!): String
     employment(_id: ID!): Employment
 `;
@@ -33,7 +33,7 @@ const mutation = `
 `;
 
 const resolvers = {
-    employments: async(parent, {organization, search, filter, skip}, {user}) => {
+    employments: async(parent, {organization, search, sort, filter, skip}, {user}) => {
         if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
             let filteredUsers = await UserAzyk.find({
                 $and: [
@@ -60,7 +60,7 @@ const resolvers = {
                     path: 'organization',
                     select: 'name _id'
                })
-                .sort('-createdAt')
+                .sort(sort||'-createdAt')
                 .lean()
        }
    },

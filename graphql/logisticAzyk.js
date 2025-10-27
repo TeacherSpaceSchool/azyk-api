@@ -2,24 +2,22 @@ const InvoiceAzyk = require('../models/invoiceAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const OrderAzyk = require('../models/orderAzyk');
 const ItemAzyk = require('../models/itemAzyk');
-const {checkFloat, dayStartDefault, getClientTitle, pdDDMMYYYY, sum, isEmpty, isNotEmpty} = require('../module/const');
+const {checkFloat, dayStartDefault, getClientTitle, pdDDMMHHMM} = require('../module/const');
 const ReturnedAzyk = require('../models/returnedAzyk');
 const StockAzyk = require('../models/stockAzyk');
-const {getExcelSheet, horizontalAlignments} = require('../module/excel');
-const EmploymentAzyk = require('../models/employmentAzyk');
 
 const query = `
-    financeReport(organization: ID!, track: Int, forwarder: ID!, dateDelivery: Date!, excel: Boolean): [[String]]
-    summaryInvoice(organization: ID!, track: Int!, forwarder: ID!, dateDelivery: Date!, excel: Boolean): [[String]]
+    financeReport(organization: ID!, track: Int, forwarder: ID!, dateDelivery: Date!): [[String]]
+    summaryInvoice(organization: ID!, track: Int!, forwarder: ID!, dateDelivery: Date!): [[String]]
 `;
 
 const resolvers = {
-    financeReport: async(parent, {organization, forwarder, dateDelivery, track, excel}, {user}) =>  {
+    financeReport: async(parent, {organization, forwarder, dateDelivery, track}, {user}) =>  {
         if(['суперорганизация', 'организация', 'admin', 'менеджер'].includes(user.role)) {
             //dateDelivery
             dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             // eslint-disable-next-line no-undef
-            const forwarderClients = await  DistrictAzyk.find({forwarder}).distinct('client');
+            const forwarderClients = await DistrictAzyk.find({forwarder}).distinct('client');
             if(user.organization) organization = user.organization
             const filter = {
                 //не удален
@@ -39,7 +37,7 @@ const resolvers = {
                     ...filter,
                     //только принят
                     taken: true
-                }).select('_id client allPrice address track info discount returnedPrice paymentMethod inv').lean(),
+                }).select('_id createdAt client agent allPrice address track info discount returnedPrice paymentMethod inv').sort('createdAt').lean(),
                 ReturnedAzyk.find({
                     ...filter,
                     //только принят
@@ -50,35 +48,21 @@ const resolvers = {
             const returnedByClient = {}
             for(const returned of returneds)
                 returnedByClient[returned.client] = checkFloat(returnedByClient[returned.client]||0 + returned.allPrice)
-            let sortedInvoices = {}
+            // eslint-disable-next-line no-undef
+            let sortedInvoices = new Map()
             for(const invoice of invoices) {
                 invoice.returned = returnedByClient[invoice.client]
-                if(!sortedInvoices[invoice.client]) sortedInvoices[invoice.client] = []
-                sortedInvoices[invoice.client].push(invoice)
+                if(!sortedInvoices.has(invoice.client)) sortedInvoices.set(invoice.client, [])
+                sortedInvoices.get(invoice.client).push(invoice)
             }
-            sortedInvoices = Object.values(sortedInvoices).flat().map(invoice => [
-                getClientTitle({address: [invoice.address]}), invoice.allPrice, invoice.discount||'', invoice.allPrice - invoice.returnedPrice,
-                invoice.paymentMethod, invoice.returned, invoice.inv===0?'нет':'да', `Рейс: ${invoice.track}\n${invoice.info}`
+            sortedInvoices = Array.from(sortedInvoices.values()).flat().map(invoice => [
+                getClientTitle({address: [invoice.address]}), invoice.allPrice - invoice.returnedPrice, ['Наличные'].includes(invoice.paymentMethod)?invoice.allPrice - invoice.returnedPrice:0,
+                invoice.paymentMethod, invoice.returned, invoice.inv===0?'нет':'да', `${invoice.agent?'Агент:':'Онлайн:'} ${pdDDMMHHMM(invoice.createdAt)}\n${invoice.info}`
             ])
-            const name = `Отчет по деньгам ${pdDDMMYYYY(dateDelivery)}`
-            return excel?await getExcelSheet({worksheetsData: [{
-                    columnsWidth: {1: 5, 2: 30, 9: 25}, name,
-                    rows: [
-                        //headers
-                        [`Отчет по деньгам ${pdDDMMYYYY(dateDelivery)}`], [`Экспедитор: ${(await EmploymentAzyk.findById(forwarder)).name}`],
-                        //columnsTitle
-                        [{value: '№', bold: true}, {value: 'Адрес', bold: true}, {value: 'Отгружено', bold: true}, {value: 'Скидки', bold: true}, {value: 'К оплате', bold: true}, {value: 'Тип оплаты', bold: true}, {value: 'Возврат', bold: true}, {value: 'СФ', bold: true}, {value: 'Комментарий', bold: true}],
-                        //rows
-                        ...sortedInvoices.map((invoice, idx) => [idx+1, ...invoice]),
-                        //footers
-                        [{value: 'Итого:', horizontalAlignment: horizontalAlignments.right}, checkFloat(sum(sortedInvoices.map(invoice => checkFloat(invoice[1])))), checkFloat(sum(sortedInvoices.map(invoice => checkFloat(invoice[2])))), checkFloat(sum(sortedInvoices.map(invoice => checkFloat(invoice[3])))), '', checkFloat(sum(sortedInvoices.map(invoice => checkFloat(invoice[5]))))],
-                        [],
-                        [{value: 'Сдал:', horizontalAlignment: horizontalAlignments.right}, '__________', '', 'Получил:', '__________', '', 'Проверил:', '__________']
-                    ]
-                }], name}):sortedInvoices
+            return sortedInvoices
         }
     },
-    summaryInvoice: async(parent, {organization, forwarder, dateDelivery, track, excel}, {user}) =>  {
+    summaryInvoice: async(parent, {organization, forwarder, dateDelivery, track}, {user}) =>  {
         if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
             //dateDelivery
             dateDelivery.setHours(dayStartDefault, 0, 0, 0)
@@ -148,46 +132,7 @@ const resolvers = {
                 checkFloat(summaryInvoiceElement.count/summaryInvoiceElement.item.packaging), checkFloat(summaryInvoiceElement.allPrice),
                 checkFloat(summaryInvoiceElement.allTonnage)
             ])
-            if(excel) {
-                const forwarderName = (await EmploymentAzyk.findById(forwarder).select('name').lean()).name
-                dateDelivery = pdDDMMYYYY(dateDelivery)
-                const nameExcel = `Сводная накладная ${dateDelivery}`
-                const rows = []
-                let rowIdx = 0
-                let countAll = 0, packageAll = 0, priceAll = 0, tonnageAll = 0
-                for(let idx = 0; idx < summaryInvoice.length; idx += 1) {
-                    const invoice = summaryInvoice[idx]
-                    const prevInvoice = summaryInvoice[idx - 1]
-                    const nextInvoice = summaryInvoice[idx + 1]
-                    const isFirst = isEmpty(prevInvoice)||prevInvoice[0]!==invoice[0]
-                    const isLast = isEmpty(nextInvoice)||nextInvoice[0]!==invoice[0]
-
-                    if(isFirst) {
-                        countAll = 0; packageAll = 0; priceAll = 0; tonnageAll = 0; rowIdx = 0
-                        rows.push([`Общий отпуск от ${dateDelivery}`])
-                        rows.push([`Склад: ${invoice[0]}`])
-                        rows.push([`Экспедитор: ${forwarderName}`])
-                        rows.push([`Рейс №${track}`])
-                        rows.push([{value: '№', bold: true}, {value: 'Товар', bold: true}, {value: 'Кол-во', bold: true}, {value: 'Уп-ок', bold: true}, {value: 'Сумма', bold: true}, {value: 'Тоннаж', bold: true}])
-                    }
-                    rowIdx += 1
-                    rows.push([rowIdx, {value: invoice[1], wrap: true}, invoice[2], invoice[3], invoice[4], invoice[5]])
-                    countAll += checkFloat(invoice[2]); packageAll += checkFloat(invoice[3]); priceAll += checkFloat(invoice[4]); tonnageAll += checkFloat(invoice[5])
-                    if(isLast) {
-                        rows.push(['', {value: 'Итого:', horizontalAlignment: horizontalAlignments.right}, checkFloat(countAll), checkFloat(packageAll), checkFloat(priceAll), checkFloat(tonnageAll)])
-                        rows.push([])
-                        rows.push(['', {value: 'Отпустил:', horizontalAlignment: horizontalAlignments.right}, '__________', '', {value: 'Получил:', horizontalAlignment: horizontalAlignments.right}, '__________'])
-                        rows.push([])
-                        rows.push([])
-                    }
-                }
-
-                return getExcelSheet({worksheetsData: [{
-                        name: nameExcel, columnsWidth: {1: 5, 2: 35, },
-                        rows
-                    }], name: nameExcel})
-            }
-            else return summaryInvoice
+            return summaryInvoice
         }
     }
 };
