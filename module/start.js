@@ -77,7 +77,7 @@ let start = async () => {
     await reductionIntegrate1C()
     await reductionDistrict()
     //watcher
-    startInvoiceWatcher()
+    ///startInvoiceWatcher()
     /*setTimeout(async () => {
         console.time('reduction DB')
         await reductionOldestDB();
