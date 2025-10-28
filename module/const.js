@@ -261,7 +261,7 @@ module.exports.checkDate = date => {
 
 module.exports.cities = ['Бишкек', 'Баткен', 'Балыкчы', 'Боконбаева', 'Жалал-Абад', 'Кара-Балта', 'Каракол', 'Казарман', 'Кочкор', 'Кызыл-Кия', 'Нарын', 'Ош', 'Раззаков', 'Талас', 'Токмок', 'Чолпон-Ата', 'Москва'];
 
-module.exports.formatErrorDetails = err => (err.stack&&err.message).slice(0, 250);
+module.exports.formatErrorDetails = err => (err.stack&&err.message&&JSON.stringify(err)).slice(0, 250);
 
 module.exports.formatAmount = amount => amount&&amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
 

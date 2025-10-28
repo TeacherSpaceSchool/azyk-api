@@ -14,6 +14,8 @@ const query = `
 const resolvers = {
     financeReport: async(parent, {organization, forwarder, dateDelivery, track}, {user}) =>  {
         if(['суперорганизация', 'организация', 'admin', 'менеджер'].includes(user.role)) {
+            //если пользователь экспедитор
+            if(user.role==='экспедитор') forwarder = user.employment
             //dateDelivery
             dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             // eslint-disable-next-line no-undef
@@ -63,7 +65,9 @@ const resolvers = {
         }
     },
     summaryInvoice: async(parent, {organization, forwarder, dateDelivery, track}, {user}) =>  {
-        if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'admin', 'менеджер'].includes(user.role)) {
+            //если пользователь экспедитор
+            if(user.role==='экспедитор') forwarder = user.employment
             //dateDelivery
             dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             const forwarderClients = await DistrictAzyk.find({forwarder}).distinct('client');

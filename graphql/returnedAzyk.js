@@ -122,6 +122,8 @@ const resolvers = {
                 dateStart.setHours(dayStartDefault, 0, 0, 0)
                 dateEnd.setHours(dayStartDefault, 0, 0, 0)
            }
+            //если пользователь экспедитор
+            if(user.role==='экспедитор') forwarder = user.employment
             //доступные организации для суперагента, клиенты сотрудника
             // eslint-disable-next-line no-undef
             const [superagentOrganizations, districtClients, forwarderClients] = await Promise.all([
@@ -212,6 +214,8 @@ const resolvers = {
             //сортировка
             let _sort = {}
             _sort[sort[0]==='-'?sort.substring(1):sort]=sort[0]==='-'?-1:1
+            //если пользователь экспедитор
+            if(user.role==='экспедитор') forwarder = user.employment
             //доступные организации для суперагента, клиенты сотрудника
             // eslint-disable-next-line no-undef
             const [superagentOrganizations, districtClients, forwarderClients] = await Promise.all([

@@ -34,13 +34,14 @@ const mutation = `
 
 const resolvers = {
     employments: async(parent, {organization, search, sort, filter, skip}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
             let filteredUsers = await UserAzyk.find({
                 $and: [
                     ...filter?[{role: {$regex: filter, $options: 'i'}}]:[],
                     {role: {$nin: [
                         ...user.role!=='admin'?['суперорганизация', 'организация']:[],
                         ...user.role==='менеджер'?['менеджер']:[],
+                        ...user.role==='агент'?['агент']:[],
                     ]}}
                 ]
             }).distinct('_id')

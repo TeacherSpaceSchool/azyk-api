@@ -173,6 +173,8 @@ const resolvers = {
             }
             //dateDelivery
             if(dateDelivery) dateDelivery.setHours(dayStartDefault, 0, 0, 0)
+            //если пользователь экспедитор
+            if(user.role==='экспедитор') forwarder = user.employment
             //поиск
             // eslint-disable-next-line no-undef
             const [districtClients, superagentOrganizations, integrationOrganizations, forwarderClients] = await Promise.all([
@@ -277,6 +279,8 @@ const resolvers = {
             //сортировка
             let _sort = {}
             _sort[sort[0] === '-' ? sort.substring(1) : sort] = sort[0] === '-' ? -1 : 1
+            //если пользователь экспедитор
+            if(user.role==='экспедитор') forwarder = user.employment
             // eslint-disable-next-line no-undef
             const [districtClients, superagentOrganizations, integrationOrganizations, forwarderClients] = await Promise.all([
                 district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
