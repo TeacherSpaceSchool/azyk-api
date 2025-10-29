@@ -7,7 +7,7 @@ const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const UserAzyk = require('../models/userAzyk');
-const {pdDDMMYYYY, checkDate, dayStartDefault} = require('../module/const');
+const {pdDDMMYYYY, checkDate, dayStartDefault, getClientTitle} = require('../module/const');
 const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const app = require('../app');
@@ -211,12 +211,12 @@ const resolvers = {
                             packaging: order.item.packaging,
                             allTonnage: 0,
                        }
-                    itemOrders[order.item._id].count += order.count
-                    itemOrders[order.item._id].allPrice += order.allPrice
-                    itemOrders[order.item._id].allTonnage += order.allTonnage
-                    allCount += order.count
-                    allPrice += order.allPrice
-                    allTonnage += order.allTonnage
+                    itemOrders[order.item._id].count = checkFloat(itemOrders[order.item._id].count + order.count)
+                    itemOrders[order.item._id].allPrice = checkFloat(itemOrders[order.item._id].allPrice + order.allPrice)
+                    itemOrders[order.item._id].allTonnage = checkFloat(itemOrders[order.item._id].allTonnage + order.allTonnage)
+                    allCount = checkFloat(allCount + order.count)
+                    allPrice = checkFloat(allPrice + order.allPrice)
+                    allTonnage = checkFloat(allTonnage + order.allTonnage)
                }
            }
             worksheet = await workbook.addWorksheet('Лист загрузки');
@@ -251,14 +251,14 @@ const resolvers = {
                 worksheet.getCell(`A${row}`).alignment = {wrapText: true};
                 worksheet.getCell(`A${row}`).value = itemOrder.name;
                 worksheet.getCell(`B${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                worksheet.getCell(`B${row}`).value = `${itemOrder.count} шт`;
+                worksheet.getCell(`B${row}`).value = itemOrder.count;
                 worksheet.getCell(`C${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                worksheet.getCell(`C${row}`).value = `${checkFloat(itemOrder.count/(itemOrder.packaging||1))} уп`;
+                worksheet.getCell(`C${row}`).value = checkFloat(itemOrder.count/(itemOrder.packaging||1));
                 worksheet.getCell(`D${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                worksheet.getCell(`D${row}`).value = `${itemOrder.allPrice} сом`;
+                worksheet.getCell(`D${row}`).value = itemOrder.allPrice;
                 if(allTonnage) {
                     worksheet.getCell(`E${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                    worksheet.getCell(`E${row}`).value = `${itemOrder.allTonnage} кг`;
+                    worksheet.getCell(`E${row}`).value = itemOrder.allTonnage;
                }
            }
             row += 1;
@@ -267,14 +267,14 @@ const resolvers = {
             worksheet.getCell(`A${row}`).font = {bold: true};
             worksheet.getCell(`A${row}`).value = 'Итого';
             worksheet.getCell(`B${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-            worksheet.getCell(`B${row}`).value = `${allCount} шт`;
+            worksheet.getCell(`B${row}`).value = allCount;
             worksheet.getCell(`C${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
             worksheet.getCell(`C${row}`).value = '';
             worksheet.getCell(`D${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-            worksheet.getCell(`D${row}`).value = `${allPrice} сом`;
+            worksheet.getCell(`D${row}`).value = allPrice;
             if(allTonnage) {
                 worksheet.getCell(`E${row}`).border = {top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}};
-                worksheet.getCell(`E${row}`).value = `${allTonnage} кг`;
+                worksheet.getCell(`E${row}`).value = allTonnage;
            }
 
 
@@ -707,9 +707,9 @@ const resolvers = {
                }
                 for(let i = 0; i < 7; i++) {
                     for(let i1 = 0; i1 < agentRoute.clients[i].length; i1++) {
-                        worksheet.getCell(`${fields[i][0].name}${i1 + 2}`).value = agentRoute.clients[i][i1]._id;
+                        worksheet.getCell(`${fields[i][0].name}${i1 + 2}`).value = agentRoute.clients[i][i1]._id.toString();
                         worksheet.getCell(`${fields[i][1].name}${i1 + 2}`).value = guidByClient[agentRoute.clients[i][i1]._id]||'';
-                        worksheet.getCell(`${fields[i][2].name}${i1 + 2}`).value = `${agentRoute.clients[i][i1].address[2] ? `${agentRoute.clients[i][i1].address[2]}, ` : ''}${agentRoute.clients[i][i1].address[0]}`;
+                        worksheet.getCell(`${fields[i][2].name}${i1 + 2}`).value = getClientTitle(agentRoute.clients[i][i1]);
                    }
                }
            }

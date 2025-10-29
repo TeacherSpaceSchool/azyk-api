@@ -3,18 +3,19 @@ const InvoiceAzyk = require('../models/invoiceAzyk');
 // Функция запуска слушателя изменения поля "taken"
 module.exports.startInvoiceWatcher = () => {
     const changeStream = InvoiceAzyk.watch(
-        [
+        [/*
             {
                 $match: {
                     operationType: 'update',
                     'updateDescription.updatedFields.taken': { $exists: true },
                 },
             },
-        ],
+        */],
         { fullDocument: 'updateLookup' }
     );
 
     changeStream.on('change', async (change) => {
+        console.log('change')
         const {formatErrorDetails, unawaited} = require('./const');
         const ModelsErrorAzyk = require('../models/errorAzyk');
         const {consignationCashFlow} = require('./consigFlow');
