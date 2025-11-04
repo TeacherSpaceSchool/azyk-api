@@ -2,7 +2,7 @@ const InvoiceAzyk = require('../models/invoiceAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
-const {weekDay, pdDDMMYYHHMM, checkFloat, month, checkDate, dayStartDefault, formatAmount} = require('../module/const');
+const {weekDay, pdDDMMYYHHMM, checkFloat, months, checkDate, dayStartDefault, formatAmount} = require('../module/const');
 
 const query = `
     ordersMap(organization: ID, date: Date, online: Boolean, city: String, district: ID): [[String]]
@@ -216,7 +216,7 @@ const resolvers = {
                 else if(type==='weekDay')
                     name = weekDay[invoice.createdAt.getDay()]
                 else if(type==='month')
-                    name = month[invoice.createdAt.getMonth()]
+                    name = months[invoice.createdAt.getMonth()]
                 if (!statistic[name])
                     statistic[name] = {
                         name,

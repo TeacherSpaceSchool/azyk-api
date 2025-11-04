@@ -3,7 +3,7 @@ const {Worker, isMainThread} = require('worker_threads');
 const {reductionBannersAzyk} = require('./banners');
 const {reductionIntegrate1C} = require('./integrate1C');
 const {reductionDistrict} = require('./district');
-const {startInvoiceWatcher} = require('./invoice');
+const {mockConsigFlow} = require('./consigFlow');
 
 let startDeleteBD = async () => {
     if(isMainThread) {
@@ -76,6 +76,9 @@ let start = async () => {
     await reductionBannersAzyk()
     await reductionIntegrate1C()
     await reductionDistrict()
+
+    ///**/await mockConsigFlow()
+
     //watcher
     /*setTimeout(async () => {
         console.time('reduction DB')

@@ -22,6 +22,7 @@ const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
 const { v1: uuidv1 } = require('uuid');
 const {calculateStock} = require('../module/stockAzyk');
 const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
+const {calculateConsig} = require('../module/consigFlow');
 
 const type = `
   type Order {
@@ -565,6 +566,7 @@ const setOrder = async ({orders, invoice, user}) => {
     const {checkFloat, dayStartDefault} = require('../module/const');
     const ModelsErrorAzyk = require('../models/errorAzyk');
     const {calculateStock} = require('../module/stockAzyk');
+    const {calculateConsig} = require('../module/consigFlow');
     const {setSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
     const {cancelSingleOutXMLAzyk} = require('../module/singleOutXMLAzyk');
     const {unawaited} = require('../module/const');
@@ -667,6 +669,9 @@ const setOrder = async ({orders, invoice, user}) => {
     //подсчет остатков
     if(invoice.organization.calculateStock)
         unawaited(() => calculateStock([...ordersForDelete, ...invoice.orders.map(order => order._id)], invoice.organization._id, invoice.client._id))
+    //подсчет консигнации
+    if (invoice.organization.calculateConsig)
+        unawaited(() => calculateConsig(invoice))
     //удаление выбывших позиций
     if(ordersForDelete.length)
         unawaited(() => OrderAzyk.deleteMany({_id: {$in: ordersForDelete}}))
@@ -837,7 +842,7 @@ const resolversMutation = {
         // Получаем корзины пользователя (агента или клиента)
         // eslint-disable-next-line no-undef
         let [organizationData, baskets, discountData, specialPricesClient, specialPricesCategory, superDistrict, district] = await Promise.all([
-            OrganizationAzyk.findById(organization).select('divideBySubBrand autoAcceptAgent calculateStock').lean(),
+            OrganizationAzyk.findById(organization).select('divideBySubBrand autoAcceptAgent calculateStock calculateConsig').lean(),
             BasketAzyk.find(user.client? {client: user.client} : {agent: user.employment}).select('item count _id').populate({path: 'item', select: 'price _id weight subBrand'}).lean(),
             DiscountClient.findOne({client: client._id, organization}).lean(),
             SpecialPriceClientAzyk.find({organization, client: client._id}).select('item price').lean(),
@@ -1078,9 +1083,14 @@ const resolversMutation = {
                         .populate({path: 'organization', select: '_id name'})
                         .populate({path: 'forwarder', select: '_id name'})
                         .lean()
-                    //подсчет остатков
-                    if (organizationData.calculateStock&&!(user.employment&&autoAcceptAgent))
-                        await calculateStock(objectInvoice.orders, newInvoice.organization._id, newInvoice.client._id)
+                    if (!(user.employment&&autoAcceptAgent)) {
+                        //подсчет остатков
+                        if (organizationData.calculateStock)
+                            await calculateStock(objectInvoice.orders, newInvoice.organization._id, newInvoice.client._id)
+                        //подсчет консигнации
+                        if (organizationData.calculateConsig)
+                            await calculateConsig(newInvoice)
+                    }
                     //публикация
                     await pubsub.publish(RELOAD_ORDER, {reloadOrder: {
                             who: user.role==='admin'?null:user._id,

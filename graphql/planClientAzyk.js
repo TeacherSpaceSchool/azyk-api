@@ -356,7 +356,7 @@ const resolversMutation = {
                 let planClient = planByClient[client]
                 //если нету добавляем
                 if (!planClient)
-                    bulkOperations.push({insertOne: {month, visit, client, organization}});
+                    bulkOperations.push({insertOne: {document: {month, visit, client, organization}}});
                 // если есть — подготовим updateOne в bulkWrite
                 else
                     bulkOperations.push({updateOne: {filter: {_id: planClient}, update: {$set: {month, visit}}}});

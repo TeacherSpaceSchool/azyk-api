@@ -49,7 +49,7 @@ module.exports.weekDay = [
     'ПТ',
     'СБ',
 ]
-module.exports.month = [
+module.exports.months = [
         'январь',
         'февраль',
         'март',

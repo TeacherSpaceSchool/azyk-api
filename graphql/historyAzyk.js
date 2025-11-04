@@ -17,12 +17,12 @@ const type = `
 `;
 
 const query = `
-    histories(search: String, filter: String, skip: Int!): [History]
+    histories(search: String, filter: String, skip: Int): [History]
 `;
 
 const resolvers = {
     histories: async(parent, {search, filter, skip}, {user}) => {
-        if(user.role==='admin') {
+        if(['суперорганизация', 'admin'].includes(user.role)) {
             return await HistoryAzyk.find({
                 ...search?{object: {$regex: reductionSearch(search), $options: 'i'}}:{},
                 ...filter?{model: filter}:{},

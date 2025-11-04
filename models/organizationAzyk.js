@@ -90,6 +90,10 @@ const OrganizationAzykSchema = mongoose.Schema({
         type: Boolean,
         default: false
    },
+    calculateConsig: {
+        type: Boolean,
+        default: false
+   },
 }, {
     timestamps: true
 });
