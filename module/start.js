@@ -77,7 +77,7 @@ let start = async () => {
     await reductionIntegrate1C()
     await reductionDistrict()
 
-    ///**/await mockConsigFlow()
+    await mockConsigFlow()
 
     //watcher
     /*setTimeout(async () => {
