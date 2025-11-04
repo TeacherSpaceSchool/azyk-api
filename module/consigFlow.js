@@ -1,5 +1,6 @@
 const {checkFloat} = require('./const');
 const ConsigFlowAzyk = require('../models/consigFlowAzyk');
+const {parallelBulkWrite} = require('./parallel');
 
 module.exports.calculateConsig = async (invoice) => {
     if(invoice.paymentMethod==='Консигнация') {
@@ -27,7 +28,7 @@ module.exports.calculateConsig = async (invoice) => {
 module.exports.mockConsigFlow = async () => {
     console.log('start mockConsigFlow')
     await ConsigFlowAzyk.deleteMany();
-    /*const InvoiceAzyk = require('../models/invoiceAzyk');
+    const InvoiceAzyk = require('../models/invoiceAzyk');
     const invoices = await InvoiceAzyk.find({paymentMethod: 'Консигнация', organization: '5e00a5c0f2cd0f4f82eac3db'}).lean()
     //bulkwrite
     const bulkOperations = [];
@@ -45,6 +46,6 @@ module.exports.mockConsigFlow = async () => {
         }}});
     }
     // если есть обновления — выполним bulkWrite
-    if (bulkOperations.length) await parallelBulkWrite(ConsigFlowAzyk, bulkOperations);*/
+    if (bulkOperations.length) await parallelBulkWrite(ConsigFlowAzyk, bulkOperations);
     console.log('end mockConsigFlow')
 }
