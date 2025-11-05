@@ -60,7 +60,7 @@ const resolvers = {
             sortedInvoices = Array.from(sortedInvoices.values()).flat().map(invoice => [
                 getClientTitle({address: [invoice.address]}), invoice.allPrice - invoice.returnedPrice,
                 ['Наличные'].includes(invoice.paymentMethod)?invoice.allPrice - invoice.returnedPrice:0, invoice.paymentMethod, invoice.returned, invoice.consig,
-                invoice.inv===0?'нет':'да', `${invoice.agent?'Агент:':'Онлайн:'} ${pdDDMMHHMM(invoice.createdAt)}\n${invoice.info}`
+                invoice.inv===0?'нет':'да', `${invoice.agent?'Агент:':'Онлайн:'} ${pdDDMMHHMM(invoice.createdAt)}`, invoice.info
             ])
             return sortedInvoices
         }
