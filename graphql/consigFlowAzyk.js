@@ -18,7 +18,7 @@ const type = `
 `;
 
 const query = `
-    consigFlows(skip: Int!, client: ID, district: ID, invoice: ID, organization: ID!): [ConsigFlow]
+    consigFlows(skip: Int!, client: ID, search: String, district: ID, invoice: ID, organization: ID!): [ConsigFlow]
     consigFlowStatistic(date: Date!, search: String, district: ID, organization: ID!): [[String]]
 `;
 
@@ -28,13 +28,24 @@ const mutation = `
 `;
 
 const resolvers = {
-    consigFlows: async(parent, {skip, client, district, invoice, organization}, {user}) => {
+    consigFlows: async(parent, {skip, client, district, invoice, organization, search}, {user}) => {
         if(['суперорганизация', 'организация', 'admin', 'менеджер', 'агент'].includes(user.role)) {
+            //район и поиск клиентов
             // eslint-disable-next-line no-undef
-            const districtClients = district?await DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер'].includes(user.role)?await DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null;
+            const [districtClients, searchedClients] = await Promise.all([
+                district||['агент', 'менеджер'].includes(user.role)?DistrictAzyk.find(district?{_id: district}:{$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
+                search?ClientAzyk.find({$or: [
+                        {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
+                    ]}).distinct('_id'):null
+            ])
             return await ConsigFlowAzyk.find({
                 organization: user.organization||organization,
-                ...client?{client}:districtClients?{client: {$in: districtClients}}:{},
+                ...client?{client}:searchedClients||districtClients?{$and: [
+                    ...searchedClients?[{client: {$in: searchedClients}}]:[],
+                    ...districtClients?[{client: {$in: districtClients}}]:[]
+                ]}:{},
                 ...invoice?{invoice}:{}
             })
                 .populate({

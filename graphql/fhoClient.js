@@ -98,7 +98,7 @@ const resolvers = {
                     required = agentRoute.clients[dayWeek].toString().includes(res.client._id.toString())
                     if(required) break
                 }
-                res.required = required&&isSameDay(res.updatedAt, today)
+                res.required = required&&(!res.history[0]||!isSameDay(res.history[0].date, today))
             }
             return res
        }
