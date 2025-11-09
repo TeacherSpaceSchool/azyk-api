@@ -36,6 +36,7 @@ const type = `
     status: String
     allTonnage: Float
     returned: Int
+    consig: Int
     
     consignmentPrice: Float
     consignment: Int
@@ -318,6 +319,7 @@ const resolvers = {
                         //фильтр
                         ...(filter === 'акция' ? {adss: {$ne: []}} : {}),
                         ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$eq: ''}}} : {}),
+                        ...(filter === 'принят' ? {taken: true} : {}),
                         ...(filter === 'обработка' ? {taken: false, cancelClient: null, cancelForwarder: null} : {}),
                         ...(filter === 'Не синхронизированные' ? {organization: {$in: integrationOrganizations}, sync: {$nin: [1, 2]}, taken: true} : {}),
                         //поиск

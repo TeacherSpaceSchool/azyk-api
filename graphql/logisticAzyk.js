@@ -2,13 +2,19 @@ const InvoiceAzyk = require('../models/invoiceAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const OrderAzyk = require('../models/orderAzyk');
 const ItemAzyk = require('../models/itemAzyk');
-const {checkFloat, dayStartDefault, getClientTitle, pdDDMMHHMM} = require('../module/const');
+const {checkFloat, dayStartDefault, getClientTitle, pdDDMMHHMM,
+    checkDate,
+    reductionSearch,
+    reductionSearchText,
+    isNotEmpty,
+    defaultLimit
+} = require('../module/const');
 const ReturnedAzyk = require('../models/returnedAzyk');
 const StockAzyk = require('../models/stockAzyk');
 const ConsigFlowAzyk = require('../models/consigFlowAzyk');
 
 const query = `
-    financeReport(organization: ID!, track: Int, forwarder: ID!, dateDelivery: Date!): [[String]]
+    financeReport(organization: ID!, track: Int, forwarder: ID!, dateDelivery: Date!): [Invoice]
     summaryInvoice(organization: ID!, track: Int!, forwarder: ID!, dateDelivery: Date!): [[String]]
 `;
 
@@ -57,12 +63,7 @@ const resolvers = {
                 if(!sortedInvoices.has(invoice.client)) sortedInvoices.set(invoice.client, [])
                 sortedInvoices.get(invoice.client).push(invoice)
             }
-            sortedInvoices = Array.from(sortedInvoices.values()).flat().map(invoice => [
-                getClientTitle({address: [invoice.address]}), invoice.allPrice - invoice.returnedPrice,
-                ['Наличные'].includes(invoice.paymentMethod)?invoice.allPrice - invoice.returnedPrice:0, invoice.paymentMethod, invoice.returned, invoice.consig,
-                invoice.inv===0?'нет':'да', `${invoice.agent?'Агент:':'Онлайн:'} ${pdDDMMHHMM(invoice.createdAt)}`, invoice.info
-            ])
-            return sortedInvoices
+            return Array.from(sortedInvoices.values()).flat()
         }
     },
     summaryInvoice: async(parent, {organization, forwarder, dateDelivery, track}, {user}) =>  {
