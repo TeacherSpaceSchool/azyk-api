@@ -2,19 +2,20 @@ const InvoiceAzyk = require('../models/invoiceAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const OrderAzyk = require('../models/orderAzyk');
 const ItemAzyk = require('../models/itemAzyk');
-const {checkFloat, dayStartDefault, getClientTitle, pdDDMMHHMM,
-    checkDate,
-    reductionSearch,
-    reductionSearchText,
-    isNotEmpty,
-    defaultLimit
-} = require('../module/const');
+const {checkFloat, dayStartDefault} = require('../module/const');
 const ReturnedAzyk = require('../models/returnedAzyk');
 const StockAzyk = require('../models/stockAzyk');
 const ConsigFlowAzyk = require('../models/consigFlowAzyk');
 
+const type = `
+  type FinanceReport {
+    invoices: [Invoice]
+    returneds: [Returned]
+ }
+`;
+
 const query = `
-    financeReport(organization: ID!, track: Int, forwarder: ID!, dateDelivery: Date!): [Invoice]
+    financeReport(organization: ID!, track: Int, forwarder: ID!, dateDelivery: Date!): FinanceReport
     summaryInvoice(organization: ID!, track: Int!, forwarder: ID!, dateDelivery: Date!): [[String]]
 `;
 
@@ -31,7 +32,8 @@ const resolvers = {
             const invoices = await InvoiceAzyk.find({
                 /*не удален*/del: {$ne: 'deleted'}, /*экспедитор*/$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}],
                 /*рейс*/...track?{track}:{}, /*dateDelivery*/dateDelivery, /*organization*/organization, /*только принят*/taken: true
-            }).select('_id createdAt client agent allPrice address track info discount returnedPrice paymentMethod inv').sort('createdAt').lean()
+            }).select('_id createdAt number client agent allPrice address track info discount paymentMethod inv orders')
+                .populate({path: 'orders', populate: {path: 'item', select: '_id name packaging'}}).populate({path: 'client', select: '_id name inn phone'}).sort('createdAt').lean()
             //invoicesClients
             const invoicesClients = invoices.map(invoice => invoice.client)
             //консигнации
@@ -43,27 +45,38 @@ const resolvers = {
                 }).select('client amount sign').sort('createdAt').lean(),
                 ReturnedAzyk.find({
                     /*не удален*/del: {$ne: 'deleted'}, /*рейс*/...track?{track}:{}, /*dateDelivery*/dateDelivery, /*organization*/organization,
-                    /*только принят*/confirmationForwarder: true, /*клиенты заказа*/client: {$in: invoicesClients}
-                }).select('client allPrice').lean()
+                    /*только принят*/confirmationForwarder: true, /*экспедитор*/$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]
+                }).select('_id createdAt items number client agent allPrice address track info')
+                    .populate({path: 'client', select: '_id name inn phone'}).sort('createdAt').lean()
             ])
             //returnedByClient
             const returnedByClient = {}
-            for(const returned of returneds)
-                returnedByClient[returned.client] = checkFloat((returnedByClient[returned.client]||0) + returned.allPrice)
+            for(const returned of returneds) {
+                const clientId = returned.client._id.toString()
+                returnedByClient[clientId] = checkFloat((returnedByClient[clientId] || 0) + returned.allPrice)
+            }
             //consigByClient
             const consigByClient = {}
-            for(const consigFlow of consigFlows)
-                consigByClient[consigFlow.client] = checkFloat((consigByClient[consigFlow.client]||0) + (consigFlow.amount * consigFlow.sign))
-            //sort
-            // eslint-disable-next-line no-undef
-            let sortedInvoices = new Map()
-            for(const invoice of invoices) {
-                invoice.returned = returnedByClient[invoice.client]
-                invoice.consig = consigByClient[invoice.client]
-                if(!sortedInvoices.has(invoice.client)) sortedInvoices.set(invoice.client, [])
-                sortedInvoices.get(invoice.client).push(invoice)
+            for(const consigFlow of consigFlows) {
+                const clientId = consigFlow.client.toString()
+                consigByClient[clientId] = checkFloat((consigByClient[clientId] || 0) + (consigFlow.amount * consigFlow.sign))
             }
-            return Array.from(sortedInvoices.values()).flat()
+            //sort
+            let sortedInvoices = {}
+            for(const invoice of invoices) {
+                const clientId = invoice.client._id.toString()
+                if(returnedByClient[clientId]) {
+                    invoice.returned = returnedByClient[clientId]
+                    delete returnedByClient[clientId]
+                }
+                if(consigByClient[clientId]) {
+                    invoice.consig = consigByClient[clientId]
+                    delete consigByClient[clientId]
+                }
+                if(!sortedInvoices[clientId]) sortedInvoices[clientId] = []
+                sortedInvoices[clientId].push(invoice)
+            }
+            return {invoices: Object.values(sortedInvoices).flat(), returneds}
         }
     },
     summaryInvoice: async(parent, {organization, forwarder, dateDelivery, track}, {user}) =>  {
@@ -97,8 +110,10 @@ const resolvers = {
             ])
             //itemById
             const itemById = {}
-            for(const item of items)
-                itemById[item._id] = item
+            for(const item of items) {
+                const itemId = item._id.toString()
+                itemById[itemId] = item
+            }
             //logisticNameByWarehouseItem
             const logisticNameByWarehouseItem = {}
             for(const stock of stocks) {
@@ -110,14 +125,17 @@ const resolvers = {
             const warehouseByClientAgent = {}
             for(const district of districts)
                 for(const client of district.client) {
-                    warehouseByClientAgent[`${client}${district.agent}`] = district.warehouse||null
-                    if(!agentByClient[client]) agentByClient[client] = district.agent||null
+                    const clientId = client.toString()
+                    warehouseByClientAgent[`${clientId}${district.agent}`] = district.warehouse||null
+                    if(!agentByClient[client]) agentByClient[clientId] = district.agent||null
                 }
             //summaryInvoiceByItemWarehouse
             let summaryInvoiceByItemWarehouse = {}
             for(const order of orders) {
-                const item = itemById[order.item]
-                const agent = agentByClient[order.client]
+                const itemId = order.item.toString()
+                const item = itemById[itemId]
+                const clientId = order.client.toString()
+                const agent = agentByClient[clientId]
                 const warehouse = warehouseByClientAgent[`${order.client}${agent}`]||null
                 const logisticName = logisticNameByWarehouseItem[`${warehouse}${order.item}`]||'Не указан'
                 const itemLogisticName = `${item._id}${logisticName}`
@@ -150,3 +168,4 @@ const resolvers = {
 
 module.exports.query = query;
 module.exports.resolvers = resolvers;
+module.exports.type = type;

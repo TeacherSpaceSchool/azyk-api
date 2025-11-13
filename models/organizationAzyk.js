@@ -73,6 +73,10 @@ const OrganizationAzykSchema = mongoose.Schema({
         type: String,
         default: ''
    },
+    requisites: {
+        type: String,
+        default: ''
+   },
     cities: [String],
     autoAcceptAgent: {
         type: Boolean,

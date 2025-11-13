@@ -27,17 +27,13 @@ const mutation = `
 const resolvers = {
     connectionApplications: async(parent, {skip, filter}, {user}) => {
         if('admin'===user.role) {
-            return await ConnectionApplicationAzyk.aggregate(
-                [
-                    {
-                        $match: {
-                            ...(filter === 'обработка' ? {taken: false} : {})
-                       }
-                   },
-                    {$sort: {'createdAt': -1}},
-                    {$skip: isNotEmpty(skip) ? skip : 0},
-                    {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000}
-                ])
+            return await ConnectionApplicationAzyk.find({
+                ...(filter === 'обработка' ? {taken: false} : {})
+            })
+                .sort('-createdAt')
+                .skip(isNotEmpty(skip) ? skip : 0)
+                .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
+                .lean()
        }
    },
     connectionApplicationsSimpleStatistic: async(parent, {filter}, {user}) => {

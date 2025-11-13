@@ -73,7 +73,8 @@ const resolvers = {
             for(const district of districts) {
                 districtClients = [...districtClients, ...district.client]
                 for(const client of district.client) {
-                    districtByClient[client] = district
+                    const clientId = client.toString()
+                    districtByClient[clientId] = district
                }
            }
 
@@ -99,13 +100,13 @@ const resolvers = {
                 const dayOfWeek = (date.getDay() + 6) % 7;
                 if(!routes[dayOfWeek].includes(invoice.client.toString())) {
                     let object = {_id: 'Прочие', name: 'Прочие'}
+                    const clientId = invoice.client.toString()
                     if(type==='клиент') {
                         object._id = invoice.client
                         object.name = `${invoice.address[2]}, ${invoice.address[0]}`
                    }
-                    else if(districtByClient[invoice.client]) {
-                        object = districtByClient[invoice.client]
-                   }
+                    else if(districtByClient[clientId])
+                        object = districtByClient[clientId]
                     if (!statistic[object._id])
                         statistic[object._id] = {
                             profit: 0,

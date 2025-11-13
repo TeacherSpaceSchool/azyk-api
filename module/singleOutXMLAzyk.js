@@ -10,18 +10,24 @@ const { v1: uuidv1 } = require('uuid');
 const builder = require('xmlbuilder');
 const ModelsErrorAzyk = require('../models/errorAzyk');
 
+const paymentMethodTo1C = {'Наличные': 0, 'Перечисление': 1, 'Консигнация': 5}
+
 module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
     try {
         //guid по товарам
         const itemIds = returned.items.map(item => item._id)
         let integrateItems = await Integrate1CAzyk.find({item: {$in: itemIds}}).select('item guid').lean()
         const guidByItem = {}
-        for(const integrateItem of integrateItems) guidByItem[integrateItem.item] = integrateItem.guid
+        for(const integrateItem of integrateItems) {
+            const itemId = integrateItem.item.toString()
+            guidByItem[itemId] = integrateItem.guid
+        }
         //данные товаров
         const data = []
         for(const item of returned.items) {
             //guid товара
-            let guid = guidByItem[item._id]
+            const itemId = item._id.toString()
+            let guid = guidByItem[itemId]
             if (guid) {
                 data.push({
                     guid,
@@ -122,16 +128,19 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
         const { v1: uuidv1 } = require('uuid');
         const {checkFloat} = require('../module/const');
         const ModelsErrorAzyk = require('../models/errorAzyk');
-        const paymentMethod = {'Наличные': 0, 'Перечисление': 1, 'Консигнация': 5}
         //guid по товарам
         const itemIds = invoice.orders.map(order => order.item._id)
         let integrateItems = await Integrate1CAzyk.find({item: {$in: itemIds}}).select('item guid').lean()
         const guidByItem = {}
-        for(const integrateItem of integrateItems) guidByItem[integrateItem.item] = integrateItem.guid
+        for(const integrateItem of integrateItems) {
+            const itemId = integrateItem.item.toString()
+            guidByItem[itemId] = integrateItem.guid
+        }
         //данные товаров
         const data = []
         for(const order of invoice.orders) {
-            let guidItem = guidByItem[order.item._id]
+            const itemId = order.item._id.toString()
+            let guidItem = guidByItem[itemId]
             //guid товара
             if (guidItem) {
                 //количество минус отказ
@@ -186,7 +195,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
                     //добавляем интеграцию
                     // eslint-disable-next-line no-undef
                     await SingleOutXMLAzyk.create({
-                        payment: paymentMethod[invoice.paymentMethod],
+                        payment: paymentMethodTo1C[invoice.paymentMethod],
                         data,
                         guid: invoice.guid ? invoice.guid : await uuidv1(),
                         date: new Date(invoice.dateDelivery),
@@ -222,15 +231,17 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
     return 0
 }
 
-module.exports.setSingleOutXMLAzykLogic = async({invoices, forwarder, track, dateDelivery}) => {
+module.exports.setSingleOutXMLAzykLogic = async({invoices, forwarder, track, dateDelivery, paymentMethod}) => {
     try {
-        if (isNotEmpty(track) || forwarder) {
+        if (isNotEmpty(track) || forwarder || paymentMethod) {
             // eslint-disable-next-line no-undef
             const [guidForwarder, clients] = await Promise.all([
                 forwarder?Integrate1CAzyk.findOne({forwarder: forwarder}).select('guid').lean():null,
                 InvoiceAzyk.find({_id: {$in: invoices}}).distinct('client')
             ])
-            const returneds = await ReturnedAzyk.find({client: {$in: clients}, dateDelivery}).distinct('_id')
+            let returneds
+            if(isNotEmpty(track)||guidForwarder)
+                returneds = await ReturnedAzyk.find({client: {$in: clients}, dateDelivery}).distinct('_id')
             //dateDelivery
             dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             //change
@@ -238,20 +249,20 @@ module.exports.setSingleOutXMLAzykLogic = async({invoices, forwarder, track, dat
             await Promise.all([
                 InvoiceAzyk.updateMany(
                     {_id: {$in: invoices}},
-                    {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}}
+                    {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}, ...paymentMethod?{paymentMethod}:{}}
                 ),
                 SingleOutXMLAzyk.updateMany(
                     {invoice: {$in: invoices}},
-                    {status: 'update', ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder: guidForwarder.guid}:{}}
+                    {status: 'update', ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder: guidForwarder.guid}:{}, ...paymentMethod?{payment: paymentMethodTo1C[paymentMethod]}:{}}
                 ),
-                ReturnedAzyk.updateMany(
-                    {_id: {$in: returneds}},
-                    {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}}
-                ),
-                SingleOutXMLReturnedAzyk.updateMany(
-                    {_id: {$in: returneds}},
-                    {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}}
-                )
+                ...returneds?[ReturnedAzyk.updateMany(
+                        {_id: {$in: returneds}},
+                        {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}}
+                    ),
+                    SingleOutXMLReturnedAzyk.updateMany(
+                        {_id: {$in: returneds}},
+                        {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}}
+                )]:[]
             ])
        }
    }
@@ -361,14 +372,15 @@ module.exports.getSingleOutXMLClientAzyk = async (organization) => {
         ]);
         //set интеграций клиентов
         const clientIntegrates = (integrates.filter(integrate => !!integrate.client)).map(integrate => integrate.client.toString())
-        //agentByClient
-        const agentByClient = {}
+        //agentIdByClient
+        const agentIdByClient = {}
         //districtClients
         let districtClients = []
         for(const district of districts) {
             districtClients = [...districtClients, ...district.client]
             for(const client of district.client) {
-                agentByClient[client] = district.agent
+                const clientId = client.toString()
+                agentIdByClient[clientId] = district.agent.toString()
            }
        }
         //выбираются только интегрированные клиенты из районов
@@ -376,7 +388,10 @@ module.exports.getSingleOutXMLClientAzyk = async (organization) => {
         //guidByClient
         const guidByClient = {}, guidByAgent = {};
         for(const integrate of integrates) {
-            guidByClient[integrate.client||integrate.agent] = integrate.guid
+            const clientId = integrate.client.toString()
+            guidByClient[clientId] = integrate.guid
+            const agentId = integrate.agent.toString()
+            guidByAgent[agentId] = integrate.guid
        }
         //клиенты
         const clients = await ClientAzyk.find({
@@ -389,10 +404,11 @@ module.exports.getSingleOutXMLClientAzyk = async (organization) => {
         //перебор клиентов
         for(const client of clients) {
             //clientGuid
-            const clientGuid = guidByClient[client._id];
+            const clientId = client._id.toString()
+            const clientGuid = guidByClient[clientId];
             if (!clientGuid) continue;
             //agentId
-            const agentId = agentByClient[client._id];
+            const agentId = agentIdByClient[clientId];
             //agentGuid
             const agentGuid = agentId?guidByAgent[agentId]:null;
             //добавляем в выдачу
@@ -493,51 +509,65 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
                 dateDelivery: dateXml, del: {$ne: 'deleted'}, taken: true, organization, adss: {$ne: []}
            }).select('client adss').lean()
         ]);
-        //districtByClient
-        const districtByClient = {}
+        //districtIdByClient
+        const districtIdByClient = {}
         for(const district of districts) {
             for(const client of district.client) {
-                districtByClient[client] = district._id
+                const clientId = client.toString()
+                districtIdByClient[clientId] = district._id.toString()
            }
        }
         //ordersByDistrict
         const ordersByDistrict = {}
         for(const adsOrder of adsOrders) {
-            const district = districtByClient[adsOrder.client]
-            if(!ordersByDistrict[district]) ordersByDistrict[district] = []
-            ordersByDistrict[district].push(adsOrder)
+            const clientId = adsOrder.client.toString()
+            const districtId = districtIdByClient[clientId]
+            if(!ordersByDistrict[districtId]) ordersByDistrict[districtId] = []
+            ordersByDistrict[districtId].push(adsOrder)
        }
         //adsById
         const adsById = {}
         for(const ads of adss) {
-            adsById[ads._id] = ads
+            const adsId = ads._id.toString()
+            adsById[adsId] = ads
        }
         //guidByDistrict
         const guidByDistrict = {}
         for(const outXMLAds of outXMLAdss) {
-            guidByDistrict[outXMLAds.district] = outXMLAds.guid
+            const districtId = outXMLAds.district.toString()
+            guidByDistrict[districtId] = outXMLAds.guid
        }
         //guidByAgent guidByForwarder
         const guidByAgent = {}, guidByForwarder = {}, integrateItemByItem = {}
         for(const integrate of integrates) {
-            if(integrate.agent)
-                guidByAgent[integrate.agent] = integrate.guid
-            else if(integrate.item)
-                integrateItemByItem[integrate.item._id] = {...integrate.item, guid: integrate.guid}
-            else
-                guidByForwarder[integrate.forwarder] = integrate.guid
+            if(integrate.agent) {
+                const agentId = integrate.agent.toString()
+                guidByAgent[agentId] = integrate.guid
+            }
+            else if(integrate.item) {
+                const itemId = integrate.item._id.toString()
+                integrateItemByItem[itemId] = {...integrate.item, guid: integrate.guid}
+            }
+            else {
+                const forwarderId = integrate.forwarder.toString()
+                guidByForwarder[forwarderId] = integrate.guid
+            }
        }
         //bulkOperations
         const bulkOperations = [];
         //перебор
         for(const district of districts) {
-            const guidDistrict = guidByDistrict[district._id]
+            const districtId = district._id.toString()
+            const guidDistrict = guidByDistrict[districtId]
             if (guidDistrict) {
                 //акционные заказы
                 // eslint-disable-next-line no-undef
-                const orders = ordersByDistrict[district._id];
+                const orders = ordersByDistrict[districtId];
                 //гуиды
-                const guidAgent = guidByAgent[district.agent], guidForwarder = guidByForwarder[district.forwarder]
+                const agentId = district.agent.toString()
+                const guidAgent = guidByAgent[agentId]
+                const forwarderId = district.forwarder.toString()
+                const guidForwarder = guidByForwarder[forwarderId]
                 if (guidAgent && guidForwarder) {
                     if (orders&&orders.length) {
                         let newOutXMLAzyk = {
@@ -558,7 +588,8 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
                         for(const order of orders) {
                             for(const adsId of order.adss) {
                                 const ads = adsById[adsId];
-                                const integrateItem = integrateItemByItem[ads.item];
+                                const itemId = ads.item.toString()
+                                const integrateItem = integrateItemByItem[itemId];
                                 if (integrateItem) {
                                     if (!itemsDataMap[integrateItem.guid]) {
                                         itemsDataMap[integrateItem.guid] = {

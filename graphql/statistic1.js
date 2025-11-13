@@ -224,10 +224,12 @@ const resolvers = {
                 .lean();
             const itemById = {};
             for(const item of items) {
-                itemById[item._id] = item
+                const itemId = item._id.toString()
+                itemById[itemId] = item
            }
             for(const order of orders) {
-                const item = itemById[order.item];
+                const itemId = order.item.toString()
+                const item = itemById[itemId];
                 if(order.returned) {
                     const price = checkFloat(order.allPrice/order.count)
                     order.count = order.count - order.returned
@@ -315,11 +317,13 @@ const resolvers = {
 
             const adsById = {}
             for(const ads of adss) {
-                adsById[ads._id] = ads
+                const adsId = ads._id.toString()
+                adsById[adsId] = ads
            }
             for(const invoice of invoices) {
                 for(let ads of invoice.adss) {
-                    ads = adsById[ads]
+                    const adsId = ads.toString()
+                    ads = adsById[adsId]
                     if (!statistic[ads._id]) statistic[ads._id] = {
                         profit: 0,
                         returned: 0,
@@ -420,18 +424,22 @@ const resolvers = {
 
             const organizationById = {}
             for(const organization of organizations) {
-                organizationById[organization._id] = organization
+                const organizationId = organization._id.toString()
+                organizationById[organizationId] = organization
            }
 
             const districtByClient = {}
             for(const district of districts) {
                 for(const client of district.client) {
-                    districtByClient[client] = {_id: district._id, name: district.name}
+                    const clientId = client.toString()
+                    districtByClient[clientId] = {_id: district._id, name: district.name}
                }
            }
 
             for(const invoice of invoices) {
-                let object = organization? districtByClient[invoice.client] : organizationById[invoice.organization]
+                const clientId = invoice.client.toString()
+                const organizationId = invoice.organization.toString()
+                let object = organization? districtByClient[clientId] : organizationById[organizationId]
                 if(!object) object = {_id: 'Прочие', name: 'Прочие'}
                 if (!statistic[object._id])
                     statistic[object._id] = {

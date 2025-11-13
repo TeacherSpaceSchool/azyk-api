@@ -1,6 +1,5 @@
 const ReturnedAzyk = require('../models/returnedAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
-const EmploymentAzyk = require('../models/employmentAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
@@ -223,109 +222,54 @@ const resolvers = {
                 district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
                 forwarder?DistrictAzyk.find({forwarder}).distinct('client'):null,
             ])
-            return await ReturnedAzyk.aggregate([
-                {
-                    $match: {
-                        //не удален
-                        del: {$ne: 'deleted'},
-                        //агент
-                        ...agent ? {agent: new mongoose.Types.ObjectId(agent)} : {},
-                        //в период
-                        ...dateStart?{createdAt: {$gte: dateStart, $lt: dateEnd}}:{},
-                        //суперагент только в доступных организациях
-                        ...user.role==='суперагент'?{organization: {$in: superagentOrganizations}}:{},
-                        //город
-                        ...city?{city}:{},
-                        //экспедитор
-                        ...forwarder? {$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]} : {},
-                        //рейс
-                        ...track ? {track} : {},
-                        //dateDelivery
-                        ...dateDelivery ? {dateDelivery} : {},
-                        //поиск
-                        ...search?{$or: [
-                                {number: {$regex: reductionSearchText(search), $options: 'i'}},
-                                {info: {$regex: reductionSearchText(search), $options: 'i'}},
-                                {address: {$regex: reductionSearchText(search), $options: 'i'}}
-                            ]}:{},
-                        //только в своей организации
-                        ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
-                        //только в районах
-                        ...districtClients?{client: {$in: districtClients}}:{}
-                    }
-                },
-                {$sort: _sort},
-                {$skip: isNotEmpty(skip) ? skip : 0},
-                {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000},
-                {
-                    $lookup:
-                        {
-                            from: ClientAzyk.collection.collectionName,
-                            let: {client: '$client'},
-                            pipeline: [
-                                {$match: {$expr: {$eq: ['$$client', '$_id']}}},
-                            ],
-                            as: 'client'
-                        }
-                },
-                {
-                    $unwind: {
-                        preserveNullAndEmptyArrays: false,
-                        path: '$client'
-                    }
-                },
-                {
-                    $lookup:
-                        {
-                            from: EmploymentAzyk.collection.collectionName,
-                            let: {agent: '$agent'},
-                            pipeline: [
-                                {$match: {$expr: {$eq: ['$$agent', '$_id']}}},
-                            ],
-                            as: 'agent'
-                        }
-                },
-                {
-                    $unwind: {
-                        preserveNullAndEmptyArrays: true,
-                        path: '$agent'
-                    }
-                },
-                {
-                    $lookup:
-                        {
-                            from: EmploymentAzyk.collection.collectionName,
-                            let: {forwarder: '$forwarder'},
-                            pipeline: [
-                                {$match: {$expr: {$eq: ['$$forwarder', '$_id']}}},
-                            ],
-                            as: 'forwarder'
-                        }
-                },
-                {
-                    $unwind: {
-                        preserveNullAndEmptyArrays: true,
-                        path: '$forwarder'
-                    }
-                },
-                {
-                    $lookup:
-                        {
-                            from: OrganizationAzyk.collection.collectionName,
-                            let: {organization: '$organization'},
-                            pipeline: [
-                                {$match: {$expr: {$eq: ['$$organization', '$_id']}}},
-                            ],
-                            as: 'organization'
-                        }
-                },
-                {
-                    $unwind: {
-                        preserveNullAndEmptyArrays: true,
-                        path: '$organization'
-                    }
-                },
-            ])
+            return await ReturnedAzyk.find({
+                //не удален
+                del: {$ne: 'deleted'},
+                //агент
+                ...agent ? {agent: new mongoose.Types.ObjectId(agent)} : {},
+                //в период
+                ...dateStart?{createdAt: {$gte: dateStart, $lt: dateEnd}}:{},
+                //суперагент только в доступных организациях
+                ...user.role==='суперагент'?{organization: {$in: superagentOrganizations}}:{},
+                //город
+                ...city?{city}:{},
+                //экспедитор
+                ...forwarder? {$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]} : {},
+                //рейс
+                ...track ? {track} : {},
+                //dateDelivery
+                ...dateDelivery ? {dateDelivery} : {},
+                //поиск
+                ...search?{$or: [
+                        {number: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {address: {$regex: reductionSearchText(search), $options: 'i'}}
+                    ]}:{},
+                //только в своей организации
+                ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
+                //только в районах
+                ...districtClients?{client: {$in: districtClients}}:{}
+            })
+                .sort(_sort)
+                .skip(isNotEmpty(skip) ? skip : 0)
+                .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
+                .populate({
+                    path: 'client',
+                    select: '_id name'
+                })
+                .populate({
+                    path: 'agent',
+                    select: '_id role name'
+                })
+                .populate({
+                    path: 'forwarder',
+                    select: '_id role name'
+                })
+                .populate({
+                    path: 'organization',
+                    select: '_id name'
+                })
+                .lean();
        }
    }
 };
@@ -402,7 +346,7 @@ const resolversMutation = {
         // eslint-disable-next-line no-undef
         const [clientCity, district] = await Promise.all([
             ClientAzyk.findById(client).select('city').lean(),
-            DistrictAzyk.findOne({organization, client, ...user.role==='агент'?{agent: user._id}:{}}).select('name').lean()
+            DistrictAzyk.findOne({organization, client, ...user.role==='агент'?{agent: user.employment}:{}}).select('name').lean()
         ])
         let city = clientCity.city
         //проверка на наличие возврата

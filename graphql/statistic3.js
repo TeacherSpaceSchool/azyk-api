@@ -54,18 +54,22 @@ const resolvers = {
 
             const organizationById = {}
             for(const organization of organizations) {
-                organizationById[organization._id.toString()] = organization
+                const organizationId = organization._id.toString()
+                organizationById[organizationId] = organization
            }
 
             const districtByClient = {}
             for(const district of districts) {
                 for(const client of district.client) {
-                    districtByClient[client] = {_id: district._id, name: district.name}
+                    const clientId = client.toString()
+                    districtByClient[clientId] = {_id: district._id, name: district.name}
                }
            }
 
             for(const returned of returneds) {
-                let object = organization? districtByClient[returned.client] : organizationById[returned.organization]
+                const clientId = returned.client.toString()
+                const organizationId = returned.organization.toString()
+                let object = organization? districtByClient[clientId] : organizationById[organizationId]
                 if(!object) object = {_id: 'Прочие', name: 'Прочие'}
                 if (!statistic[object._id]) statistic[object._id] = {
                     profit: 0,
@@ -151,23 +155,25 @@ const resolvers = {
                 organization?EmploymentAzyk.find({organization}).select('_id name').lean():[]
             ])
 
-
             const organizationById = {}
             for(const organization of organizations) {
-                organizationById[organization._id] = organization
-           }
-
+                const organizationId = organization._id.toString()
+                organizationById[organizationId] = organization
+            }
 
             const agentById = {}
             for(const agent of agents) {
-                agentById[agent._id] = agent
+                const agentId = agent._id.toString()
+                agentById[agentId] = agent
            }
 
 
             for(const invoice of invoices) {
                 const type = organization?'':!invoice.agent?' онлайн':' оффлайн'
 
-                const object = (organization?agentById[invoice.agent]:organizationById[invoice.organization])||{_id: 'AZYK.STORE', name: 'AZYK.STORE'}
+                const agentId = invoice.agent.toString()
+                const organizationId = invoice.organization.toString()
+                const object = (organization?agentById[agentId]:organizationById[organizationId])||{_id: 'AZYK.STORE', name: 'AZYK.STORE'}
 
                 const _id = `${type}${object._id}`
 
@@ -370,7 +376,7 @@ const resolvers = {
 
         const districts = await DistrictAzyk.find({
             organization,
-            ...(user.role === 'менеджер' ? {manager: user._id} : {})
+            ...(user.role === 'менеджер' ? {manager: user.employment} : {})
        }).select('_id name client agent').populate({
             path: 'agent',
             select: 'name _id'

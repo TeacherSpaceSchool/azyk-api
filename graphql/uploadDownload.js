@@ -434,15 +434,17 @@ const resolvers = {
                     .populate({path : 'client'})
                     .lean()
             ])
-            const districtByClient = {}
+            const districtIdByClient = {}
             for(const district of districts) {
                 for(const client of district.client) {
-                    districtByClient[client._id] = district._id
+                    const clientId = client._id.toString()
+                    districtIdByClient[clientId] = district._id.toString()
                }
            }
             const invoicesByDistrict = {}
             for(const invoice of invoices) {
-                const districtKey = districtByClient[invoice.client._id];
+                const clientId = invoice.client._id.toString()
+                const districtKey = districtIdByClient[clientId];
                 if(!invoicesByDistrict[districtKey]) invoicesByDistrict[districtKey] = []
                 invoicesByDistrict[districtKey].push(invoice)
            }
@@ -450,8 +452,8 @@ const resolvers = {
                 name: 'Не указан'
            })
             for(const district of districts) {
-                const districtKey = district._id;
-                const invoices = await invoicesByDistrict[districtKey]
+                const districtKey = district._id.toString();
+                const invoices = invoicesByDistrict[districtKey]
                 if (invoices&&invoices.length) {
                     let worksheet;
                     worksheet = await workbook.addWorksheet(`Район ${district.name}`);
@@ -539,7 +541,8 @@ const resolvers = {
            }).select('client guid').lean()
             const guidByClient = {}
             for(const integrate of integrates) {
-                guidByClient[integrate.client] = integrate.guid
+                const clientId = integrate.client.toString()
+                guidByClient[clientId] = integrate.guid
            }
             let worksheet;
             worksheet = await workbook.addWorksheet('Клиенты');
@@ -559,7 +562,8 @@ const resolvers = {
             worksheet.getCell('E1').font = {bold: true, size: 14};
             worksheet.getCell('E1').value = 'Телефон';
             for(const client of clients) {
-                let GUID = guidByClient[client._id]||''
+                const clientId = client._id.toString()
+                let GUID = guidByClient[clientId]||''
                 worksheet.addRow([
                     client._id,
                     GUID,
@@ -598,7 +602,8 @@ const resolvers = {
            }).select('agent forwarder guid').lean()
             const guidByEmployment = {}
             for(const integrate of integrates) {
-                guidByEmployment[(integrate.agent||integrate.forwarder)] = integrate.guid
+                const employmentId = (integrate.agent||integrate.forwarder).toString()
+                guidByEmployment[employmentId] = integrate.guid
            }
             let worksheet;
             worksheet = await workbook.addWorksheet('Сотрудники');
@@ -618,7 +623,8 @@ const resolvers = {
             worksheet.getCell('E1').font = {bold: true, size: 14};
             worksheet.getCell('E1').value = 'Телефон';
             for(const employment of employments) {
-                let GUID = guidByEmployment[employment._id]||''
+                const employmentId = employment._id.toString()
+                let GUID = guidByEmployment[employmentId]||''
                 worksheet.addRow([
                     employment._id,
                     GUID,
@@ -682,7 +688,8 @@ const resolvers = {
            }).select('client guid').lean()
             const guidByClient = {}
             for(const integrate of integrates) {
-                guidByClient[integrate.client._id] = integrate.guid
+                const clientId = integrate.client._id.toString()
+                guidByClient[clientId] = integrate.guid
            }
             let worksheet;
             for(const agentRoute of agentRoutes) {
@@ -708,7 +715,8 @@ const resolvers = {
                 for(let i = 0; i < 7; i++) {
                     for(let i1 = 0; i1 < agentRoute.clients[i].length; i1++) {
                         worksheet.getCell(`${fields[i][0].name}${i1 + 2}`).value = agentRoute.clients[i][i1]._id.toString();
-                        worksheet.getCell(`${fields[i][1].name}${i1 + 2}`).value = guidByClient[agentRoute.clients[i][i1]._id]||'';
+                        const clientId = agentRoute.clients[i][i1]._id.toString()
+                        worksheet.getCell(`${fields[i][1].name}${i1 + 2}`).value = guidByClient[clientId]||'';
                         worksheet.getCell(`${fields[i][2].name}${i1 + 2}`).value = getClientTitle(agentRoute.clients[i][i1]);
                    }
                }

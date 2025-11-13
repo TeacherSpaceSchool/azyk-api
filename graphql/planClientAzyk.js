@@ -333,18 +333,16 @@ const resolversMutation = {
                 organization, client: {$ne: null},
                 guid: {$in: rows.map(row => row[0])}
            }).select('client guid').lean()
-            const clientByGuid = {}
+            const clientIdByGuid = {}
             for(const integrate of integrates) {
-                clientByGuid[integrate.guid] = integrate.client.toString()
+                clientIdByGuid[integrate.guid] = integrate.client.toString()
            }
             //planByClient
-            const planClients = await PlanClient.find({
-                organization,
-                client: {$in: Object.values(clientByGuid)}
-           }).select('_id client')
-            const planByClient = {}
+            const planClients = await PlanClient.find({organization, client: {$in: Object.values(clientIdByGuid)}}).select('_id client')
+            const planIdByClient = {}
             for(const planClient of planClients) {
-                planByClient[planClient.client.toString()] = planClient._id
+                const clientId = planClient.client.toString()
+                planIdByClient[clientId] = planClient._id
            }
             //bulkwrite
             const bulkOperations = [];
@@ -352,14 +350,14 @@ const resolversMutation = {
             for(const row of rows) {
                 const visit = checkInt(row[1])
                 const month = checkInt(row[2])
-                let client = clientByGuid[row[0]]
-                let planClient = planByClient[client]
+                let clientId = clientIdByGuid[row[0]]
+                let planClientId = planIdByClient[clientId]
                 //если нету добавляем
-                if (!planClient)
-                    bulkOperations.push({insertOne: {document: {month, visit, client, organization}}});
+                if (!planClientId)
+                    bulkOperations.push({insertOne: {document: {month, visit, client: clientId, organization}}});
                 // если есть — подготовим updateOne в bulkWrite
                 else
-                    bulkOperations.push({updateOne: {filter: {_id: planClient}, update: {$set: {month, visit}}}});
+                    bulkOperations.push({updateOne: {filter: {_id: planClientId}, update: {$set: {month, visit}}}});
            }
             // если есть обновления — выполним bulkWrite
             if (bulkOperations.length) await parallelBulkWrite(PlanClient, bulkOperations);

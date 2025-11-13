@@ -86,7 +86,7 @@ const resolvers = {
    },
     employment: async(parent, {_id}, {user}) => {
         if(user.role&&user.role!=='client') {
-            if(!['admin', 'суперорганизация', 'организация'].includes(user.role)) _id = user._id
+            if(!['admin', 'суперорганизация', 'организация'].includes(user.role)) _id = user.employment
             return await EmploymentAzyk.findOne({
                 $or: [
                     {_id},

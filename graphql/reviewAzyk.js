@@ -30,57 +30,23 @@ const mutation = `
 const resolvers = {
     reviews: async(parent, {organization, skip, filter}, {user}) => {
         if(['суперорганизация', 'организация', 'admin', 'client'].includes(user.role)) {
-            let reviews = await ReviewAzyk.aggregate(
-                [
-                    {
-                        $match: {
-                            ...user.organization ? {organization: user.organization} : organization ? {organization: new mongoose.Types.ObjectId(organization)} : {},
-                            ...user.client ? {client: user.client} : {}
-                       }
-                   },
-                    {
-                        $match: {
-                            ...(filter === 'обработка' ? {taken: false} : {})
-                       }
-                   },
-                    {$sort : {'createdAt': -1}},
-                    {$skip: isNotEmpty(skip) ? skip : 0},
-                    {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000},
-                    {
-                        $lookup:
-                            {
-                                from: ClientAzyk.collection.collectionName,
-                                let: {client: '$client'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$client', '$_id']}}},
-                                ],
-                                as: 'client'
-                           }
-                   },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: false,
-                            path: '$client'
-                       }
-                   },
-                    {
-                        $lookup:
-                            {
-                                from: OrganizationAzyk.collection.collectionName,
-                                let: {organization: '$organization'},
-                                pipeline: [
-                                    {$match: {$expr: {$eq: ['$$organization', '$_id']}}},
-                                ],
-                                as: 'organization'
-                           }
-                   },
-                    {
-                        $unwind: {
-                            preserveNullAndEmptyArrays: true,
-                            path: '$organization'
-                       }
-                   }
-                ])
+            let reviews = await ReviewAzyk.find({
+                ...user.organization ? {organization: user.organization} : organization ? {organization: new mongoose.Types.ObjectId(organization)} : {},
+                ...user.client ? {client: user.client} : {},
+                ...filter === 'обработка' ? {taken: false} : {}
+            })
+                .sort('-createdAt')
+                .skip(isNotEmpty(skip) ? skip : 0)
+                .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
+                .populate({
+                    path: 'client',
+                    select: '_id name'
+                })
+                .populate({
+                    path: 'organization',
+                    select: '_id name'
+                })
+                .lean();
             // eslint-disable-next-line no-undef
             await Promise.all(reviews.map(async (review) => {
                 if (!review.organization) {

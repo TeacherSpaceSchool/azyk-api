@@ -72,60 +72,27 @@ const resolvers = {
                     .distinct('client')
                     .lean()
            }
-            const clients = await ClientAzyk
-                .aggregate(
-                    [
-                        {
-                            $match:{
-                                ...city?{city}:{},
-                                ...network?{network: mongoose.Types.ObjectId(network)}:{},
-                                ...user.cities?{city: {$in: user.cities}}:{},
-                                ...(filter==='Выключенные'?{image: {$ne: null}}:{}),
-                                ...(filter==='Без геолокации'?{address: {$elemMatch: {$elemMatch: {$eq: ''}}}}:{}),
-                                ...(['A','B','C','D','Horeca'].includes(filter)?{category: filter}:{}),
-                                ...date?{createdAt: {$gte: dateStart, $lt: dateEnd}}:{},
-                                del: {$ne: 'deleted'},
-                                ...availableClients?{_id: {$in: availableClients}}:{},
-                                $or: [
-                                    {name: {$regex: reductionSearchText(search), $options: 'i'}},
-                                    {email: {$regex: reductionSearch(search), $options: 'i'}},
-                                    {inn: {$regex: reductionSearch(search), $options: 'i'}},
-                                    {info: {$regex: reductionSearchText(search), $options: 'i'}},
-                                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
-                                ]
-                           }
-                       },
-                        ...(['Без геолокации', 'Выключенные'].includes(filter)?[
-                                    {$lookup:
-                                        {
-                                            from: UserAzyk.collection.collectionName,
-                                            let: {user: '$user'},
-                                            pipeline: [
-                                                {$match: {$expr:{$eq:['$$user', '$_id']}}},
-                                            ],
-                                            as: 'user'
-                                       }
-                                   },
-                                    {
-                                        $unwind:{
-                                            preserveNullAndEmptyArrays : true, // this remove the object which is null
-                                            path : '$user'
-                                       }
-                                   },
-                                    {
-                                        $match:{
-                                            'user.status': filter==='Выключенные'?'deactive':'active'
-                                       }
-                                   }
-                                ]
-                                :
-                                []
-                        ),
-                        {
-                            $count :  'clientCount'
-                       }
-                    ])
-            return clients[0]?clients[0].clientCount:'0'
+            let users
+            if(['Включенные', 'Выключенные'].includes(filter))
+                users = await UserAzyk.find({role: 'client', status: filter==='Выключенные'?'deactive':'active'}).distinct('_id')
+            return ClientAzyk.countDocuments({
+                ...(['A', 'B', 'C', 'D', 'Horeca'].includes(filter) ? {category: filter} : {}),
+                ...(users ? {user: {$in: users}} : {}),
+                ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$elemMatch: {$eq: ''}}}} : {}),
+                ...date?{createdAt: {$gte: dateStart, $lt: dateEnd}}:{},
+                ...city ? {city} : {},
+                ...network?{network: mongoose.Types.ObjectId(network)}:{},
+                ...user.cities?{city: {$in: user.cities}}:{},
+                ...availableClients? {_id: {$in: availableClients}} : {},
+                del: {$ne: 'deleted'},
+                $or: [
+                    {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                    {email: {$regex: reductionSearch(search), $options: 'i'}},
+                    {inn: {$regex: reductionSearch(search), $options: 'i'}},
+                    {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
+                ]
+            }).lean()
        }
    },
     clientsSyncStatistic: async(parent, {search, organization, city}, {user}) => {
@@ -148,41 +115,20 @@ const resolvers = {
    },
     clientsSync: async(parent, {search, organization, skip, city}, {user}) => {
         if(user.role==='admin') {
-            let clients = await ClientAzyk
-                .aggregate(
-                    [
-                        {
-                            $match:{
-                                ...city?{city}:{},
-                                sync: organization.toString(),
-                                $or: [
-                                    {name: {$regex: reductionSearchText(search), $options: 'i'}},
-                                    {email: {$regex: reductionSearch(search), $options: 'i'}},
-                                    {inn: {$regex: reductionSearch(search), $options: 'i'}},
-                                    {info: {$regex: reductionSearchText(search), $options: 'i'}},
-                                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
-                                ]
-                           }
-                       },
-                        {$skip : isNotEmpty(skip)?skip:0},
-                        {$limit : isNotEmpty(skip)?15:10000000000},
-                        {$lookup:
-                            {
-                                from: UserAzyk.collection.collectionName,
-                                let: {user: '$user'},
-                                pipeline: [
-                                    {$match: {$expr:{$eq:['$$user', '$_id']}}},
-                                ],
-                                as: 'user'
-                           }
-                       },
-                        {
-                            $unwind:{
-                                preserveNullAndEmptyArrays : true, // this remove the object which is null
-                                path : '$user'
-                           }
-                       }
-                    ])
+            let clients = await ClientAzyk.find({
+                    ...city?{city}:{},
+                    sync: organization.toString(),
+                    $or: [
+                        {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {email: {$regex: reductionSearch(search), $options: 'i'}},
+                        {inn: {$regex: reductionSearch(search), $options: 'i'}},
+                        {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
+                    ]
+                })
+                .sort('-createdAt')
+                .skip(isNotEmpty(skip) ? skip : 0)
+                .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
             return clients
        }
    },
@@ -235,88 +181,38 @@ const resolvers = {
             }
             else availableClients = district.clients
         }
+        let users
+        if(['Включенные', 'Выключенные'].includes(filter))
+            users = await UserAzyk.find({role: 'client', status: filter==='Выключенные'?'deactive':'active'}).distinct('_id')
         if(isNotEmpty(skip)||search.length>2) {
-            const res = await ClientAzyk
-                .aggregate(
-                    [
-                        {
-                            $match: {
-                                ...(['A', 'B', 'C', 'D', 'Horeca'].includes(filter) ? {category: filter} : {}),
-                                ...(filter === 'Выключенные' ? {image: {$ne: null}} : {}),
-                                ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$elemMatch: {$eq: ''}}}} : {}),
-                                ...date?{createdAt: {$gte: dateStart, $lt: dateEnd}}:{},
-                                ...city ? {city} : {},
-                                ...network?{network: mongoose.Types.ObjectId(network)}:{},
-                                ...user.cities?{city: {$in: user.cities}}:{},
-                                ...availableClients? {_id: {$in: availableClients}} : {},
-                                del: {$ne: 'deleted'},
-                                $or: [
-                                    {name: {$regex: reductionSearchText(search), $options: 'i'}},
-                                    {email: {$regex: reductionSearch(search), $options: 'i'}},
-                                    {inn: {$regex: reductionSearch(search), $options: 'i'}},
-                                    {info: {$regex: reductionSearchText(search), $options: 'i'}},
-                                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
-                                ]
-                           }
-                       },
-                        {$sort: _sort},
-                        ...(['Без геолокации', 'Включенные', 'Выключенные'].includes(filter) ? [
-                                    {
-                                        $lookup:
-                                            {
-                                                from: UserAzyk.collection.collectionName,
-                                                let: {user: '$user'},
-                                                pipeline: [
-                                                    {$match: {$expr: {$eq: ['$$user', '$_id']}}},
-                                                ],
-                                                as: 'user'
-                                           }
-                                   },
-                                    {
-                                        $unwind: {
-                                            preserveNullAndEmptyArrays: true, // this remove the object which is null
-                                            path: '$user'
-                                       }
-                                   },
-                                    {
-                                        $match: {
-                                            'user.status': filter === 'Выключенные' ? 'deactive' : 'active'
-                                       }
-                                   },
-                                    {$skip: isNotEmpty(skip) ? skip : 0},
-                                    {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000},
-                                ]
-                                :
-                                [
-                                    {$skip: isNotEmpty(skip) ? skip : 0},
-                                    {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000},
-                                    {
-                                        $lookup:
-                                            {
-                                                from: UserAzyk.collection.collectionName,
-                                                let: {user: '$user'},
-                                                pipeline: [
-                                                    {$match: {$expr: {$eq: ['$$user', '$_id']}}},
-                                                ],
-                                                as: 'user'
-                                           }
-                                   },
-                                    {
-                                        $unwind: {
-                                            preserveNullAndEmptyArrays: true, // this remove the object which is null
-                                            path: '$user'
-                                       }
-                                   }
-                                ]
-                        )
-                    ]
-                )
+            const res = await ClientAzyk.find({
+                ...(['A', 'B', 'C', 'D', 'Horeca'].includes(filter) ? {category: filter} : {}),
+                ...(users ? {user: {$in: users}} : {}),
+                ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$elemMatch: {$eq: ''}}}} : {}),
+                ...date?{createdAt: {$gte: dateStart, $lt: dateEnd}}:{},
+                ...city ? {city} : {},
+                ...network?{network: mongoose.Types.ObjectId(network)}:{},
+                ...user.cities?{city: {$in: user.cities}}:{},
+                ...availableClients? {_id: {$in: availableClients}} : {},
+                del: {$ne: 'deleted'},
+                $or: [
+                    {name: {$regex: reductionSearchText(search), $options: 'i'}},
+                    {email: {$regex: reductionSearch(search), $options: 'i'}},
+                    {inn: {$regex: reductionSearch(search), $options: 'i'}},
+                    {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                    {address: {$elemMatch: {$elemMatch: {$regex: reductionSearchText(search), $options: 'i'}}}}
+                ]
+            })
+                .sort('-createdAt')
+                .skip(isNotEmpty(skip) ? skip : 0)
+                .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
+                .lean()
             return res
        } else return []
    },
     client: async(parent, {_id}, {user}) => {
         if (user.role === 'client')
-            _id = user._id
+            _id = user.client
         if(mongoose.Types.ObjectId.isValid(_id)) {
             return await ClientAzyk.findOne({$or: [{_id}, {user: _id}]}).populate({path: 'user'}).lean()
        }

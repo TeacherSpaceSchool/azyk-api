@@ -5,11 +5,9 @@ const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const BasketAzyk = require('../models/basketAzyk');
 const ClientAzyk = require('../models/clientAzyk');
-const AdsAzyk = require('../models/adsAzyk');
 const mongoose = require('mongoose');
 const DiscountClient = require('../models/discountClientAzyk');
 const {setSingleOutXMLAzykLogic} = require('../module/singleOutXMLAzyk');
-const EmploymentAzyk = require('../models/employmentAzyk');
 const {pubsub} = require('./index');
 const {withFilter} = require('graphql-subscriptions');
 const RELOAD_ORDER = 'RELOAD_ORDER';
@@ -36,7 +34,6 @@ const type = `
     status: String
     allTonnage: Float
     returned: Int
-    consig: Int
     
     consignmentPrice: Float
     consignment: Int
@@ -73,6 +70,8 @@ const type = `
     adss: [Ads]
     track: Int
     forwarder: Employment
+    returned: Float
+    consig: Float
      
     priority: Int
     paymentConsignation: Boolean
@@ -131,7 +130,7 @@ const mutation = `
     addOrders(dateDelivery: Date!, info: String, inv: Boolean, unite: Boolean, paymentMethod: String, organization: ID!, client: ID!): String
     setOrder(orders: [OrderInput], invoice: ID): Invoice
     setInvoice(adss: [ID], taken: Boolean, invoice: ID!, confirmationClient: Boolean, confirmationForwarder: Boolean, cancelClient: Boolean, cancelForwarder: Boolean): String
-    setInvoicesLogic(dateDelivery: Date, track: Int, forwarder: ID, invoices: [ID]!): String
+    setInvoicesLogic(dateDelivery: Date, track: Int, forwarder: ID, paymentMethod: String, invoices: [ID]!): String
     deleteOrders(ids: [ID]!): String
 `;
 
@@ -241,7 +240,6 @@ const resolvers = {
     },
     invoices: async(parent, {search, sort, filter, date, skip, organization, city, agent, district, forwarder, dateDelivery, track}, {user}) =>  {
         if(['суперорганизация', 'организация', 'client', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперагент', 'суперэкспедитор'].includes(user.role)) {
-            //console.time('get BD')
             let dateStart;
             let dateEnd;
             if (date) {
@@ -290,129 +288,67 @@ const resolvers = {
                 filter==='Не синхронизированные'?OrganizationAzyk.find({pass: {$nin: ['', null]}}).distinct('_id'):null,
                 forwarder?DistrictAzyk.find({forwarder}).distinct('client'):null,
             ]);
-            //console.timeEnd('get BD')
-            return await InvoiceAzyk.aggregate([
-                {
-                    $match: {
-                        //не удален
-                        del: {$ne: 'deleted'},
-                        //агент
-                        ...agent ? {agent: new mongoose.Types.ObjectId(agent)} : {},
-                        //город
-                        ...city ? {city} : {},
-                        //экспедитор
-                        ...forwarder? {$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]} : {},
-                        //рейс
-                        ...track ? {track} : {},
-                        //dateDelivery
-                        ...dateDelivery ? {dateDelivery} : {},
-                        //только в своей организации
-                        ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
-                        //клиент только свои
-                        ...user.client ? {client: user.client} : {},
-                        //только в районах
-                        ...districtClients? {client: {$in: districtClients}} : {},
-                        //суперагент только в доступных организациях
-                        ...['суперагент', 'суперэкспедитор'].includes(user.role) ? {organization: {$in: superagentOrganizations}} : {},
-                        //в период
-                        ...(dateStart ? {createdAt: {$gte: dateStart, $lt: dateEnd}} : {}),
-                        //фильтр
-                        ...(filter === 'акция' ? {adss: {$ne: []}} : {}),
-                        ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$eq: ''}}} : {}),
-                        ...(filter === 'принят' ? {taken: true} : {}),
-                        ...(filter === 'обработка' ? {taken: false, cancelClient: null, cancelForwarder: null} : {}),
-                        ...(filter === 'Не синхронизированные' ? {organization: {$in: integrationOrganizations}, sync: {$nin: [1, 2]}, taken: true} : {}),
-                        //поиск
-                        ...search?{$or: [
-                                {number: {$regex: reductionSearch(search), $options: 'i'}},
-                                {info: {$regex: reductionSearchText(search), $options: 'i'}},
-                                {address: {$regex: reductionSearchText(search), $options: 'i'}}
-                            ]}:{},
-                    }
-                },
-                {$sort: _sort},
-                {$skip: isNotEmpty(skip) ? skip : 0},
-                {$limit: isNotEmpty(skip) ? defaultLimit : 10000000000},
-                {
-                    $lookup:
-                        {
-                            from: ClientAzyk.collection.collectionName,
-                            let: {client: '$client'},
-                            pipeline: [
-                                {$match: {$expr: {$eq: ['$$client', '$_id']}}},
-                            ],
-                            as: 'client'
-                        }
-                },
-                {
-                    $unwind: {
-                        preserveNullAndEmptyArrays: false,
-                        path: '$client'
-                    }
-                },
-                {
-                    $lookup:
-                        {
-                            from: EmploymentAzyk.collection.collectionName,
-                            let: {agent: '$agent'},
-                            pipeline: [
-                                {$match: {$expr: {$eq: ['$$agent', '$_id']}}},
-                            ],
-                            as: 'agent'
-                        }
-                },
-                {
-                    $unwind: {
-                        preserveNullAndEmptyArrays: true,
-                        path: '$agent'
-                    }
-                },
-                {
-                    $lookup:
-                        {
-                            from: EmploymentAzyk.collection.collectionName,
-                            let: {forwarder: '$forwarder'},
-                            pipeline: [
-                                {$match: {$expr: {$eq: ['$$forwarder', '$_id']}}},
-                            ],
-                            as: 'forwarder'
-                        }
-                },
-                {
-                    $unwind: {
-                        preserveNullAndEmptyArrays: true,
-                        path: '$forwarder'
-                    }
-                },
-                {
-                    $lookup:
-                        {
-                            from: OrganizationAzyk.collection.collectionName,
-                            let: {organization: '$organization'},
-                            pipeline: [
-                                {$match: {$expr: {$eq: ['$$organization', '$_id']}}},
-                            ],
-                            as: 'organization'
-                        }
-                },
-                {
-                    $unwind: {
-                        preserveNullAndEmptyArrays: true,
-                        path: '$organization'
-                    }
-                },
-                {
-                    $lookup:
-                        {
-                            from: AdsAzyk.collection.collectionName,
-                            let: {adss: '$adss'},
-                            pipeline: [
-                                {$match: {$expr: {$in: ['$_id', '$$adss']}}},
-                            ],
-                            as: 'adss'
-                        }
-                }
-            ])
+            const res = await InvoiceAzyk.find({
+                //не удален
+                del: {$ne: 'deleted'},
+                //агент
+                ...agent ? {agent: new mongoose.Types.ObjectId(agent)} : {},
+                //город
+                ...city ? {city} : {},
+                //экспедитор
+                ...forwarder? {$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]} : {},
+                //рейс
+                ...track ? {track} : {},
+                //dateDelivery
+                ...dateDelivery ? {dateDelivery} : {},
+                //только в своей организации
+                ...user.organization?{organization: user.organization}:organization?{organization: new mongoose.Types.ObjectId(organization)}:{},
+                //клиент только свои
+                ...user.client ? {client: user.client} : {},
+                //только в районах
+                ...districtClients? {client: {$in: districtClients}} : {},
+                //суперагент только в доступных организациях
+                ...['суперагент', 'суперэкспедитор'].includes(user.role) ? {organization: {$in: superagentOrganizations}} : {},
+                //в период
+                ...(dateStart ? {createdAt: {$gte: dateStart, $lt: dateEnd}} : {}),
+                //фильтр
+                ...(filter === 'акция' ? {adss: {$ne: []}} : {}),
+                ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$eq: ''}}} : {}),
+                ...(filter === 'принят' ? {taken: true} : {}),
+                ...(filter === 'обработка' ? {taken: false, cancelClient: null, cancelForwarder: null} : {}),
+                ...(filter === 'Не синхронизированные' ? {organization: {$in: integrationOrganizations}, sync: {$nin: [1, 2]}, taken: true} : {}),
+                //поиск
+                ...search?{$or: [
+                        {number: {$regex: reductionSearch(search), $options: 'i'}},
+                        {info: {$regex: reductionSearchText(search), $options: 'i'}},
+                        {address: {$regex: reductionSearchText(search), $options: 'i'}}
+                    ]}:{},
+            })
+                .sort(_sort)
+                .skip(isNotEmpty(skip) ? skip : 0)
+                .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
+                .populate({
+                    path: 'client',
+                    select: '_id name'
+                })
+                .populate({
+                    path: 'agent',
+                    select: '_id role name'
+                })
+                .populate({
+                    path: 'forwarder',
+                    select: '_id role name'
+                })
+                .populate({
+                    path: 'organization',
+                    select: '_id name'
+                })
+                .populate({
+                    path: 'adss',
+                    select: '_id title'
+                })
+                .lean()
+            return res
         }
     },
     orderHistorys: async(parent, {invoice}, {user}) => {
@@ -599,8 +535,10 @@ const setOrder = async ({orders, invoice, user}) => {
         await OrderAzyk.updateMany({_id: {$in: ordersForDelete}}, {count: 0, returned: 0, allPrice: 0, allTonnage: 0, status: 'отмена', ads: null})
         //order по id
         const orderById = {}
-        for(const invoiceOrder of invoice.orders)
-            orderById[invoiceOrder._id] = invoiceOrder
+        for(const invoiceOrder of invoice.orders) {
+            const orderId = invoiceOrder._id.toString()
+            orderById[orderId] = invoiceOrder
+        }
         //обнуление для обновления
         invoice.orders = []
         //перебор
@@ -619,7 +557,8 @@ const setOrder = async ({orders, invoice, user}) => {
             //обновление в монго
             bulkOperations.push({updateOne: {filter: {_id: orders[i]._id}, update: {$set: updatedOrder}}});
             //обновление для интеграции
-            invoice.orders.push({...orderById[orders[i]._id], ...updatedOrder})
+            const orderId = orders[i]._id.toString()
+            invoice.orders.push({...orderById[orderId], ...updatedOrder})
         }
         //массовое обновление
         unawaited(() => parallelBulkWrite(OrderAzyk, bulkOperations));
@@ -857,12 +796,14 @@ const resolversMutation = {
         //проверка специальной цены клиента
         const specialPriceClientByItem = {}
         for(const specialPriceClient of specialPricesClient) {
-            specialPriceClientByItem[specialPriceClient.item] = specialPriceClient.price
+            const itemId = specialPriceClient.item.toString()
+            specialPriceClientByItem[itemId] = specialPriceClient.price
         }
         //проверка специальной цены категории
         const specialPriceCategoryByItem = {}
         for(const specialPriceCategory of specialPricesCategory) {
-            specialPriceCategoryByItem[specialPriceCategory.item] = specialPriceCategory.price
+            const itemId = specialPriceCategory.item.toString()
+            specialPriceCategoryByItem[itemId] = specialPriceCategory.price
         }
         //скидка клиента
         const discount = discountData?discountData.discount:0
@@ -876,10 +817,10 @@ const resolversMutation = {
             // eslint-disable-next-line no-undef
             basketsBySubBrand = {};
             for(const basket of baskets) {
-                const subBrand = basket.item.subBrand || 'all';
-                if (!basketsBySubBrand[subBrand])
-                    basketsBySubBrand[subBrand] = [];
-                basketsBySubBrand[subBrand].push(basket);
+                const subBrandId = (basket.item.subBrand || 'all').toString();
+                if (!basketsBySubBrand[subBrandId])
+                    basketsBySubBrand[subBrandId] = [];
+                basketsBySubBrand[subBrandId].push(basket);
             }
             basketsBySubBrand = Object.values(basketsBySubBrand);
         } else
@@ -949,7 +890,8 @@ const resolversMutation = {
                     // eslint-disable-next-line no-undef
                     let orders = await Promise.all(baskets.map(async basket => {
                         //проверка специальной цены клиента
-                        let price = isNotEmpty(specialPriceClientByItem[basket.item._id])?specialPriceClientByItem[basket.item._id]:isNotEmpty(specialPriceCategoryByItem[basket.item._id])?specialPriceCategoryByItem[basket.item._id]:basket.item.price
+                        const itemId = basket.item._id.toString()
+                        let price = isNotEmpty(specialPriceClientByItem[itemId])?specialPriceClientByItem[itemId]:isNotEmpty(specialPriceCategoryByItem[itemId])?specialPriceCategoryByItem[itemId]:basket.item.price
                         //итоговая цена
                         price = !discount? price : checkFloat(price-price/100*discount)
                         //возвращаем заказа
@@ -1001,13 +943,16 @@ const resolversMutation = {
                         _id: {$in: objectInvoice.orders}
                     }).select('_id item allPrice count allTonnage').lean()
                     const orderByItem = {}
-                    for(const objectOrder of objectOrders)
-                        orderByItem[objectOrder.item] = objectOrder
+                    for(const objectOrder of objectOrders) {
+                        const itemId = objectOrder.item.toString()
+                        orderByItem[itemId] = objectOrder
+                    }
                     //перебор корзин
                     // eslint-disable-next-line no-undef
                     baskets = await Promise.all(baskets.map(async basket => {
                         //есть ли заказ на товар
-                        let objectOrder = orderByItem[basket.item._id]
+                        const itemId = basket.item._id.toString()
+                        let objectOrder = orderByItem[itemId]
                         //если есть
                         if(objectOrder) {
                             //подсчет и сохранение
@@ -1022,9 +967,9 @@ const resolversMutation = {
                         //если нету
                         else {
                             //проверка специальной цены клиента
-                            basket.price = isNotEmpty(specialPriceClientByItem[basket.item._id])?
-                                specialPriceClientByItem[basket.item._id]:isNotEmpty(specialPriceCategoryByItem[basket.item._id])?
-                                    specialPriceCategoryByItem[basket.item._id]:basket.item.price
+                            basket.price = isNotEmpty(specialPriceClientByItem[itemId])?
+                                specialPriceClientByItem[itemId]:isNotEmpty(specialPriceCategoryByItem[itemId])?
+                                    specialPriceCategoryByItem[itemId]:basket.item.price
                             //итоговая цена
                             basket.price = !discount? basket.price : checkFloat(basket.price-basket.price/100*discount)
                             //создание заказа
@@ -1140,8 +1085,8 @@ const resolversMutation = {
             return 'OK';
         }
     },
-    setInvoicesLogic: async(parent, {dateDelivery, track, forwarder, invoices}) => {
-        await setSingleOutXMLAzykLogic({invoices, forwarder, track, dateDelivery})
+    setInvoicesLogic: async(parent, args) => {
+        await setSingleOutXMLAzykLogic(args)
         return 'OK';
     },
     setOrder: async(parent, {orders, invoice}, {user}) => {

@@ -96,23 +96,27 @@ const resolvers = {
             if(consigFlows.length) {
                 //клиенты
                 const clients = await ClientAzyk.find({_id: {$in: consigFlows.map(consigFlow => consigFlow.client)}}).select('name _id address').lean()
-                const clientById = {}
-                for (const client of clients)
-                    clientById[client._id] = getClientTitle(client)
+                const clientTitleById = {}
+                for (const client of clients) {
+                    const clientId = client._id.toString()
+                    clientTitleById[clientId] = getClientTitle(client)
+                }
                 //сортировка консигнаций
                 let sortedConsigFlow = {}
                 //суммирование консигнаций
                 for (const consigFlow of consigFlows) {
                     const {client, createdAt, amount, sign} = consigFlow
-                    if (!sortedConsigFlow[client])
+                    if (!sortedConsigFlow[client]) {
+                        const clientId = client.toString()
                         sortedConsigFlow[client] = [
                             client,
-                            clientById[client],
+                            clientTitleById[clientId],
                             /*2 startOfMonth*/0,
                             /*3 takenInMonth*/0,
                             /*4 paidInMonth*/0,
                             /*5 endOfMonth*/0
                         ]
+                    }
                     //startOfMonth
                     if(createdAt<=dateStart) {
                         sortedConsigFlow[client][2] = checkFloat(sortedConsigFlow[client][2] + (amount * sign))
