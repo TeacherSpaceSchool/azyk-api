@@ -112,7 +112,7 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
        }
    }
     catch (err) {
-        console.error(err)
+        console.error('setSingleOutXMLReturnedAzyk', err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLReturnedAzyk'}))
         unawaited(() => sendPushToAdmin({message: 'Ошибка setSingleOutXMLReturnedAzyk'}))
    }
@@ -224,7 +224,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
        }
    }
     catch (err) {
-        console.error(err)
+        console.error('setSingleOutXMLAzyk', err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLAzyk'}))
    }
@@ -267,7 +267,7 @@ module.exports.setSingleOutXMLAzykLogic = async({invoices, forwarder, track, dat
        }
    }
     catch (err) {
-        console.error(err)
+        console.error('setSingleOutXMLAzykLogic', err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLAzykLogic'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLAzykLogic'}))
    }
@@ -280,7 +280,7 @@ module.exports.cancelSingleOutXMLReturnedAzyk = async(returned) => {
         return 1
    }
     catch (err) {
-        console.error(err)
+        console.error('cancelSingleOutXMLReturnedAzyk', err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'cancelSingleOutXMLReturnedAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка cancelSingleOutXMLReturnedAzyk'}))
    }
@@ -294,7 +294,7 @@ module.exports.cancelSingleOutXMLAzyk = async(invoice) => {
         return 0
    }
     catch (err) {
-        console.error(err)
+        console.error('cancelSingleOutXMLAzyk', err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'cancelSingleOutXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка cancelSingleOutXMLAzyk'}))
    }
@@ -354,7 +354,7 @@ module.exports.getSingleOutXMLAzyk = async(organization) => {
         else return ''
    }
     catch (err) {
-        console.error(err)
+        console.error('getSingleOutXMLAzyk', err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'getSingleOutXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка getSingleOutXMLAzyk'}))
    }
@@ -388,10 +388,14 @@ module.exports.getSingleOutXMLClientAzyk = async (organization) => {
         //guidByClient
         const guidByClient = {}, guidByAgent = {};
         for(const integrate of integrates) {
-            const clientId = integrate.client.toString()
-            guidByClient[clientId] = integrate.guid
-            const agentId = integrate.agent.toString()
-            guidByAgent[agentId] = integrate.guid
+            if(integrate.client) {
+                const clientId = integrate.client.toString()
+                guidByClient[clientId] = integrate.guid
+            }
+            if(integrate.agent) {
+                const agentId = integrate.agent.toString()
+                guidByAgent[agentId] = integrate.guid
+            }
        }
         //клиенты
         const clients = await ClientAzyk.find({
@@ -424,6 +428,7 @@ module.exports.getSingleOutXMLClientAzyk = async (organization) => {
         return result.end({pretty: true});
    }
     catch (err) {
+        console.log('getSingleOutXMLClientAzyk', err)
         unawaited(() =>  ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'getSingleOutXMLClientAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка getSingleOutXMLClientAzyk'}))
         return '';
@@ -474,7 +479,7 @@ module.exports.getSingleOutXMLReturnedAzyk = async(organization) => {
         else return ''
    }
     catch (err) {
-        console.error(err)
+        console.error('getSingleOutXMLReturnedAzyk', err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'getSingleOutXMLReturnedAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка getSingleOutXMLReturnedAzyk'}))
    }
@@ -621,7 +626,7 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
         if (bulkOperations.length) await parallelBulkWrite(SingleOutXMLAzyk, bulkOperations);
    }
     catch (err) {
-        console.error(err)
+        console.error('reductionOutAdsXMLAzyk', err)
         unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'reductionOutAdsXMLAzyk'}))
         unawaited(() =>  sendPushToAdmin({message: 'Ошибка reductionOutAdsXMLAzyk'}))
    }
