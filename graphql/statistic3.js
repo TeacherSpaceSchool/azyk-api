@@ -171,7 +171,7 @@ const resolvers = {
             for(const invoice of invoices) {
                 const type = organization?'':!invoice.agent?' онлайн':' оффлайн'
 
-                const agentId = invoice.agent.toString()
+                const agentId = invoice.agent?invoice.agent.toString():null
                 const organizationId = invoice.organization.toString()
                 const object = (organization?agentById[agentId]:organizationById[organizationId])||{_id: 'AZYK.STORE', name: 'AZYK.STORE'}
 
@@ -250,7 +250,7 @@ const resolvers = {
             ])
             let data = {}
             for(const invoice of invoices) {
-                const ID = invoice.agent._id.toString()
+                const ID = invoice.agent?invoice.agent._id.toString():null
                 if(!data[ID]) {
                     data[ID] = {
                         _id: invoice.agent._id,

@@ -569,9 +569,9 @@ module.exports.reductionOutAdsXMLAzyk = async(organization) => {
                 // eslint-disable-next-line no-undef
                 const orders = ordersByDistrict[districtId];
                 //гуиды
-                const agentId = district.agent.toString()
+                const agentId = district.agent?district.agent.toString():null
                 const guidAgent = guidByAgent[agentId]
-                const forwarderId = district.forwarder.toString()
+                const forwarderId = district.forwarder?district.forwarder.toString():null
                 const guidForwarder = guidByForwarder[forwarderId]
                 if (guidAgent && guidForwarder) {
                     if (orders&&orders.length) {
