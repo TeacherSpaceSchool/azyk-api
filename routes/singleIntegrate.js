@@ -11,7 +11,7 @@ const LimitItemClientAzyk = require('../models/limitItemClientAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const UserAzyk = require('../models/userAzyk');
 const randomstring = require('randomstring');
-const {checkFloat, checkInt, unawaited, sendPushToAdmin, formatErrorDetails} = require('../module/const');
+const {checkFloat, checkInt, unawaited, sendPushToAdmin, formatErrorDetails, isNotEmpty} = require('../module/const');
 const DistrictAzyk = require('../models/districtAzyk');
 const StockAzyk = require('../models/stockAzyk');
 const WarehouseAzyk = require('../models/warehouseAzyk');
@@ -148,19 +148,19 @@ router.post('/:pass/put/item', async (req, res, next) => {
                             city: organization.cities[0],
                             apiece: element.attributes.apiece == '1',
                             guid: element.attributes.guid,
-                            ...element.attributes.subBrand?{subBrand: subBrandByGuid[element.attributes.subBrand]}:{}
+                            ...isNotEmpty(element.attributes.subBrand)?{subBrand: subBrandByGuid[element.attributes.subBrand]}:{}
                         })
                     }
                     // если есть — подготовим updateOne в bulkWrite
                     else {
                         const updateFields = {
-                            ...element.attributes.name ? {name: element.attributes.name} : {},
-                            ...element.attributes.subBrand ? {subBrand: subBrandByGuid[element.attributes.subBrand]} : {},
-                            ...element.attributes.price ? {price: checkFloat(element.attributes.price)} : {},
-                            ...element.attributes.package ? {packaging: checkInt(element.attributes.package)} : {},
-                            ...element.attributes.weight ? {weight: checkFloat(element.attributes.weight)} : {},
-                            ...element.attributes.apiece ? {apiece: element.attributes.apiece == '1'} : {},
-                            ...element.attributes.status ? {status: element.attributes.status == '1' ? 'active' : 'deactive'} : {}
+                            ...isNotEmpty(element.attributes.name) ? {name: element.attributes.name} : {},
+                            ...isNotEmpty(element.attributes.subBrand) ? {subBrand: subBrandByGuid[element.attributes.subBrand]} : {},
+                            ...isNotEmpty(element.attributes.price) ? {price: checkFloat(element.attributes.price)} : {},
+                            ...isNotEmpty(element.attributes.package) ? {packaging: checkInt(element.attributes.package)} : {},
+                            ...isNotEmpty(element.attributes.weight) ? {weight: checkFloat(element.attributes.weight)} : {},
+                            ...isNotEmpty(element.attributes.apiece) ? {apiece: element.attributes.apiece == '1'} : {},
+                            ...isNotEmpty(element.attributes.status) ? {status: element.attributes.status == '1' ? 'active' : 'deactive'} : {}
                         }
                         if (Object.keys(updateFields).length)
                             itemBulkOperations.push({updateOne: {filter: {_id: item, organization: organization._id}, update: {$set: updateFields}}});
@@ -283,7 +283,7 @@ router.post('/:pass/put/stock', async (req, res, next) => {
                 warehouseByGuid[warehouse.guid] = warehouse._id
             }
             //stockByKey
-            const generateKey = (item, warehouse) => `${item.toString()}${warehouse?warehouse.toString():''}`
+            const generateKey = (item, warehouse) => `${item}${warehouse||''}`
             const keys = {}
             for(const element of req.body.elements[0].elements) {
                 //получаем склад
@@ -457,12 +457,12 @@ router.post('/:pass/put/client', async (req, res, next) => {
                     //обновляем клиента
                     else {
                         clientBulkOperations.push({updateOne: {filter: {_id: clientId}, update: {$set: {
-                                        ...element.attributes.name ? {name: element.attributes.name} : {},
-                                        ...element.attributes.inn ? {inn: element.attributes.inn} : {},
-                                        ...element.attributes.category ? {category: element.attributes.category} : {},
-                                        ...element.attributes.tel ? {phone: [element.attributes.tel]} : {},
-                                        ...element.attributes.name ? {'address.0.2': element.attributes.name} : {},
-                                        ...element.attributes.address ? {'address.0.0': element.attributes.address} : {}
+                                        ...isNotEmpty(element.attributes.name) ? {name: element.attributes.name} : {},
+                                        ...isNotEmpty(element.attributes.inn) ? {inn: element.attributes.inn} : {},
+                                        ...isNotEmpty(element.attributes.category) ? {category: element.attributes.category} : {},
+                                        ...isNotEmpty(element.attributes.tel) ? {phone: element.attributes.tel?[element.attributes.tel]:[]} : {},
+                                        ...isNotEmpty(element.attributes.name) ? {'address.0.2': element.attributes.name} : {},
+                                        ...isNotEmpty(element.attributes.address) ? {'address.0.0': element.attributes.address} : {}
                                     }}}})
                         //обновляем район
                         if (agentId)
@@ -654,7 +654,7 @@ router.post('/:pass/put/specialpriceclient', async (req, res, next) => {
                     itemByGuid[integrate.guid] = integrate.item
             }
             //specialPriceClientByKey
-            const generateKey = (client, item) => `${client.toString()}${item.toString()}`
+            const generateKey = (client, item) => `${client}${item}`
             const keys = {}
             for(const element of req.body.elements[0].elements) {
                 const client = clientByGuid[element.attributes.client]
@@ -759,7 +759,7 @@ router.post('/:pass/put/limititemclient', async (req, res, next) => {
                     itemByGuid[integrate.guid] = integrate.item
             }
             //LimitItemClientByKey
-            const generateKey = (client, item) => `${client.toString()}${item.toString()}`
+            const generateKey = (client, item) => `${client}${item}`
             const keys = {}
             for(const element of req.body.elements[0].elements) {
                 const client = clientByGuid[element.attributes.client]
@@ -852,7 +852,7 @@ router.post('/:pass/put/specialpricecategory', async (req, res, next) => {
                 itemByGuid[integrate.guid] = integrate.item
             }
             //specialPriceCategoryByKey
-            const generateKey = (category, item) => `${category}${item.toString()}`
+            const generateKey = (category, item) => `${category}${item}`
             const keys = {}
             for(const element of req.body.elements[0].elements) {
                 const category = element.attributes.category

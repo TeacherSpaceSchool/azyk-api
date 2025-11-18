@@ -789,7 +789,7 @@ const resolversMutation = {
             SpecialPriceClientAzyk.find({organization, client: client._id}).select('item price').lean(),
             SpecialPriceCategory.find({organization, category: client.category}).select('item price').lean(),
             DistrictAzyk.findOne({organization: null, client: client._id}).select('agent').lean(),
-            DistrictAzyk.findOne({organization, client: client._id, ...user.role==='агент'?{agent: user.employment}:{}}).select('agent manager forwarder organization').lean()
+            DistrictAzyk.findOne({organization, client: client._id, ...user.role==='агент'?{agent: user.employment}:{}}).select('name agent manager forwarder organization').lean()
         ])
         //фильтруем нулевые значения
         baskets = baskets.filter(basket => basket.count)

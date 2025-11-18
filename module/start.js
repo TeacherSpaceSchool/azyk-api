@@ -79,7 +79,7 @@ let start = async () => {
     await reductionDistrict()
     await reductionClientAzyk()
     //mock
-    await mockConsigFlow()
+    //**/await mockConsigFlow()
     //watcher
     /*setTimeout(async () => {
         console.time('reduction DB')

@@ -342,7 +342,7 @@ const resolversMutation = {
             const planIdByClient = {}
             for(const planClient of planClients) {
                 const clientId = planClient.client.toString()
-                planIdByClient[clientId] = planClient._id
+                planIdByClient[clientId] = planClient._id.toString()
            }
             //bulkwrite
             const bulkOperations = [];

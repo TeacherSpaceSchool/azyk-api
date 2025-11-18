@@ -17,6 +17,7 @@ connectDB.connect();
 if(!isMainThread) {
     cron.schedule('1 4 * * *', async() => {
         try {
+            //раз в 2 месяца
             let date = new Date()
             date.setDate(date.getDate() - 60)
             // eslint-disable-next-line no-undef
