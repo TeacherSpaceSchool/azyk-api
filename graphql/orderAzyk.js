@@ -933,6 +933,7 @@ const resolversMutation = {
                         dateDelivery,
                         district:  district?district.name:null,
                         who: user._id,
+                        forwarder: district.forwarder,
                         ...inv?{inv: 1}:{}
                     });
                 }

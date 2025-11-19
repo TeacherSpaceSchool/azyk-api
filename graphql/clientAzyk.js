@@ -185,7 +185,7 @@ const resolvers = {
         if(['Включенные', 'Выключенные'].includes(filter))
             users = await UserAzyk.find({role: 'client', status: filter==='Выключенные'?'deactive':'active'}).distinct('_id')
         if(isNotEmpty(skip)||search.length>2) {
-            const res = await ClientAzyk.find({
+            const clients = await ClientAzyk.find({
                 ...(['A', 'B', 'C', 'D', 'Horeca'].includes(filter) ? {category: filter} : {}),
                 ...(users ? {user: {$in: users}} : {}),
                 ...(filter === 'Без геолокации' ? {address: {$elemMatch: {$elemMatch: {$eq: ''}}}} : {}),
@@ -207,7 +207,13 @@ const resolvers = {
                 .skip(isNotEmpty(skip) ? skip : 0)
                 .limit(isNotEmpty(skip) ? defaultLimit : 10000000000)
                 .lean()
-            return res
+            users = await UserAzyk.find({_id: {$in: clients.map(client => client.user)}}).lean()
+            const userById = {}
+            for(const user of users) {
+                const userId = user._id.toString()
+                userById[userId] = user
+            }
+            return clients.map(client => {client.user = userById[client.user];return client})
        } else return []
    },
     client: async(parent, {_id}, {user}) => {

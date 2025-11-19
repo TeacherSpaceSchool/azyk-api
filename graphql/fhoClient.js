@@ -157,8 +157,14 @@ const resolversMutation = {
             // eslint-disable-next-line no-undef
             await Promise.all([
                 ...deletedImages.length?deletedImages.map(deletedImage => deleteFile(deletedImage)):[],
-                ...uploads.map(async upload => {images.push(urlMain + await saveBase64ToFile(upload))})
+                ...uploads.map(async upload => {images = [urlMain + await saveBase64ToFile(upload), ...images]})
             ])
+            if(images.length>5) {
+                const deletedImages = images.slice(5);
+                // eslint-disable-next-line no-undef
+                await Promise.all(deletedImages.map(deletedImage => deleteFile(deletedImage)));
+                images = images.slice(0, 5);
+            }
             await FhoClientAzyk.updateOne(
                 {$or: [{_id}, {client: _id}]},
                 {images, history: [{date: new Date(), editor: `${user.role}${user.name?` ${user.name}`:''}`}]}

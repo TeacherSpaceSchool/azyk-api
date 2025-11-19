@@ -62,13 +62,15 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
             if (district) {
                 //интеграции
                 // eslint-disable-next-line no-undef
-                const [integrateClient, integrateForwarder, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
+                const [integrateClient, integrateReturnedForwarder, integrateDistrictForwarder, integrateReturnedAgent, integrateDistrictAgent] = await Promise.all([
                     Integrate1CAzyk.findOne({client: returned.client._id, organization: returned.organization._id}).select('guid').lean(),
-                    Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: returned.organization._id}).select('guid').lean(),
-                    returned.agent?Integrate1CAzyk.findOne({agent: returned.agent._id, organization: returned.organization._id}).select('guid').lean():null,
-                    Integrate1CAzyk.findOne({agent: district.agent, organization: returned.organization._id}).select('guid').lean(),
+                    returned.forwarder?Integrate1CAzyk.findOne({forwarder: returned.forwarder._id||returned.forwarder, organization: returned.organization._id}).select('guid').lean():null,
+                    district.forwarder?Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: returned.organization._id}).select('guid').lean():null,
+                    returned.agent?Integrate1CAzyk.findOne({agent: returned.agent._id||returned.agent, organization: returned.organization._id}).select('guid').lean():null,
+                    district.agent?Integrate1CAzyk.findOne({agent: district.agent, organization: returned.organization._id}).select('guid').lean():null
                 ])
-                const integrateAgent = integrateInvoiceAgent||integrateDistrictAgent
+                const integrateAgent = integrateReturnedAgent||integrateDistrictAgent
+                const integrateForwarder = integrateReturnedForwarder||integrateDistrictForwarder
                 if (integrateClient && integrateAgent && integrateForwarder) {
                     //дата доставки
                     let date
@@ -185,9 +187,9 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
                 const [integrateClient, integrateInvoiceForwarder, integrateDistrictForwarder, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
                     Integrate1CAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id}).select('guid').lean(),
                     invoice.forwarder?Integrate1CAzyk.findOne({forwarder: invoice.forwarder._id||invoice.forwarder, organization: invoice.organization._id}).select('guid').lean():null,
-                    Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: invoice.organization._id}).select('guid').lean(),
-                    invoice.agent?Integrate1CAzyk.findOne({agent: invoice.agent._id, organization: invoice.organization._id}).select('guid').lean():null,
-                    Integrate1CAzyk.findOne({agent: district.agent, organization: invoice.organization._id}).select('guid').lean(),
+                    district.forwarder?Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: invoice.organization._id}).select('guid').lean():null,
+                    invoice.agent?Integrate1CAzyk.findOne({agent: invoice.agent._id||invoice.agent, organization: invoice.organization._id}).select('guid').lean():null,
+                    district.agent?Integrate1CAzyk.findOne({agent: district.agent, organization: invoice.organization._id}).select('guid').lean():null
                 ])
                 const integrateAgent = integrateInvoiceAgent||integrateDistrictAgent
                 const integrateForwarder = integrateInvoiceForwarder||integrateDistrictForwarder
