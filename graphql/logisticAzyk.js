@@ -191,7 +191,7 @@ const resolvers = {
                     /*не удален*/ del: {$ne: 'deleted'}, /*dateDelivery*/dateDelivery, /*organization*/organization, /*только принят*/taken: true,
                     /*агент*/...agent?{client: {$in: agentClients}}:{},
                     /*экспедитор*/...forwarder?{$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]}:{},
-                }).select('number client adss forwarder').populate({path: 'forwarder', select: '_id name'}).populate({path: 'client', select: '_id name address'})
+                }).select('client adss forwarder').populate({path: 'forwarder', select: '_id name'}).populate({path: 'client', select: '_id name address'})
                     .populate({path: 'adss', select: 'item count', populate: {path : 'item', select: '_id name packaging weight'}}).lean(),
                 DistrictAzyk.find({organization}).populate({path: 'forwarder', select: '_id name'}).lean(),
                 SettedSummaryAdsAzyk.find({dateDelivery, organization, ...forwarder?{forwarder}:{}}).lean()

@@ -346,7 +346,7 @@ const resolversMutation = {
         // eslint-disable-next-line no-undef
         const [clientCity, district] = await Promise.all([
             ClientAzyk.findById(client).select('city').lean(),
-            DistrictAzyk.findOne({organization, client, ...user.role==='агент'?{agent: user.employment}:{}}).select('name agent forwarder').lean()
+            DistrictAzyk.findOne({organization, client, ...user.role==='агент'?{agent: user.employment}:{}}).select('name forwarder').lean()
         ])
         let city = clientCity.city
         //проверка на наличие возврата
