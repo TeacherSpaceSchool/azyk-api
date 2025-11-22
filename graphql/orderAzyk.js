@@ -3,7 +3,8 @@ const SubBrandAzyk = require('../models/subBrandAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-const BasketAzyk = require('../models/basketAzyk');
+///const BasketAzyk = require('../models/basketAzyk');
+const ItemAzyk = require('../models/itemAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const mongoose = require('mongoose');
 const DiscountClient = require('../models/discountClientAzyk');
@@ -127,7 +128,7 @@ const query = `
 
 const mutation = `
     acceptOrders: String
-    addOrders(dateDelivery: Date!, info: String, inv: Boolean, unite: Boolean, paymentMethod: String, organization: ID!, client: ID!): String
+    addOrders(stamp: String, baskets: [OrderInput], dateDelivery: Date!, info: String, inv: Boolean, unite: Boolean, paymentMethod: String, organization: ID!, client: ID!): String
     setOrder(orders: [OrderInput], invoice: ID): Invoice
     setInvoice(adss: [ID], taken: Boolean, invoice: ID!, confirmationClient: Boolean, confirmationForwarder: Boolean, cancelClient: Boolean, cancelForwarder: Boolean): String
     setInvoicesLogic(dateDelivery: Date, track: Int, forwarder: ID, paymentMethod: String, invoices: [ID]!): String
@@ -767,7 +768,9 @@ const resolversMutation = {
             return 'OK';
         }
     },
-    addOrders: async(parent, {dateDelivery, info, paymentMethod, organization, client, inv, unite}, {user}) => {
+    addOrders: async(parent, {stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets}, {user}) => {
+        if(stamp&&await InvoiceAzyk.findOne({stamp}).select('_id').lean())
+            return
         // Привязка клиента, если заказ делает клиент
         if(user.client) client = user.client
         // Получаем организацию от SubBrand, если есть
@@ -779,20 +782,31 @@ const resolversMutation = {
         if(subBrand) organization = subBrand.organization
         client = clientData
         if(user.organization) organization = user.organization
+        //фильтруем нулевые значения
+        baskets = baskets.filter(basket => basket.count)
         // Проверка деления по суббрендам
         // Получаем корзины пользователя (агента или клиента)
         // eslint-disable-next-line no-undef
-        let [organizationData, baskets, discountData, specialPricesClient, specialPricesCategory, superDistrict, district] = await Promise.all([
+        let [organizationData, basketItems, discountData, specialPricesClient, specialPricesCategory, superDistrict, district] = await Promise.all([
             OrganizationAzyk.findById(organization).select('divideBySubBrand autoAcceptAgent calculateStock calculateConsig').lean(),
-            BasketAzyk.find(user.client? {client: user.client} : {agent: user.employment}).select('item count _id').populate({path: 'item', select: 'price _id weight subBrand'}).lean(),
+            ItemAzyk.find({_id: {$in: baskets.map(basket => basket._id)}}).select('price _id weight subBrand').lean(),
             DiscountClient.findOne({client: client._id, organization}).lean(),
             SpecialPriceClientAzyk.find({organization, client: client._id}).select('item price').lean(),
             SpecialPriceCategory.find({organization, category: client.category}).select('item price').lean(),
             DistrictAzyk.findOne({organization: null, client: client._id}).select('agent').lean(),
             DistrictAzyk.findOne({organization, client: client._id, ...user.role==='агент'?{agent: user.employment}:{}}).select('name agent manager forwarder organization').lean()
         ])
-        //фильтруем нулевые значения
-        baskets = baskets.filter(basket => basket.count)
+        //basketItems
+        const basketItemById = {}
+        for(const basketItem of basketItems) {
+            const basketItemId = basketItem._id.toString()
+            basketItemById[basketItemId] = basketItem
+        }
+        baskets = baskets.map(basket => {
+            const basketItemId = basket._id.toString()
+            basket.item = basketItemById[basketItemId]
+            return basket
+        })
         //проверка специальной цены клиента
         const specialPriceClientByItem = {}
         for(const specialPriceClient of specialPricesClient) {
@@ -915,6 +929,7 @@ const resolversMutation = {
                     })
                     //создаем накладную
                     objectInvoice = await InvoiceAzyk.create({
+                        stamp,
                         guid,
                         city: client.city,
                         discount,
@@ -1022,7 +1037,7 @@ const resolversMutation = {
                 //публикация и подсчет остатков
                 unawaited(async() => {
                     // Удаляем использованные корзины
-                    await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
+                    ///await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
                     // Получаем финальный счёт для публикации
                     let newInvoice = await InvoiceAzyk.findById(objectInvoice._id)
                         .select(' _id agent createdAt updatedAt allTonnage client allPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder taken sync city dateDelivery')

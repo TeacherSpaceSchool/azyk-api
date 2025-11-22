@@ -10,7 +10,7 @@ const OrderAzykSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ClientAzyk'
    },
-    //количество возврата
+    //количество отказа
     returned: {
         type: Number,
         default: 0

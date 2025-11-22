@@ -41,6 +41,7 @@ const type = `
     autoAcceptAgent: Boolean
     autoAcceptNight: Boolean
     divideBySubBrand: Boolean
+    divideBySubBrand1C: Boolean
     clientDuplicate: Boolean
     calculateStock: Boolean
     calculateConsig: Boolean
@@ -65,8 +66,8 @@ const query = `
 `;
 
 const mutation = `
-    addOrganization(cities: [String]!, catalog: Upload, pass: String, requisites: String, warehouse: String!, miniInfo: String!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload!, name: String!, address: [String]!, email: [String]!, phone: [String]!, info: String!, refusal: Boolean!, addedClient: Boolean!, agentSubBrand: Boolean!, clientSubBrand: Boolean!, unite: Boolean!, superagent: Boolean!, onlyDistrict: Boolean!, dateDelivery: Boolean!, onlyIntegrate: Boolean!, autoAcceptAgent: Boolean!, autoAcceptNight: Boolean!, clientDuplicate: Boolean!, calculateStock: Boolean!, calculateConsig: Boolean!, divideBySubBrand: Boolean!): ID
-    setOrganization(cities: [String], pass: String, requisites: String, catalog: Upload, warehouse: String, miniInfo: String, _id: ID!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload, name: String, address: [String], email: [String], phone: [String], info: String, refusal: Boolean, addedClient: Boolean, agentSubBrand: Boolean, clientSubBrand: Boolean, unite: Boolean, superagent: Boolean, onlyDistrict: Boolean, dateDelivery: Boolean, onlyIntegrate: Boolean, autoAcceptAgent: Boolean, autoAcceptNight: Boolean, clientDuplicate: Boolean, calculateStock: Boolean, calculateConsig: Boolean, divideBySubBrand: Boolean): String
+    addOrganization(cities: [String]!, catalog: Upload, pass: String, requisites: String, warehouse: String!, miniInfo: String!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload!, name: String!, address: [String]!, email: [String]!, phone: [String]!, info: String!, refusal: Boolean!, addedClient: Boolean!, agentSubBrand: Boolean!, clientSubBrand: Boolean!, unite: Boolean!, superagent: Boolean!, onlyDistrict: Boolean!, dateDelivery: Boolean!, onlyIntegrate: Boolean!, autoAcceptAgent: Boolean!, autoAcceptNight: Boolean!, clientDuplicate: Boolean!, calculateStock: Boolean!, calculateConsig: Boolean!, divideBySubBrand: Boolean!, divideBySubBrand1C: Boolean!): ID
+    setOrganization(cities: [String], pass: String, requisites: String, catalog: Upload, warehouse: String, miniInfo: String, _id: ID!, priotiry: Int, minimumOrder: Int, agentHistory: Int, image: Upload, name: String, address: [String], email: [String], phone: [String], info: String, refusal: Boolean, addedClient: Boolean, agentSubBrand: Boolean, clientSubBrand: Boolean, unite: Boolean, superagent: Boolean, onlyDistrict: Boolean, dateDelivery: Boolean, onlyIntegrate: Boolean, autoAcceptAgent: Boolean, autoAcceptNight: Boolean, clientDuplicate: Boolean, calculateStock: Boolean, calculateConsig: Boolean, divideBySubBrand: Boolean, divideBySubBrand1C: Boolean): String
     deleteOrganization(_id: ID!): String
     onoffOrganization(_id: ID!): String
 `;
@@ -227,7 +228,7 @@ const resolvers = {
 };
 
 const resolversMutation = {
-    addOrganization: async(parent, {cities, requisites, catalog, addedClient, agentSubBrand, clientSubBrand, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, calculateConsig, divideBySubBrand, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
+    addOrganization: async(parent, {cities, requisites, catalog, addedClient, agentSubBrand, clientSubBrand, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, calculateConsig, divideBySubBrand, divideBySubBrand1C, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
         if(user.role==='admin') {
             let {stream, filename} = await image;
             image = urlMain + await saveImage(stream, filename)
@@ -259,6 +260,7 @@ const resolversMutation = {
                 calculateStock,
                 calculateConsig,
                 divideBySubBrand,
+                divideBySubBrand1C,
                 dateDelivery,
                 addedClient,
                 agentSubBrand,
@@ -273,7 +275,7 @@ const resolversMutation = {
        }
    },
     setOrganization: async(parent, {_id, ...args}, {user}) => {
-        const {catalog, cities, addedClient, agentSubBrand, requisites, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, calculateConsig, divideBySubBrand, pass, warehouse, miniInfo, superagent, unite, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate} = args;
+        const {catalog, cities, addedClient, agentSubBrand, requisites, clientSubBrand, dateDelivery, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, calculateConsig, divideBySubBrand, divideBySubBrand1C, pass, warehouse, miniInfo, superagent, unite, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate} = args;
         if(user.role==='admin'||(['суперорганизация', 'организация'].includes(user.role)&&user.organization.toString()===_id.toString())) {
             let object = await OrganizationAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'OrganizationAzyk', name: object.name, object: _id, data: args}))
@@ -317,6 +319,7 @@ const resolversMutation = {
             if(isNotEmpty(calculateConsig)) object.calculateConsig = calculateConsig
             if(isNotEmpty(autoAcceptNight)) object.autoAcceptNight = autoAcceptNight
             if(isNotEmpty(divideBySubBrand)) object.divideBySubBrand = divideBySubBrand
+            if(isNotEmpty(divideBySubBrand1C)) object.divideBySubBrand1C = divideBySubBrand1C
             if(isNotEmpty(dateDelivery)) object.dateDelivery = dateDelivery
             if(isNotEmpty(onlyIntegrate)) object.onlyIntegrate = onlyIntegrate
             if(isNotEmpty(priotiry)) object.priotiry = priotiry
