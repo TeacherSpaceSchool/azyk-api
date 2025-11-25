@@ -134,7 +134,7 @@ const resolvers = {
             let statistic = {}, data = []
 
             let profitAll = 0
-            let returnedAll = 0
+            let rejectedAll = 0
             let completAll = 0
 
             const invoices = await InvoiceAzyk.find({
@@ -144,7 +144,7 @@ const resolvers = {
                     ...city?{city}:{},
                     ...organization?{organization}:{}
            })
-                .select('organization agent returnedPrice allPrice _id')
+                .select('organization agent rejectedPrice allPrice _id')
                 .lean()
 
             // eslint-disable-next-line no-undef
@@ -179,12 +179,12 @@ const resolvers = {
 
                 if (!statistic[_id]) statistic[_id] = {
                     profit: 0,
-                    returned: 0,
+                    rejected: 0,
                     complet: 0,
                     name: `${object.name}${type}`
                }
 
-                const profit = invoice.allPrice - invoice.returnedPrice
+                const profit = invoice.allPrice - invoice.rejectedPrice
 
                 if(profit) {
                     statistic[_id].complet += 1
@@ -192,8 +192,8 @@ const resolvers = {
                }
                 statistic[_id].profit += profit
                 profitAll += profit
-                statistic[_id].returned += invoice.returnedPrice
-                returnedAll += invoice.returnedPrice
+                statistic[_id].rejected += invoice.rejectedPrice
+                rejectedAll += invoice.rejectedPrice
            }
 
             const keys = Object.keys(statistic)
@@ -206,7 +206,7 @@ const resolvers = {
                         statistic[key].name,
                         formatAmount(checkFloat(statistic[key].profit)),
                         formatAmount(statistic[key].complet),
-                        ...returnedAll?[formatAmount(checkFloat(statistic[key].returned))]:[],
+                        ...rejectedAll?[formatAmount(checkFloat(statistic[key].rejected))]:[],
                         formatAmount(checkFloat(statistic[key].profit/statistic[key].complet)),
                         formatAmount(checkFloat(statistic[key].profit*100/profitAll))
                     ]
@@ -222,13 +222,13 @@ const resolvers = {
                         data.length,
                         formatAmount(checkFloat(profitAll)),
                         formatAmount(completAll),
-                        formatAmount(checkFloat(returnedAll)),
+                        formatAmount(checkFloat(rejectedAll)),
                     ]
                },
                 ...data
             ]
             return {
-                columns: [organization?'агент':'организация', 'выручка(сом)', 'выполнен(шт)', ...returnedAll?['отказов(сом)']:[], 'средний чек(сом)', 'процент'],
+                columns: [organization?'агент':'организация', 'выручка(сом)', 'выполнен(шт)', ...rejectedAll?['отказов(сом)']:[], 'средний чек(сом)', 'процент'],
                 row: data
            };
        }

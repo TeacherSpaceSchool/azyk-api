@@ -142,14 +142,14 @@ const resolvers = {
                         client: resData.client._id
                    }
                 )
-                    .select('allPrice returnedPrice')
+                    .select('allPrice rejectedPrice')
                     .lean(),
                     Integrate1CAzyk.findOne({organization, client: resData.client._id}).select('guid').lean()
                 ])
 
                 resData.current = 0
                 for(let i1=0; i1<invoices.length; i1++) {
-                    resData.current += invoices[i1].allPrice - invoices[i1].returnedPrice
+                    resData.current += invoices[i1].allPrice - invoices[i1].rejectedPrice
                }
 
                 row += 1
@@ -225,11 +225,11 @@ const resolvers = {
                         client: resData.client._id
                    }
                 )
-                    .select('allPrice returnedPrice')
+                    .select('allPrice rejectedPrice')
                     .lean()
                 resData.current = 0
                 for(let i1=0; i1<invoices.length; i1++) {
-                    resData.current += invoices[i1].allPrice - invoices[i1].returnedPrice
+                    resData.current += invoices[i1].allPrice - invoices[i1].rejectedPrice
                }
            })
             return res
@@ -286,11 +286,11 @@ const resolvers = {
                         client
                    }
                 )
-                    .select('allPrice returnedPrice')
+                    .select('allPrice rejectedPrice')
                     .lean()
                 res.current = 0
                 for(let i1 = 0; i1 < invoices.length; i1++) {
-                    res.current += invoices[i1].allPrice - invoices[i1].returnedPrice
+                    res.current += invoices[i1].allPrice - invoices[i1].rejectedPrice
                }
            }
             return res

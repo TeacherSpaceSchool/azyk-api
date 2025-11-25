@@ -53,7 +53,7 @@ const resolvers = {
             let statistic = {}, data
             let profitAll = 0
             let completAll = 0
-            let returnedAll = 0
+            let rejectedAll = 0
 
             // eslint-disable-next-line no-undef
             const [agentRoutes, districts] = await Promise.all([
@@ -90,7 +90,7 @@ const resolvers = {
                     ...city?{city}:{},
                }
             )
-                .select('_id createdAt returnedPrice allPrice client address')
+                .select('_id createdAt rejectedPrice allPrice client address')
                 .lean()
 
             let orderAllCount = invoices.length
@@ -111,12 +111,12 @@ const resolvers = {
                         statistic[object._id] = {
                             profit: 0,
                             complet: 0,
-                            returnedPrice: 0,
+                            rejectedPrice: 0,
                             clients: {},
                             name: object.name
                        }
 
-                    const profit = invoice.allPrice - invoice.returnedPrice
+                    const profit = invoice.allPrice - invoice.rejectedPrice
 
                     if (type==='район'&&!statistic[object._id].clients[invoice.client]) {
                         statistic[object._id].clients[invoice.client] = 1
@@ -125,8 +125,8 @@ const resolvers = {
                     statistic[object._id].profit += profit
                     profitAll += profit
 
-                    statistic[object._id].returnedPrice += invoice.returnedPrice
-                    returnedAll += invoice.returnedPrice
+                    statistic[object._id].rejectedPrice += invoice.rejectedPrice
+                    rejectedAll += invoice.rejectedPrice
 
                     if (profit) {
                         statistic[object._id].complet += 1
@@ -146,7 +146,7 @@ const resolvers = {
                         statistic[key].name,
                         formatAmount(checkFloat(statistic[key].profit)),
                         formatAmount(statistic[key].complet),
-                        ...returnedAll?[formatAmount(checkFloat(statistic[key].returnedPrice))]:[],
+                        ...rejectedAll?[formatAmount(checkFloat(statistic[key].rejectedPrice))]:[],
                         formatAmount(checkFloat(statistic[key].profit/statistic[key].complet)),
                         ...type==='район'?[formatAmount(Object.keys(statistic[key].clients).length)]:[],
                         formatAmount(checkFloat(statistic[key].profit*100/profitAll))
@@ -163,13 +163,13 @@ const resolvers = {
                     data: [
                         `${formatAmount(completAll)}/${formatAmount(orderAllCount)}`,
                         formatAmount(checkFloat(profitAll)),
-                        formatAmount(checkFloat(returnedAll)),
+                        formatAmount(checkFloat(rejectedAll)),
                     ]
                },
                 ...data
             ]
             return {
-                columns: [type, 'выручка(сом)', 'выполнен(шт)', ...returnedAll?['отказы(сом)']:[], 'средний чек(сом)', ...type==='районы'?['клиенты']:[], 'процент'],
+                columns: [type, 'выручка(сом)', 'выполнен(шт)', ...rejectedAll?['отказы(сом)']:[], 'средний чек(сом)', ...type==='районы'?['клиенты']:[], 'процент'],
                 row: data
            };
        }
@@ -205,7 +205,7 @@ const resolvers = {
                     ...city?{city}:{},
                }
             )
-                .select('_id returnedPrice allPrice agent client createdAt')
+                .select('_id rejectedPrice allPrice agent client createdAt')
                 .lean()
             for(const invoice of invoices) {
                 if(type==='hours') {
@@ -229,7 +229,7 @@ const resolvers = {
                         completOffline: 0,
                    }
 
-                const profit = invoice.allPrice - invoice.returnedPrice
+                const profit = invoice.allPrice - invoice.rejectedPrice
 
                 statistic[name].profitAll += profit
                 profitAll += profit

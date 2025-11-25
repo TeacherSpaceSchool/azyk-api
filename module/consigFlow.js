@@ -1,10 +1,13 @@
-const {checkFloat} = require('./const');
+const {checkFloat, isObject} = require('./const');
 const ConsigFlowAzyk = require('../models/consigFlowAzyk');
 const {parallelBulkWrite} = require('./parallel');
+const InvoiceAzyk = require('../models/invoiceAzyk');
 
 module.exports.calculateConsig = async (invoice) => {
+    if(!isObject(invoice))
+        invoice = await InvoiceAzyk.findById(invoice).lean()
     if(invoice.paymentMethod==='Консигнация') {
-        const amount = checkFloat(invoice.allPrice - invoice.returnedPrice)
+        const amount = checkFloat(invoice.allPrice - invoice.rejectedPrice)
         const consigFlow = await ConsigFlowAzyk.findOne({invoice: invoice._id}).select('_id').lean()
         if (invoice.cancelClient||invoice.cancelForwarder) {
             if (consigFlow) await ConsigFlowAzyk.updateOne({invoice: invoice._id}, {cancel: true, amount})
@@ -23,6 +26,9 @@ module.exports.calculateConsig = async (invoice) => {
             }
         }
     }
+    else {
+        await ConsigFlowAzyk.deleteOne({invoice: invoice._id})
+    }
 }
 
 module.exports.mockConsigFlow = async () => {
@@ -40,7 +46,7 @@ module.exports.mockConsigFlow = async () => {
             organization: invoice.organization,
             invoice: invoice._id,
             client: invoice.client,
-            amount: checkFloat(invoice.allPrice - invoice.returnedPrice),
+            amount: checkFloat(invoice.allPrice - invoice.rejectedPrice),
             sign: i%2?-1:1,
             cancel: !!(invoice.cancelClient||invoice.cancelForwarder)
         }}});

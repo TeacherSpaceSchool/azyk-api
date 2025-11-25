@@ -20,7 +20,7 @@ const type = `
 const query = `
     financeReport(organization: ID!, track: Int, forwarder: ID!, dateDelivery: Date!): FinanceReport
     summaryInvoice(organization: ID!, track: Int!, forwarder: ID!, dateDelivery: Date!): [[String]]
-    summaryAdss(organization: ID!, agent: ID, forwarder: ID, dateDelivery: Date!): [[String]]
+    summaryAdss(organization: ID!, track: Int, agent: ID, forwarder: ID, dateDelivery: Date!): [[String]]
 `;
 
 const mutation = `
@@ -29,7 +29,7 @@ const mutation = `
 
 const resolvers = {
     financeReport: async(parent, {organization, forwarder, dateDelivery, track}, {user}) =>  {
-        if(['суперорганизация', 'организация', 'admin', 'менеджер'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'admin', 'экспедитор', 'агент', 'менеджер'].includes(user.role)) {
             //если пользователь экспедитор
             if(user.role==='экспедитор') forwarder = user.employment
             //dateDelivery
@@ -40,7 +40,7 @@ const resolvers = {
             const invoices = await InvoiceAzyk.find({
                 /*не удален*/del: {$ne: 'deleted'}, /*экспедитор*/$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}],
                 /*рейс*/...track?{track}:{}, /*dateDelivery*/dateDelivery, /*organization*/organization, /*только принят*/taken: true
-            }).select('_id createdAt number client agent allPrice returnedPrice address track info discount paymentMethod inv orders')
+            }).select('_id createdAt number client agent allPrice rejectedPrice address track info discount paymentMethod inv orders')
                 .populate({path: 'orders', populate: {path: 'item', select: '_id name packaging'}}).populate({path: 'client', select: '_id name inn phone'}).sort('createdAt').lean()
             //invoicesClients
             const invoicesClients = invoices.map(invoice => invoice.client)
@@ -88,7 +88,7 @@ const resolvers = {
         }
     },
     summaryInvoice: async(parent, {organization, forwarder, dateDelivery, track}, {user}) =>  {
-        if(['суперорганизация', 'организация', 'admin', 'менеджер'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'admin', 'агент', 'экспедитор', 'менеджер'].includes(user.role)) {
             //если пользователь экспедитор
             if(user.role==='экспедитор') forwarder = user.employment
             //dateDelivery
@@ -147,7 +147,7 @@ const resolvers = {
                 const warehouse = warehouseByClientAgent[`${order.client}${agent}`]||null
                 const logisticName = logisticNameByWarehouseItem[`${warehouse}${order.item}`]||'Не указан'
                 const itemLogisticName = `${item._id}${logisticName}`
-                const count = order.count - order.returned
+                const count = order.count - order.rejected
                 const allPrice = checkFloat(order.allPrice/order.count*count)
                 if(!summaryInvoiceByItemWarehouse[itemLogisticName])
                     summaryInvoiceByItemWarehouse[itemLogisticName] = {
@@ -172,8 +172,8 @@ const resolvers = {
             return summaryInvoice
         }
     },
-    summaryAdss: async(parent, {organization, agent, forwarder, dateDelivery}, {user}) =>  {
-        if(['суперорганизация', 'организация', 'admin', 'менеджер'].includes(user.role)) {
+    summaryAdss: async(parent, {organization, track, agent, forwarder, dateDelivery}, {user}) =>  {
+        if(['суперорганизация', 'организация', 'admin', 'агент', 'экспедитор', 'менеджер'].includes(user.role)) {
             //если пользователь экспедитор
             if(user.role==='экспедитор') forwarder = user.employment
             //dateDelivery
@@ -189,7 +189,7 @@ const resolvers = {
             const [invoices, districts, settedSummaryAdss] = await Promise.all([
                 InvoiceAzyk.find({
                     /*не удален*/ del: {$ne: 'deleted'}, /*dateDelivery*/dateDelivery, /*organization*/organization, /*только принят*/taken: true,
-                    /*агент*/...agent?{client: {$in: agentClients}}:{},
+                    /*агент*/...agent?{client: {$in: agentClients}}:{}, /*рейс*/...track?{track}:{},
                     /*экспедитор*/...forwarder?{$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]}:{},
                 }).select('client adss forwarder').populate({path: 'forwarder', select: '_id name'}).populate({path: 'client', select: '_id name address'})
                     .populate({path: 'adss', select: 'item count', populate: {path : 'item', select: '_id name packaging weight'}}).lean(),

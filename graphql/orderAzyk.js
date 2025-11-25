@@ -34,8 +34,9 @@ const type = `
     allPrice: Float
     status: String
     allTonnage: Float
+    rejected: Int
+
     returned: Int
-    
     consignmentPrice: Float
     consignment: Int
     allSize: Float
@@ -49,7 +50,7 @@ const type = `
     orders: [Order]
     client: Client
     allPrice: Float 
-    returnedPrice: Float
+    rejectedPrice: Float
     info: String
     address: [String]
     paymentMethod: String
@@ -74,6 +75,7 @@ const type = `
     returned: Float
     consig: Float
      
+    returnedPrice: Float
     priority: Int
     paymentConsignation: Boolean
     consignmentPrice: Float
@@ -91,8 +93,9 @@ const type = `
   type HistoryOrderElement {
     item: String
     count: Int
-    returned: Int
+    rejected: Int
     
+    returned: Int
     consignment: Int
  }
   type ReloadOrder {
@@ -112,8 +115,9 @@ const type = `
     allTonnage: Float
     name: String
     status: String
-    returned: Int
+    rejected: Int
     
+    returned: Int
     consignment: Int
     consignmentPrice: Float
  }
@@ -223,7 +227,7 @@ const resolvers = {
                         ]}:{},
                 }
             )
-                .select('returnedPrice allPrice orders allTonnage')
+                .select('rejectedPrice allPrice orders allTonnage')
                 .lean()
             //перебор товаров
             let tonnage = 0;
@@ -231,7 +235,7 @@ const resolvers = {
             let lengthList = invoices.length;
             for(let i = 0; i < invoices.length; i++) {
                 if (invoices[i].allPrice) {
-                    price += invoices[i].allPrice - invoices[i].returnedPrice
+                    price += invoices[i].allPrice - invoices[i].rejectedPrice
                 }
                 if (invoices[i].allTonnage)
                     tonnage += invoices[i].allTonnage
@@ -334,7 +338,8 @@ const resolvers = {
                 })
                 .populate({
                     path: 'agent',
-                    select: '_id role name'
+                    select: '_id user name',
+                    populate: [{path: 'user', select: 'role'}]
                 })
                 .populate({
                     path: 'forwarder',
@@ -383,6 +388,7 @@ const resolvers = {
                 })
                 .populate({
                     path: 'agent',
+                    populate: [{path: 'user', select: 'role'}]
                 })
                 .populate({
                     path: 'forwarder',
@@ -423,10 +429,10 @@ const setInvoice = async ({needCheckAdss, adss, taken, invoice, confirmationClie
             optionUpdateOrder = {status: 'принят'}
         }
         else {
-            optionUpdateOrder =  {status: 'обработка', returned: 0}
+            optionUpdateOrder =  {status: 'обработка', rejected: 0}
             object.confirmationForwarder = false
             object.confirmationClient = false
-            object.returnedPrice = 0
+            object.rejectedPrice = 0
             object.sync = object.sync!==0?1:0
         }
         if(needCheckAdss)
@@ -527,13 +533,13 @@ const setOrder = async ({orders, invoice, user}) => {
         //общие данные
         let allPrice = 0
         let allTonnage = 0
-        let returnedPrice = 0
+        let rejectedPrice = 0
         const bulkOperations = [];
         //удаляемые orders
         const ordersIds = orders.map(order => order._id.toString())
         ordersForDelete = invoice.orders.filter(invoiceOrder => !ordersIds.includes(invoiceOrder._id.toString()))
         ordersForDelete = ordersForDelete.map(orderForDelete => orderForDelete._id)
-        await OrderAzyk.updateMany({_id: {$in: ordersForDelete}}, {count: 0, returned: 0, allPrice: 0, allTonnage: 0, status: 'отмена', ads: null})
+        await OrderAzyk.updateMany({_id: {$in: ordersForDelete}}, {count: 0, rejected: 0, allPrice: 0, allTonnage: 0, status: 'отмена', ads: null})
         //order по id
         const orderById = {}
         for(const invoiceOrder of invoice.orders) {
@@ -548,11 +554,11 @@ const setOrder = async ({orders, invoice, user}) => {
             const updatedOrder = {
                 count: orders[i].count,
                 allPrice: orders[i].allPrice,
-                returned: orders[i].returned,
+                rejected: orders[i].rejected,
                 allTonnage: checkFloat(orders[i].allTonnage)
             }
             //подсчет накладной
-            returnedPrice += orders[i].returned * (orders[i].allPrice / orders[i].count)
+            rejectedPrice += orders[i].rejected * (orders[i].allPrice / orders[i].count)
             allPrice += orders[i].allPrice
             allTonnage += orders[i].allTonnage
             //обновление в монго
@@ -566,7 +572,7 @@ const setOrder = async ({orders, invoice, user}) => {
         //обновление накладной
         invoice.allPrice = checkFloat(allPrice)
         invoice.allTonnage = checkFloat(allTonnage)
-        invoice.returnedPrice = checkFloat(returnedPrice)
+        invoice.rejectedPrice = checkFloat(rejectedPrice)
     }
     //редактор
     invoice.editor = `${user.role}${user.name?` ${user.name}`:''}`
@@ -605,7 +611,7 @@ const setOrder = async ({orders, invoice, user}) => {
     }
     //сохранить накладную
     await InvoiceAzyk.updateOne({_id: invoice._id}, {
-        allPrice: invoice.allPrice, allTonnage: invoice.allTonnage, returnedPrice: invoice.returnedPrice,
+        allPrice: invoice.allPrice, allTonnage: invoice.allTonnage, rejectedPrice: invoice.rejectedPrice,
         editor: invoice.editor, sync: invoice.sync, orders: invoice.orders.map(order => order._id)
     });
     //подсчет остатков
@@ -623,7 +629,7 @@ const setOrder = async ({orders, invoice, user}) => {
         status: invoice.orders[0].status,
         ...orders&&orders.length?{
             orders: orders.map(order => {
-                return {item: order.name, count: order.count, returned: order.returned}
+                return {item: order.name, count: order.count, rejected: order.rejected}
             })
         }:{}
     }))
@@ -769,7 +775,7 @@ const resolversMutation = {
         }
     },
     addOrders: async(parent, {stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets}, {user}) => {
-        if(stamp&&await InvoiceAzyk.findOne({stamp}).select('_id').lean())
+        if(stamp&&(await InvoiceAzyk.findOne({stamp}).select('_id').lean()))
             return
         // Привязка клиента, если заказ делает клиент
         if(user.client) client = user.client
@@ -782,8 +788,6 @@ const resolversMutation = {
         if(subBrand) organization = subBrand.organization
         client = clientData
         if(user.organization) organization = user.organization
-        //фильтруем нулевые значения
-        baskets = baskets.filter(basket => basket.count)
         // Проверка деления по суббрендам
         // Получаем корзины пользователя (агента или клиента)
         // eslint-disable-next-line no-undef
@@ -822,7 +826,7 @@ const resolversMutation = {
         //скидка клиента
         const discount = discountData?discountData.discount:0
         //автоприем
-        const autoAcceptAgent = organizationData.autoAcceptAgent;
+        const autoAcceptAgent = organizationData.autoAcceptAgent||user.role==='экспедитор';
         const divideBySubBrand = organizationData.divideBySubBrand;
         // Группируем корзины по суббрендам, если включено деление
         let basketsBySubBrand
@@ -1018,10 +1022,10 @@ const resolversMutation = {
                     // eslint-disable-next-line no-undef
                     await Promise.all([
                         //перевод всех заказов в обработку
-                        OrderAzyk.updateMany({_id: {$in: objectInvoice.orders}}, {status: 'обработка', returned: 0}),
+                        OrderAzyk.updateMany({_id: {$in: objectInvoice.orders}}, {status: 'обработка', rejected: 0}),
                         //обновление накладной
                         InvoiceAzyk.updateOne({_id: objectInvoice._id}, {
-                            returnedPrice: 0, confirmationForwarder: false, confirmationClient: false, taken: false, sync: 0, editor,
+                            rejectedPrice: 0, confirmationForwarder: false, confirmationClient: false, taken: false, sync: 0, editor,
                             allPrice: checkFloat(allPrice), allTonnage: checkFloat(allTonnage), orders
                         }),
                         //история
@@ -1040,7 +1044,7 @@ const resolversMutation = {
                     ///await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
                     // Получаем финальный счёт для публикации
                     let newInvoice = await InvoiceAzyk.findById(objectInvoice._id)
-                        .select(' _id agent createdAt updatedAt allTonnage client allPrice returnedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder taken sync city dateDelivery')
+                        .select(' _id agent createdAt updatedAt allTonnage client allPrice rejectedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder taken sync city dateDelivery')
                         .populate({path: 'client', select: '_id name email phone user', populate: [{path: 'user', select: '_id'}]})
                         .populate({path: 'agent', select: '_id name'})
                         .populate({path: 'organization', select: '_id name'})

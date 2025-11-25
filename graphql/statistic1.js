@@ -110,7 +110,7 @@ const resolvers = {
                     ...districtClients?{client: {$in: districtClients}}:{}
                }
             )
-                .select('client address agent returnedPrice _id allPrice')
+                .select('client address agent rejectedPrice _id allPrice')
                 .lean()
 
             for(const invoice of invoices) {
@@ -124,7 +124,7 @@ const resolvers = {
                         completeOffline: 0,
                         client: `${invoice.address[2]}, ${invoice.address[0]}`
                    }
-                const profit = invoice.allPrice - invoice.returnedPrice
+                const profit = invoice.allPrice - invoice.rejectedPrice
                 if(profit) {
                     statistic[invoice.client._id].complete += 1
                     completeAll += 1
@@ -217,7 +217,7 @@ const resolvers = {
                 .select('orders')
                 .lean()
             const orders = await OrderAzyk.find({_id: {$in: (invoices.map(invoice => invoice.orders)).flat()}})
-                .select('_id item allPrice returned count')
+                .select('_id item allPrice rejected count')
                 .lean();
             const items = await ItemAzyk.find({_id: {$in: orders.map(order => order.item)}})
                 .select('_id name')
@@ -230,9 +230,9 @@ const resolvers = {
             for(const order of orders) {
                 const itemId = order.item.toString()
                 const item = itemById[itemId];
-                if(order.returned) {
+                if(order.rejected) {
                     const price = checkFloat(order.allPrice/order.count)
-                    order.count = order.count - order.returned
+                    order.count = order.count - order.rejected
                     order.allPrice = order.count * price
                }
                 if (!statistic[item._id]) statistic[item._id] = {
@@ -293,7 +293,7 @@ const resolvers = {
             }
             let statistic = {}
             let profitAll = 0
-            let returnedAll = 0
+            let rejectedAll = 0
             let completAll = []
 
             const invoices = await InvoiceAzyk.find(
@@ -307,7 +307,7 @@ const resolvers = {
                     ...city?{city}:{},
                }
             )
-                .select('adss allPrice _id returnedPrice')
+                .select('adss allPrice _id rejectedPrice')
                 .lean()
 
             const adss = await AdsAzyk.find({
@@ -326,15 +326,15 @@ const resolvers = {
                     ads = adsById[adsId]
                     if (!statistic[ads._id]) statistic[ads._id] = {
                         profit: 0,
-                        returned: 0,
+                        rejected: 0,
                         complet: [],
                         ads: ads.title
                    }
 
-                    const profit = invoice.allPrice - invoice.returnedPrice
+                    const profit = invoice.allPrice - invoice.rejectedPrice
 
                     statistic[ads._id].profit += profit
-                    statistic[ads._id].returned += invoice.returnedPrice
+                    statistic[ads._id].rejected += invoice.rejectedPrice
 
                     if(profit&&!statistic[ads._id].complet.includes(invoice._id.toString()))
                         statistic[ads._id].complet.push(invoice._id.toString())
@@ -342,7 +342,7 @@ const resolvers = {
                     if(!completAll.includes(invoice._id.toString())) {
                         completAll.push(invoice._id.toString())
                         profitAll += profit
-                        returnedAll += invoice.returnedPrice
+                        rejectedAll += invoice.rejectedPrice
                    }
 
 
@@ -358,7 +358,7 @@ const resolvers = {
                         formatAmount(statistic[key].ads),
                         formatAmount(checkFloat(statistic[key].profit)),
                         formatAmount(statistic[key].complet.length),
-                        ...returnedAll?[formatAmount(checkFloat(statistic[key].returned))]:[],
+                        ...rejectedAll?[formatAmount(checkFloat(statistic[key].rejected))]:[],
                         formatAmount(checkFloat(statistic[key].profit*100/profitAll))
                     ]
                })
@@ -373,13 +373,13 @@ const resolvers = {
                         formatAmount(data.length),
                         formatAmount(checkFloat(profitAll)),
                         formatAmount(completAll.length),
-                        formatAmount(checkFloat(returnedAll))
+                        formatAmount(checkFloat(rejectedAll))
                     ]
                },
                 ...data
             ]
             return {
-                columns: ['акция', 'выручка(сом)', 'выполнен(шт)', ...returnedAll?['возврат(сом)']:[], 'процент'],
+                columns: ['акция', 'выручка(сом)', 'выполнен(шт)', ...rejectedAll?['возврат(сом)']:[], 'процент'],
                 row: data
            };
        }
@@ -400,7 +400,7 @@ const resolvers = {
             let statistic = {}, data = []
             let profitAll = 0
             let completAll = 0
-            let returnedAll = 0
+            let rejectedAll = 0
 
             const invoices = await InvoiceAzyk.find({
                 createdAt: {$gte: dateStart, $lt: dateEnd},
@@ -410,7 +410,7 @@ const resolvers = {
                 ...organization?{organization}:{},
                 ...online?{agent: null}:{}
            })
-                .select('_id returnedPrice allPrice client organization')
+                .select('_id rejectedPrice allPrice client organization')
                 .lean()
 
             // eslint-disable-next-line no-undef
@@ -445,7 +445,7 @@ const resolvers = {
                     statistic[object._id] = {
                         profit: 0,
                         complet: 0,
-                        returnedPrice: 0,
+                        rejectedPrice: 0,
                         clients: {},
                         name: object.name
                    }
@@ -453,13 +453,13 @@ const resolvers = {
                     statistic[object._id].clients[invoice.client] = 1
                }
 
-                const profit = invoice.allPrice - invoice.returnedPrice
+                const profit = invoice.allPrice - invoice.rejectedPrice
 
                 statistic[object._id].profit += profit
                 profitAll += profit
 
-                statistic[object._id].returnedPrice += invoice.returnedPrice
-                returnedAll += invoice.returnedPrice
+                statistic[object._id].rejectedPrice += invoice.rejectedPrice
+                rejectedAll += invoice.rejectedPrice
 
                 if(profit) {
                     statistic[object._id].complet += 1
@@ -476,7 +476,7 @@ const resolvers = {
                         statistic[key].name,
                         formatAmount(checkFloat(statistic[key].profit)),
                         formatAmount(statistic[key].complet),
-                        ...returnedAll?[formatAmount(checkFloat(statistic[key].returnedPrice))]:[],
+                        ...rejectedAll?[formatAmount(checkFloat(statistic[key].rejectedPrice))]:[],
                         formatAmount(checkFloat(statistic[key].profit/statistic[key].complet)),
                         formatAmount(Object.keys(statistic[key].clients).length),
                         formatAmount(checkFloat(statistic[key].profit*100/profitAll))
@@ -493,14 +493,14 @@ const resolvers = {
                         formatAmount(data.length),
                         formatAmount(checkFloat(profitAll)),
                         formatAmount(completAll),
-                        formatAmount(checkFloat(returnedAll))
+                        formatAmount(checkFloat(rejectedAll))
                     ]
                },
                 ...data
             ]
 
             return {
-                columns: [organization?'район':'организация', 'выручка(сом)', 'выполнен(шт)', ...returnedAll?['отказы(сом)']:[], 'средний чек(сом)', 'клиенты', 'процент'],
+                columns: [organization?'район':'организация', 'выручка(сом)', 'выполнен(шт)', ...rejectedAll?['отказы(сом)']:[], 'средний чек(сом)', 'клиенты', 'процент'],
                 row: data
            };
        }

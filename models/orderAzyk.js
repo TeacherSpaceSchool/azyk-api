@@ -11,7 +11,7 @@ const OrderAzykSchema = mongoose.Schema({
         ref: 'ClientAzyk'
    },
     //количество отказа
-    returned: {
+    rejected: {
         type: Number,
         default: 0
    },
@@ -37,6 +37,9 @@ const OrderAzykSchema = mongoose.Schema({
     timestamps: true
 });
 
+OrderAzykSchema.index({client: 1})
+OrderAzykSchema.index({item: 1})
+OrderAzykSchema.index({status: 1})
 
 const OrderAzyk = mongoose.model('OrderAzyk', OrderAzykSchema);
 

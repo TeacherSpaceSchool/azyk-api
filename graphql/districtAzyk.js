@@ -39,7 +39,7 @@ const mutation = `
 
 const resolvers = {
     districts: async(parent, {organization, search}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin', 'менеджер', 'агент', 'суперагент'].includes(user.role)) {
+        if(['суперорганизация', 'организация', 'admin', 'менеджер', 'агент', 'экспедитор', 'суперагент'].includes(user.role)) {
             // eslint-disable-next-line no-undef
             const [searchedClients, searchedEmployments] = await Promise.all([
                 search?ClientAzyk.find({
@@ -67,6 +67,7 @@ const resolvers = {
                } : {}),
                 ...'менеджер' === user.role ? {manager: user.employment} : {},
                 ...'агент' === user.role ? {agent: user.employment} : {},
+                ...'экспедитор' === user.role ? {forwarder: user.employment} : {},
            })
                 .populate({
                     path: 'agent',

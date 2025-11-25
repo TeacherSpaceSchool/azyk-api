@@ -5,6 +5,7 @@ const {reductionIntegrate1C} = require('./integrate1C');
 const {reductionDistrict} = require('./district');
 const {mockConsigFlow} = require('./consigFlow');
 const {reductionClientAzyk} = require('./client');
+const {reductionOrderAzyk} = require('./order');
 
 let startDeleteBD = async () => {
     if(isMainThread) {
@@ -78,6 +79,7 @@ let start = async () => {
     await reductionIntegrate1C()
     await reductionDistrict()
     await reductionClientAzyk()
+    await reductionOrderAzyk()
     //mock
     //**/await mockConsigFlow()
     //watcher

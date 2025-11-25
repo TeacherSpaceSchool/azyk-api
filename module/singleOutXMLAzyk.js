@@ -9,6 +9,8 @@ const {pdDDMMYYYY, checkInt, sendPushToAdmin, isNotEmpty, unawaited, dayStartDef
 const { v1: uuidv1 } = require('uuid');
 const builder = require('xmlbuilder');
 const ModelsErrorAzyk = require('../models/errorAzyk');
+const {parallelPromise} = require('./parallel');
+const {calculateConsig} = require('./consigFlow');
 
 const paymentMethodTo1C = {'Наличные': 0, 'Перечисление': 1, 'Консигнация': 5}
 
@@ -146,7 +148,7 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
             //guid товара
             if (guidItem) {
                 //количество минус отказ
-                const count = order.count - order.returned
+                const count = order.count - order.rejected
                 //цена
                 const price = checkFloat(order.allPrice/order.count)
                 //собираем позицию
@@ -266,6 +268,11 @@ module.exports.setSingleOutXMLAzykLogic = async({invoices, forwarder, track, dat
                         {sync: 1, ...isNotEmpty(track)?{track}:{}, ...guidForwarder?{forwarder}:{}}
                 )]:[]
             ])
+            if(paymentMethod) {
+                await parallelPromise(invoices, async invoice => {
+                    await calculateConsig(invoice)
+                })
+            }
        }
    }
     catch (err) {

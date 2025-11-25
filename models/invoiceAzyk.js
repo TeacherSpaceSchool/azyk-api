@@ -14,7 +14,7 @@ const InvoiceAzykSchema = mongoose.Schema({
         ref: 'ClientAzyk'
    },
     allPrice: Number,
-    returnedPrice: {
+    rejectedPrice: {
         type: Number,
         default: 0
    },
