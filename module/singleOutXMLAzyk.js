@@ -238,17 +238,19 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
 module.exports.setSingleOutXMLAzykLogic = async({invoices, forwarder, track, dateDelivery, paymentMethod}) => {
     try {
         if (isNotEmpty(track) || forwarder || paymentMethod) {
+            //dateDelivery
+            dateDelivery.setHours(dayStartDefault, 0, 0, 0)
+            //клиенты и гуиды
             // eslint-disable-next-line no-undef
             const [guidForwarder, clients] = await Promise.all([
                 forwarder?Integrate1CAzyk.findOne({forwarder: forwarder}).select('guid').lean():null,
                 InvoiceAzyk.find({_id: {$in: invoices}}).distinct('client')
             ])
+            //возвраты
             let returneds
             if(isNotEmpty(track)||guidForwarder)
                 returneds = await ReturnedAzyk.find({client: {$in: clients}, dateDelivery}).distinct('_id')
-            //dateDelivery
-            dateDelivery.setHours(dayStartDefault, 0, 0, 0)
-            //change
+            //изменение
             // eslint-disable-next-line no-undef
             await Promise.all([
                 InvoiceAzyk.updateMany(
@@ -299,7 +301,7 @@ module.exports.cancelSingleOutXMLReturnedAzyk = async(returned) => {
 module.exports.cancelSingleOutXMLAzyk = async(invoice) => {
     try {
         // eslint-disable-next-line no-undef
-        await SingleOutXMLAzyk.updateOne({invoice: invoice._id}, {status: 'del'})
+        await SingleOutXMLAzyk.updateMany({invoice: invoice._id}, {status: 'del'})
         return 0
    }
     catch (err) {

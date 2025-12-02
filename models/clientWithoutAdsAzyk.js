@@ -4,7 +4,11 @@ const ClientWithoutAdsAzykSchema = mongoose.Schema({
     client: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ClientAzyk'
-   }
+   },
+    organization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'OrganizationAzyk'
+    },
 }, {
     timestamps: true
 });

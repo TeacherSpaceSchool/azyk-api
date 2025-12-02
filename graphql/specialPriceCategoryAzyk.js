@@ -1,9 +1,7 @@
 const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
-const Item = require('../models/itemAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const ClientAzyk = require('../models/clientAzyk');
-const ItemAzyk = require('../models/itemAzyk');
-const OrganizationAzyk = require('../models/organizationAzyk');
+const {checkFloat} = require('../module/const');
 
 const type = `
   type SpecialPriceCategory {
@@ -22,9 +20,7 @@ const query = `
 `;
 
 const mutation = `
-    addSpecialPriceCategory(category: String!, organization: ID!, price: Float!, item: ID!): SpecialPriceCategory
-    setSpecialPriceCategory(_id: ID!, price: Float!): String
-    deleteSpecialPriceCategory(_id: ID!): String
+    setSpecialPriceCategory(category: String!, organization: ID!, price: String, item: ID!): String
 `;
 
 const resolvers = {
@@ -61,46 +57,23 @@ const resolvers = {
                })
                 .lean()
        }
-   },
-    itemsForSpecialPriceCategories: async(parent, {category, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
-            let excludedItems = await SpecialPriceCategory.find({
-                category,
-                organization: user.organization||organization
-           })
-                .distinct('item')
-                .lean()
-
-            return await Item.find({_id: {$nin: excludedItems}, organization: user.organization||organization})
-                .select('_id name')
-                .lean()
-       }
-   },
+   }
 };
 
 const resolversMutation = {
-    addSpecialPriceCategory: async(parent, {category, organization, price, item}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)&&!(await SpecialPriceCategory.findOne({item, category}).select('_id').lean())) {
-            // eslint-disable-next-line no-undef
-            const [createdObject, itemData, organizationData] = await Promise.all([
-                SpecialPriceCategory.create({item, price, category, organization}),
-                ItemAzyk.findById(item).select('_id name').lean(),
-                OrganizationAzyk.findById(organization).select('_id name').lean()
-            ]);
-            return {...createdObject.toObject(), item: itemData, organization: organizationData}
-       }
-   },
-    setSpecialPriceCategory: async(parent, {_id, price}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
-            await SpecialPriceCategory.updateOne({_id}, {price})
-       }
+    setSpecialPriceCategory: async(parent, {category, organization, price, item}, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+            if(price&&price.length) {
+                if(await SpecialPriceCategory.findOne({category, organization, item}).select('_id').lean())
+                    await SpecialPriceCategory.updateOne({item, category, organization}, {price: checkFloat(price)})
+                else
+                    await SpecialPriceCategory.create({item, price: checkFloat(price), category, organization})
+            }
+            else
+                await SpecialPriceCategory.deleteOne({category, organization, item})
+
+        }
         return 'OK';
-   },
-    deleteSpecialPriceCategory: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
-            await SpecialPriceCategory.deleteOne({_id})
-       }
-        return 'OK'
    }
 };
 

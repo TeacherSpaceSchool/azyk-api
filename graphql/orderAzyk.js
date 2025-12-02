@@ -22,6 +22,9 @@ const { v1: uuidv1 } = require('uuid');
 const {calculateStock} = require('../module/stockAzyk');
 const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 const {calculateConsig} = require('../module/consigFlow');
+const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
+const ReturnedAzyk = require('../models/returnedAzyk');
+const SingleOutXMLReturnedAzyk = require('../models/singleOutXMLReturnedAzyk');
 
 const type = `
   type Order {
@@ -135,7 +138,8 @@ const mutation = `
     addOrders(stamp: String, baskets: [OrderInput], dateDelivery: Date!, info: String, inv: Boolean, unite: Boolean, paymentMethod: String, organization: ID!, client: ID!): String
     setOrder(orders: [OrderInput], invoice: ID): Invoice
     setInvoice(adss: [ID], taken: Boolean, invoice: ID!, confirmationClient: Boolean, confirmationForwarder: Boolean, cancelClient: Boolean, cancelForwarder: Boolean): String
-    setInvoicesLogic(dateDelivery: Date, track: Int, forwarder: ID, paymentMethod: String, invoices: [ID]!): String
+    setInvoicesLogic(dateDelivery: Date!, track: Int, forwarder: ID, paymentMethod: String, invoices: [ID]!): String
+    setInvoicesDateDelivery(dateDelivery: Date!, invoices: [ID]!): String
     deleteOrders(ids: [ID]!): String
 `;
 
@@ -1115,7 +1119,24 @@ const resolversMutation = {
     setInvoice: async(parent, {adss, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder}, {user}) => {
         await setInvoice({adss, needCheckAdss: true, taken, invoice, confirmationClient, confirmationForwarder, cancelClient, cancelForwarder, user})
         return 'OK';
-    }
+    },
+    setInvoicesDateDelivery: async(parent, {dateDelivery, invoices}, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+            dateDelivery.setHours(dayStartDefault, 0, 0, 0)
+            // eslint-disable-next-line no-undef
+            await Promise.all([
+                InvoiceAzyk.updateMany(
+                    {_id: {$in: invoices}},
+                    {sync: 1, dateDelivery}
+                ),
+                SingleOutXMLAzyk.updateMany(
+                    {invoice: {$in: invoices}},
+                    {status: 'update', date: dateDelivery}
+                )
+            ])
+            return 'OK';
+        }
+    },
 };
 
 const resolversSubscription = {

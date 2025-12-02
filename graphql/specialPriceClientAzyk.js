@@ -1,10 +1,6 @@
 const SpecialPriceClient = require('../models/specialPriceClientAzyk');
-const Item = require('../models/itemAzyk');
-const Client = require('../models/clientAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const OrganizationAzyk = require('../models/organizationAzyk');
-const ItemAzyk = require('../models/itemAzyk');
-const ClientAzyk = require('../models/clientAzyk');
+const {checkFloat} = require('../module/const');
 
 const type = `
   type SpecialPriceClient {
@@ -19,13 +15,10 @@ const type = `
 
 const query = `
     specialPriceClients(client: ID!, organization: ID): [SpecialPriceClient]
-    itemsForSpecialPriceClients(client: ID!, organization: ID): [Item]
 `;
 
 const mutation = `
-    addSpecialPriceClient(client: ID!, organization: ID!, price: Float!, item: ID!): SpecialPriceClient
-    setSpecialPriceClient(_id: ID!, price: Float!): String
-    deleteSpecialPriceClient(_id: ID!): String
+    setSpecialPriceClient(client: ID!, organization: ID!, price: String, item: ID!): String
 `;
 
 const resolvers = {
@@ -56,52 +49,23 @@ const resolvers = {
                })
                 .lean()
        }
-   },
-    itemsForSpecialPriceClients: async(parent, {client, organization}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'агент', 'admin'].includes(user.role)) {
-            if(user.organization) organization = user.organization
-            // eslint-disable-next-line no-undef
-            let [excludedItems, city] = await Promise.all([
-                SpecialPriceClient.find({client, organization}).distinct('item'),
-                Client.findById(client).select('city').lean()
-            ])
-            city = city.city
-            return Item.find({_id: {$nin: excludedItems}, organization: user.organization||organization, city}).select('_id name').lean()
-       }
-   },
+   }
 };
 
 const resolversMutation = {
-    addSpecialPriceClient: async(parent, {client, organization, price, item}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)&&!(await SpecialPriceClient.findOne({item, client, organization: user.organization||organization}).select('_id').lean())) {
-            // eslint-disable-next-line no-undef
-            let [createdObject, organizationData, itemData, clientData] = await Promise.all([
-                SpecialPriceClient.create({
-                    item,
-                    price,
-                    client,
-                    organization: user.organization||organization
-               }),
-                OrganizationAzyk.findById(organization).select('_id name').lean(),
-                ItemAzyk.findById(item).select('_id name').lean(),
-                ClientAzyk.findById(client).select('_id name address').lean(),
-
-            ]);
-            return {...createdObject.toObject(), organization: organizationData, item: itemData, client: clientData}
-       }
-   },
-    setSpecialPriceClient: async(parent, {_id, price}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
-            await SpecialPriceClient.updateOne({_id}, {price})
-       }
+    setSpecialPriceClient: async(parent, {client, organization, price, item}, {user}) => {
+        if(['суперорганизация', 'организация', 'менеджер', 'admin'].includes(user.role)) {
+            if(price&&price.length) {
+                if(await SpecialPriceClient.findOne({client, organization, item}).select('_id').lean())
+                    await SpecialPriceClient.updateOne({item, client, organization}, {price: checkFloat(price)})
+                else
+                    await SpecialPriceClient.create({item, price: checkFloat(price), client, organization})
+            }
+            else
+                await SpecialPriceClient.deleteOne({client, organization, item})
+        }
         return 'OK';
-   },
-    deleteSpecialPriceClient: async(parent, {_id}, {user}) => {
-        if(['суперорганизация', 'организация', 'менеджер', 'admin', 'агент'].includes(user.role)) {
-            await SpecialPriceClient.deleteOne({_id})
-       }
-        return 'OK'
-   }
+    }
 };
 
 module.exports.resolversMutation = resolversMutation;

@@ -39,7 +39,7 @@ const type = `
 `;
 
 const query = `
-    clientsSimpleStatistic(network: ID, search: String!, filter: String!, date: String, city: String): String
+    clientsSimpleStatistic(network: ID, search: String!, filter: String!, date: String, city: String, district: ID): String
     clients(network: ID, search: String!, sort: String!, filter: String!, date: String, skip: Int, district: ID, city: String, catalog: Boolean): [Client]
     clientsSync(search: String!, organization: ID!, skip: Int!, city: String): [Client]
     clientsSyncStatistic(search: String!, organization: ID!, city: String): String
@@ -55,7 +55,7 @@ const mutation = `
 `;
 
 const resolvers = {
-    clientsSimpleStatistic: async(parent, {search, date, filter, city, network}, {user}) => {
+    clientsSimpleStatistic: async(parent, {search, date, filter, city, network, district}, {user}) => {
         if(['менеджер', 'экспедитор', 'агент', 'суперагент', 'admin', 'суперорганизация', 'организация'].includes(user.role)) {
             let dateStart;
             let dateEnd;
@@ -72,6 +72,14 @@ const resolvers = {
                     .distinct('client')
                     .lean()
            }
+            if(district) {
+                district = await DistrictAzyk.findById(district).select('client').lean()
+                if(availableClients) {
+                    district = district.client.toString()
+                    availableClients = availableClients.filter(availableClient => district.includes(availableClient.toString()))
+                }
+                else availableClients = district.client
+            }
             let users
             if(['Включенные', 'Выключенные'].includes(filter))
                 users = await UserAzyk.find({role: 'client', status: filter==='Выключенные'?'deactive':'active'}).distinct('_id')
@@ -176,10 +184,10 @@ const resolvers = {
         if(district) {
             district = await DistrictAzyk.findById(district).select('client').lean()
             if(availableClients) {
-                district = district.clients.toString()
+                district = district.client.toString()
                 availableClients = availableClients.filter(availableClient => district.includes(availableClient.toString()))
             }
-            else availableClients = district.clients
+            else availableClients = district.client
         }
         let users
         if(['Включенные', 'Выключенные'].includes(filter))
