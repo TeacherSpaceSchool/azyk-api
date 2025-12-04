@@ -15,7 +15,6 @@ const RELOAD_ORDER = 'RELOAD_ORDER';
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
 const {
     checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault, defaultLimit, reductionSearchText,
-    sendPushToAdmin
 } = require('../module/const');
 const {checkAdss} = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
@@ -24,7 +23,6 @@ const {calculateStock} = require('../module/stockAzyk');
 const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 const {calculateConsig} = require('../module/consigFlow');
 const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
-const ModelsErrorAzyk = require('../models/errorAzyk');
 
 const type = `
   type Order {
@@ -792,11 +790,6 @@ const resolversMutation = {
         if(subBrand) organization = subBrand.organization
         client = clientData
         if(user.organization) organization = user.organization
-        /*костыль*/
-        if(!baskets) unawaited(async () => {
-            await ModelsErrorAzyk.create({err: `user ${JSON.stringify(user)} baskets1=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
-            await sendPushToAdmin({message: 'baskets1=null'})
-        })
         // Проверка деления по суббрендам
         // Получаем корзины пользователя (агента или клиента)
         // eslint-disable-next-line no-undef
@@ -818,11 +811,6 @@ const resolversMutation = {
             const basketItemId = basketItem._id.toString()
             basketItemById[basketItemId] = basketItem
         }
-        /*костыль*/
-        if(!baskets) unawaited(async () => {
-            await ModelsErrorAzyk.create({err: `user ${JSON.stringify(user)} baskets2=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
-            await sendPushToAdmin({message: 'baskets2=null'})
-        })
         baskets = baskets.map(basket => {
             const basketItemId = basket._id.toString()
             basket.item = basketItemById[basketItemId]
@@ -867,11 +855,6 @@ const resolversMutation = {
         //надо ли checkAds
         let invoiceCheckAdss
         // Обрабатываем каждую группу корзин
-        /*костыль*/
-        if(!basketsBySubBrand) unawaited(async () => {
-            await ModelsErrorAzyk.create({err: `user ${JSON.stringify(user)} basketsBySubBrand1=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
-            await sendPushToAdmin({message: 'basketsBySubBrand1=null'})
-        })
         // eslint-disable-next-line no-undef
         await Promise.all(basketsBySubBrand.map(async (baskets, idx) => {
             //формируем корзины побренда
@@ -919,11 +902,6 @@ const resolversMutation = {
                             objectInvoices[i].orders[0].item.subBrand = objectInvoices[i].orders[0].item.subBrand.toString()
                         if (baskets[0].item.subBrand === objectInvoices[i].orders[0].item.subBrand) {
                             objectInvoice = objectInvoices[i];
-                            /*костыль*/
-                            if(!objectInvoice.orders) unawaited(async () => {
-                                await ModelsErrorAzyk.create({err: `user ${JSON.stringify(user)} objectInvoice.orders1=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
-                                await sendPushToAdmin({message: 'objectInvoice.orders1=null'})
-                            })
                             objectInvoice.orders = objectInvoice.orders.map(order => order._id)
                             break;
                         }
@@ -931,11 +909,6 @@ const resolversMutation = {
                 }
                 //нету накладной
                 if(!objectInvoice) {
-                    /*костыль*/
-                    if(!baskets) unawaited(async () => {
-                        await ModelsErrorAzyk.create({err: `user ${JSON.stringify(user)} baskets3=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
-                        await sendPushToAdmin({message: 'baskets3=null'})
-                    })
                     // создаём заказы
                     // eslint-disable-next-line no-undef
                     let orders = await Promise.all(baskets.map(async basket => {
@@ -958,11 +931,6 @@ const resolversMutation = {
                     //общая сумма накладной
                     let allPrice = 0
                     let allTonnage = 0
-                    /*костыль*/
-                    if(!orders) unawaited(async () => {
-                        await ModelsErrorAzyk.create({err: `user ${JSON.stringify(user)} orders2=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
-                        await sendPushToAdmin({message: 'orders2=null'})
-                    })
                     orders = orders.map(order => {
                         allPrice += order.allPrice
                         allTonnage += order.allTonnage
@@ -1004,11 +972,6 @@ const resolversMutation = {
                         const itemId = objectOrder.item.toString()
                         orderByItem[itemId] = objectOrder
                     }
-                    /*костыль*/
-                    if(!baskets) unawaited(async () => {
-                        await ModelsErrorAzyk.create({err: `user ${JSON.stringify(user)} baskets4=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
-                        await sendPushToAdmin({message: 'baskets4=null'})
-                    })
                     //перебор корзин
                     // eslint-disable-next-line no-undef
                     baskets = await Promise.all(baskets.map(async basket => {
