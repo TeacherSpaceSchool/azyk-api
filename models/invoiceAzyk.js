@@ -34,6 +34,7 @@ const InvoiceAzykSchema = mongoose.Schema({
     city: String,
     number: String,
     guid: String,
+    guids: mongoose.Schema.Types.Mixed,
     info: String,
     address: [String],
     paymentMethod: String,

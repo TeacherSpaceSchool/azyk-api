@@ -3,6 +3,7 @@ const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const {saveImage, deleteFile, urlMain, isNotTestUser, isNotEmpty, defaultLimit, reductionSearchText} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
+const ClientWithoutAdsAzyk = require('../models/clientWithoutAdsAzyk');
 
 const type = `
   type Ads {
@@ -112,7 +113,6 @@ const checkAdss = async(invoice, canceled) => {
                     if(ads.xid) selectedAdss = selectedAdss.filter(e => e.xid!==ads.xid)
                     selectedAdss.push(ads)
                 }
-                else break
             }
             //Акции записываются к последнему заказу
             await InvoiceAzyk.updateOne({

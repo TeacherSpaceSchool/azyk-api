@@ -348,6 +348,8 @@ const resolversMutation = {
             ClientAzyk.findById(client).select('city').lean(),
             DistrictAzyk.findOne({organization, client, ...user.role==='агент'?{agent: user.employment}:{}}).select('name forwarder').lean()
         ])
+        if(district)
+            await DistrictAzyk.findOne({organization, client}).select('name forwarder').lean()
         let city = clientCity.city
         //проверка на наличие возврата
         let objectReturned
@@ -391,7 +393,7 @@ const resolversMutation = {
                 track: 1,
                 city,
                 agent: user.employment,
-                forwarder: district.forwarder,
+                forwarder: district?district.forwarder:null,
                 inv: inv?1:null
            });
        }

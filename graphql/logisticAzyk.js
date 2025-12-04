@@ -40,8 +40,10 @@ const resolvers = {
             const invoices = await InvoiceAzyk.find({
                 /*не удален*/del: {$ne: 'deleted'}, /*экспедитор*/$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}],
                 /*рейс*/...track?{track}:{}, /*dateDelivery*/dateDelivery, /*organization*/organization, /*только принят*/taken: true
-            }).select('_id createdAt number client agent allPrice rejectedPrice address track info discount paymentMethod inv orders')
-                .populate({path: 'orders', populate: {path: 'item', select: '_id name packaging'}}).populate({path: 'client', select: '_id name inn phone'}).sort('createdAt').lean()
+            }).select('_id adss createdAt number client agent allPrice rejectedPrice address track info discount paymentMethod inv orders')
+                .populate({path: 'adss', select: '_id item count', populate: {path: 'item', select: '_id name unit packaging weight'}})
+                .populate({path: 'orders', populate: {path: 'item', select: '_id name packaging'}})
+                .populate({path: 'client', select: '_id name inn phone'}).sort('createdAt').lean()
             //invoicesClients
             const invoicesClients = invoices.map(invoice => invoice.client)
             //консигнации

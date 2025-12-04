@@ -124,14 +124,21 @@ module.exports.setSingleOutXMLReturnedAzyk = async(returned) => {
 }
 
 module.exports.setSingleOutXMLAzyk = async(invoice) => {
+    //зависимости
+    const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
+    const Integrate1CAzyk = require('../models/integrate1CAzyk');
+    const DistrictAzyk = require('../models/districtAzyk');
+    const {sendPushToAdmin, unawaited} = require('./const');
+    const { v1: uuidv1 } = require('uuid');
+    const {checkFloat} = require('../module/const');
+    const ModelsErrorAzyk = require('../models/errorAzyk');
+    //сообщение об ошибки
+    let messageError
+    //guid заказа
+    const guid = invoice.guid||await uuidv1()
+    const guids = invoice.guids||{}
+    //выполнение
     try {
-        const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
-        const Integrate1CAzyk = require('../models/integrate1CAzyk');
-        const DistrictAzyk = require('../models/districtAzyk');
-        const {sendPushToAdmin, unawaited} = require('./const');
-        const { v1: uuidv1 } = require('uuid');
-        const {checkFloat} = require('../module/const');
-        const ModelsErrorAzyk = require('../models/errorAzyk');
         //guid по товарам
         const itemIds = invoice.orders.map(order => order.item._id)
         let integrateItems = await Integrate1CAzyk.find({item: {$in: itemIds}}).select('item guid').lean()
@@ -140,8 +147,8 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
             const itemId = integrateItem.item.toString()
             guidByItem[itemId] = integrateItem.guid
         }
-        //данные товаров
-        const data = []
+        //товары по подбрендам
+        let dataBySubBrand = {}
         for(const order of invoice.orders) {
             const itemId = order.item._id.toString()
             let guidItem = guidByItem[itemId]
@@ -151,88 +158,125 @@ module.exports.setSingleOutXMLAzyk = async(invoice) => {
                 const count = order.count - order.rejected
                 //цена
                 const price = checkFloat(order.allPrice/order.count)
-                //собираем позицию
-                data.push({
+                //позиция
+                const itemData = {
                     guid: guidItem,
                     package: Math.round(count/(order.item.packaging?order.item.packaging:1)),
                     qt: count,
                     price: price,
                     amount: checkFloat(count*price),
                     priotiry: order.item.priotiry
-               })
+                }
+                //товары по подбрендам
+                if(!dataBySubBrand[order.item.subBrand]) dataBySubBrand[order.item.subBrand] = []
+                dataBySubBrand[order.item.subBrand].push(itemData)
            }
-            else {
+            else unawaited(async () => {
                 const message = `${invoice.number} Отсутствует guidItem ${order.item._id}`
-                unawaited(() =>  ModelsErrorAzyk.create({err: message, path: 'setSingleOutXMLAzyk'}))
-                unawaited(() =>  sendPushToAdmin({message}))
-           }
+                await ModelsErrorAzyk.create({err: message, path: 'setSingleOutXMLAzyk'})
+                await sendPushToAdmin({message})
+            })
        }
-        //интеграция
-        let outXMLAzyk = await SingleOutXMLAzyk.findOne({invoice: invoice._id}).select('_id').lean()
-        //есть
-        if (outXMLAzyk) {
-            // eslint-disable-next-line no-undef
-            await SingleOutXMLAzyk.updateOne({_id: outXMLAzyk._id}, {status: 'update',  data})
-            return 1
-       }
-        //нету
-        else {
-            //район
-            let district = await DistrictAzyk.findOne({organization: invoice.organization._id, client: invoice.client._id, ...invoice.agent?{agent: invoice.agent._id}:{}}).select('agent forwarder').lean()
-            if(!district&&invoice.agent)
-                district = await DistrictAzyk.findOne({organization: invoice.organization._id, agent: invoice.agent._id}).select('agent forwarder').lean()
-            if(!district)
-                district = await DistrictAzyk.findOne({organization: invoice.organization._id, client: invoice.client._id}).select('agent forwarder').lean()
-            if (district) {
-                //интеграции
-                // eslint-disable-next-line no-undef
-                const [integrateClient, integrateInvoiceForwarder, integrateDistrictForwarder, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
-                    Integrate1CAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id}).select('guid').lean(),
-                    invoice.forwarder?Integrate1CAzyk.findOne({forwarder: invoice.forwarder._id||invoice.forwarder, organization: invoice.organization._id}).select('guid').lean():null,
-                    district.forwarder?Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: invoice.organization._id}).select('guid').lean():null,
-                    invoice.agent?Integrate1CAzyk.findOne({agent: invoice.agent._id||invoice.agent, organization: invoice.organization._id}).select('guid').lean():null,
-                    district.agent?Integrate1CAzyk.findOne({agent: district.agent, organization: invoice.organization._id}).select('guid').lean():null
-                ])
-                const integrateAgent = integrateInvoiceAgent||integrateDistrictAgent
-                const integrateForwarder = integrateInvoiceForwarder||integrateDistrictForwarder
-                if (integrateClient && integrateAgent && integrateForwarder) {
-                    //добавляем интеграцию
+        //интеграции
+        let guidClient, guidAgent, guidForwarder
+        //заказы
+        for(const subBrand in dataBySubBrand) {
+            //гуид заказа
+            let subBrandGuid
+            if(invoice.organization.divideBySubBrand1C) {
+                if(!guids[subBrand]) guids[subBrand] = await uuidv1()
+                subBrandGuid = guids[subBrand]
+            }
+            else subBrandGuid = guid
+            //получаем гуиды
+            if (!guidClient||!guidAgent||!guidForwarder) {
+                //район
+                let district = await DistrictAzyk.findOne({organization: invoice.organization._id, client: invoice.client._id, ...invoice.agent?{agent: invoice.agent._id}:{}}).select('agent forwarder').lean()
+                if(!district&&invoice.agent) {
+                    district = await DistrictAzyk.findOne({
+                        organization: invoice.organization._id,
+                        agent: invoice.agent._id
+                    }).select('agent forwarder').lean()
+                }
+                if(!district) {
+                    district = await DistrictAzyk.findOne({
+                        organization: invoice.organization._id,
+                        client: invoice.client._id
+                    }).select('agent forwarder').lean()
+                }
+                if (district) {
+                    //интеграции
                     // eslint-disable-next-line no-undef
-                    await SingleOutXMLAzyk.create({
-                        payment: paymentMethodTo1C[invoice.paymentMethod],
-                        data,
-                        guid: invoice.guid ? invoice.guid : await uuidv1(),
-                        date: new Date(invoice.dateDelivery),
-                        number: invoice.number,
-                        client: integrateClient.guid,
-                        agent: integrateAgent.guid,
-                        forwarder: integrateForwarder.guid,
-                        invoice: invoice._id,
-                        status: 'create',
-                        inv: invoice.inv,
-                        organization: invoice.organization._id
-                   })
-                    return 1
-               }
-                else {
-                    const message = `${invoice.number}${!integrateClient?' Отсутствует guidClient':''}${!integrateAgent?' Отсутствует guidAgent':''}${!integrateForwarder?' Отсутствует guidForwarder':''}`
-                    unawaited(() =>  ModelsErrorAzyk.create({err: message, path: 'setSingleOutXMLAzyk'}))
-                    unawaited(() =>  sendPushToAdmin({message}))
-               }
-           }
+                    const [integrateClient, integrateInvoiceForwarder, integrateDistrictForwarder, integrateInvoiceAgent, integrateDistrictAgent] = await Promise.all([
+                        Integrate1CAzyk.findOne({client: invoice.client._id, organization: invoice.organization._id}).select('guid').lean(),
+                        invoice.forwarder?Integrate1CAzyk.findOne({forwarder: invoice.forwarder._id||invoice.forwarder, organization: invoice.organization._id}).select('guid').lean():null,
+                        district.forwarder?Integrate1CAzyk.findOne({forwarder: district.forwarder, organization: invoice.organization._id}).select('guid').lean():null,
+                        invoice.agent?Integrate1CAzyk.findOne({agent: invoice.agent._id||invoice.agent, organization: invoice.organization._id}).select('guid').lean():null,
+                        district.agent?Integrate1CAzyk.findOne({agent: district.agent, organization: invoice.organization._id}).select('guid').lean():null
+                    ])
+                    const integrateAgent = integrateInvoiceAgent||integrateDistrictAgent
+                    const integrateForwarder = integrateInvoiceForwarder||integrateDistrictForwarder
+                    //гуиды
+                    if (integrateClient&&integrateAgent&&integrateForwarder) {
+                        guidClient = integrateClient.guid
+                        guidAgent = integrateAgent.guid
+                        guidForwarder = integrateForwarder.guid
+                    }
+                    else {
+                        messageError = `${invoice.number}${!integrateClient?' Отсутствует guidClient':''}${!integrateAgent?' Отсутствует guidAgent':''}${!integrateForwarder?' Отсутствует guidForwarder':''}`
+                        break
+                    }
+                }
             else {
-                const message = `${invoice.number} Отсутствует district`
-                unawaited(() =>  ModelsErrorAzyk.create({err: message, path: 'setSingleOutXMLAzyk'}))
-                unawaited(() =>  sendPushToAdmin({message}))
-           }
-       }
+                messageError = `${invoice.number} Отсутствует district`
+                break
+            }
+        }
+            //данные товаров заказа
+            const data = invoice.organization.divideBySubBrand1C?dataBySubBrand[subBrand]:Object.values(dataBySubBrand).flat()
+            //интеграция
+            let outXMLAzyk = await SingleOutXMLAzyk.findOne({guid: subBrandGuid}).select('_id').lean()
+            //есть
+            if (outXMLAzyk) {
+                //обновление
+                // eslint-disable-next-line no-undef
+                await SingleOutXMLAzyk.updateOne({_id: outXMLAzyk._id}, {status: 'update',  data})
+            }
+            //нету
+            else {
+                //добавляем интеграцию
+                // eslint-disable-next-line no-undef
+                await SingleOutXMLAzyk.create({
+                    payment: paymentMethodTo1C[invoice.paymentMethod],
+                    data,
+                    guid: subBrandGuid,
+                    date: new Date(invoice.dateDelivery),
+                    number: invoice.number,
+                    client: guidClient,
+                    agent: guidAgent,
+                    forwarder: guidForwarder,
+                    invoice: invoice._id,
+                    status: 'create',
+                    inv: invoice.inv,
+                    organization: invoice.organization._id
+                })
+            }
+            //если не делить прерываем
+            if(!invoice.organization.divideBySubBrand1C) break
+        }
    }
     catch (err) {
-        console.error('setSingleOutXMLAzyk', err)
-        unawaited(() => ModelsErrorAzyk.create({err: formatErrorDetails(err), path: 'setSingleOutXMLAzyk'}))
-        unawaited(() =>  sendPushToAdmin({message: 'Ошибка setSingleOutXMLAzyk'}))
+        messageError = `Ошибка setSingleOutXMLAzyk\n${formatErrorDetails(err)}`
    }
-    return 0
+   //сообщение об ошибки
+   if(messageError) unawaited(async () => {
+       console.error(messageError)
+       await ModelsErrorAzyk.create({err: messageError, path: 'setSingleOutXMLAzyk'})
+       await sendPushToAdmin({messageError})
+   })
+    //
+    unawaited(() => InvoiceAzyk.updateOne({_id: invoice._id}, {guid, guids}))
+    return messageError?0:1
 }
 
 module.exports.setSingleOutXMLAzykLogic = async({invoices, forwarder, track, dateDelivery, paymentMethod}) => {
