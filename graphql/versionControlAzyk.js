@@ -7,7 +7,7 @@ const mutation = `
 const resolversMutation = {
     forceUpdate: async(parent, args, {user}) => {
         if(user.role==='admin') {
-            await sendWebPush({'type': 'forceUpdate'})
+            await sendWebPush({title: 'AZYK.STORE', message: 'Обновление системы', type: 'forceUpdate'})
             return 'OK'
         }
    }
