@@ -17,7 +17,6 @@ const {
     checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault, defaultLimit, reductionSearchText,
     sendPushToAdmin,
     pdDDMMHHMM,
-    pdHHMM
 } = require('../module/const');
 const {checkAdss} = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
@@ -785,11 +784,12 @@ const resolversMutation = {
         if(dateDelivery.getHours()!==dayStartDefault) {
             unawaited(async () => {
                 await ModelsErrorAzyk.create({
-                    err: `доставка не верна dateDelivery ${pdDDMMHHMM(dateDelivery)} dateDelivery.getHours ${dateDelivery.getHours} dayStartDefault ${dayStartDefault} client ${client}`,
+                    err: `доставка не верна dateDelivery ${pdDDMMHHMM(dateDelivery)} dateDelivery.getHours ${dateDelivery.getHours()} new Date(dateDelivery).getHours ${new Date(dateDelivery).getHours()} `,
                     path: 'addOrders'
                 })
                 await sendPushToAdmin({message: 'доставка не верна'})
             })
+            dateDelivery = new Date(dateDelivery)
             dateDelivery.setHours(dayStartDefault, 0, 0, 0)
         }
         //штамп
