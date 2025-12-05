@@ -785,7 +785,7 @@ const resolversMutation = {
         if(dateDelivery.getHours()!==dayStartDefault) {
             unawaited(async () => {
                 await ModelsErrorAzyk.create({
-                    err: `доставка не верна ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`,
+                    err: `доставка не верна dateDelivery ${pdDDMMHHMM(dateDelivery)} dateDelivery.getHours ${dateDelivery.getHours} dayStartDefault ${dayStartDefault} client ${client}`,
                     path: 'addOrders'
                 })
                 await sendPushToAdmin({message: 'доставка не верна'})
