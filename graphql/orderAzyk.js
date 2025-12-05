@@ -15,7 +15,9 @@ const RELOAD_ORDER = 'RELOAD_ORDER';
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
 const {
     checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault, defaultLimit, reductionSearchText,
-    sendPushToAdmin
+    sendPushToAdmin,
+    pdDDMMHHMM,
+    pdHHMM
 } = require('../module/const');
 const {checkAdss} = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
@@ -779,6 +781,18 @@ const resolversMutation = {
         }
     },
     addOrders: async(parent, {stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets}, {user}) => {
+        /*костыль*/
+        if(dateDelivery.getHours()!==dayStartDefault) {
+            unawaited(async () => {
+                await ModelsErrorAzyk.create({
+                    err: `доставка не верна ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`,
+                    path: 'addOrders'
+                })
+                await sendPushToAdmin({message: 'доставка не верна'})
+            })
+            dateDelivery.setHours(dayStartDefault, 0, 0, 0)
+        }
+        //штамп
         if(stamp&&(await InvoiceAzyk.findOne({stamp}).select('_id').lean()))
             return
         // Привязка клиента, если заказ делает клиент

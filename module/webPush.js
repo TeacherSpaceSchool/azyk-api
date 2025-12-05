@@ -4,13 +4,14 @@ const q = require('q');
 const webPush = require('web-push');
 const keys = require((process.env.URL).trim()==='https://azyk.store'?'./../config/keys_prod':'./../config/keys_dev');
 
-module.exports.sendWebPush = async({title, message, url, icon, users, excludedUsers}) => {
+module.exports.sendWebPush = async({title, message, url, icon, users, excludedUsers, type}) => {
     const payload = {
         title: title?title:'AZYK.STORE',
         message,
         url: url?url:'https://azyk.store',
         icon: icon?icon:'https://azyk.store/static/192x192.png',
-        tag: new Date().getTime()
+        tag: new Date().getTime(),
+        type
    };
     let _object = await NotificationStatisticAzyk.create({...payload, delivered: 0, failed: 0})
     payload._id = _object._id
