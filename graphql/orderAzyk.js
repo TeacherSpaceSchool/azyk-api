@@ -815,7 +815,9 @@ const resolversMutation = {
             })
             baskets = await BasketAzyk.find(user.client? {client: user.client} : {agent: user.employment}).select('item count _id').lean()
             baskets = baskets.filter(basket => basket.count)
-            baskets = baskets.map(basket => {return {_id: basket._id, count: basket.count}})
+            baskets = baskets.map(basket => {return {_id: basket.item, count: basket.count}})
+            // Удаляем использованные корзины
+            await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
             if(!baskets.length) {
                 baskets = null
                 unawaited(async () => {
@@ -1079,8 +1081,6 @@ const resolversMutation = {
                 }
                 //публикация и подсчет остатков
                 unawaited(async() => {
-                    // Удаляем использованные корзины
-                    ///await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
                     // Получаем финальный счёт для публикации
                     let newInvoice = await InvoiceAzyk.findById(objectInvoice._id)
                         .select(' _id agent createdAt updatedAt allTonnage client allPrice rejectedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder taken sync city dateDelivery')
