@@ -26,6 +26,7 @@ const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 const {calculateConsig} = require('../module/consigFlow');
 const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 const ModelsErrorAzyk = require('../models/errorAzyk');
+const BasketAzyk = require('../models/basketAzyk');
 
 const type = `
   type Order {
@@ -807,10 +808,22 @@ const resolversMutation = {
         client = clientData
         if(user.organization) organization = user.organization
         /*костыль*/
-        if(!baskets) unawaited(async () => {
-            await ModelsErrorAzyk.create({err: `baskets1=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
-            await sendPushToAdmin({message: 'baskets1=null'})
-        })
+        if(!baskets) {
+            unawaited(async () => {
+                await ModelsErrorAzyk.create({err: `baskets1=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
+                await sendPushToAdmin({message: 'baskets1=null'})
+            })
+            baskets = await BasketAzyk.find(user.client? {client: user.client} : {agent: user.employment}).select('item count _id').lean()
+            baskets = baskets.filter(basket => basket.count)
+            baskets = baskets.map(basket => {return {_id: basket._id, count: basket.count}})
+            if(!baskets.length) {
+                baskets = null
+                unawaited(async () => {
+                    await ModelsErrorAzyk.create({err: `baskets2=null baskets ${JSON.stringify(baskets)}`, path: 'addOrders'})
+                    await sendPushToAdmin({message: 'baskets2=null'})
+                })
+            }
+        }
         // Проверка деления по суббрендам
         // Получаем корзины пользователя (агента или клиента)
         // eslint-disable-next-line no-undef
