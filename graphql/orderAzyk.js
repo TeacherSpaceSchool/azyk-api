@@ -1081,6 +1081,8 @@ const resolversMutation = {
                 }
                 //публикация и подсчет остатков
                 unawaited(async() => {
+                    // Удаляем использованные корзины
+                    await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
                     // Получаем финальный счёт для публикации
                     let newInvoice = await InvoiceAzyk.findById(objectInvoice._id)
                         .select(' _id agent createdAt updatedAt allTonnage client allPrice rejectedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder taken sync city dateDelivery')
