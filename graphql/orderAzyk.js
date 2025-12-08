@@ -184,7 +184,8 @@ const resolvers = {
                 dateEnd.setHours(dayStartDefault, 0, 0, 0)
             }
             //dateDelivery
-            if(dateDelivery) dateDelivery.setHours(dayStartDefault, 0, 0, 0)
+            if(dateDelivery)
+                dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             //если пользователь экспедитор
             if(user.role==='экспедитор') forwarder = user.employment
             //поиск
@@ -785,7 +786,7 @@ const resolversMutation = {
         if(dateDelivery.getHours()!==dayStartDefault) {
             unawaited(async () => {
                 await ModelsErrorAzyk.create({
-                    err: `доставка не верна dateDelivery ${pdDDMMHHMM(dateDelivery)} dateDelivery.getHours ${dateDelivery.getHours()} new Date(dateDelivery).getHours ${new Date(dateDelivery).getHours()} `,
+                    err: `доставка не верна dateDelivery ${pdDDMMHHMM(dateDelivery)} dayStartDefault ${dayStartDefault} dateDelivery.getHours ${dateDelivery.getHours()} new Date(dateDelivery).getHours ${(new Date(dateDelivery)).getHours()} `,
                     path: 'addOrders'
                 })
                 await sendPushToAdmin({message: 'доставка не верна'})
@@ -809,10 +810,7 @@ const resolversMutation = {
         if(user.organization) organization = user.organization
         /*костыль*/
         if(!baskets) {
-            unawaited(async () => {
-                await ModelsErrorAzyk.create({err: `baskets1=null ${JSON.stringify({stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets})}`, path: 'addOrders'})
-                await sendPushToAdmin({message: 'baskets1=null'})
-            })
+            await ModelsErrorAzyk.create({err: `baskets1=null args ${JSON.stringify({client, baskets, stamp: !!stamp})} user ${user.role} ${user.name}`, path: 'addOrders'})
             baskets = await BasketAzyk.find(user.client? {client: user.client} : {agent: user.employment}).select('item count _id').lean()
             baskets = baskets.filter(basket => basket.count)
             baskets = baskets.map(basket => {return {_id: basket.item, count: basket.count}})
@@ -820,10 +818,7 @@ const resolversMutation = {
             await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
             if(!baskets.length) {
                 baskets = null
-                unawaited(async () => {
-                    await ModelsErrorAzyk.create({err: `baskets2=null baskets ${JSON.stringify(baskets)}`, path: 'addOrders'})
-                    await sendPushToAdmin({message: 'baskets2=null'})
-                })
+                await ModelsErrorAzyk.create({err: `baskets2=null baskets ${JSON.stringify(baskets)}`, path: 'addOrders'})
             }
         }
         // Проверка деления по суббрендам
