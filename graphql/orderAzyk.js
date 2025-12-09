@@ -13,11 +13,7 @@ const {pubsub} = require('./index');
 const {withFilter} = require('graphql-subscriptions');
 const RELOAD_ORDER = 'RELOAD_ORDER';
 const HistoryOrderAzyk = require('../models/historyOrderAzyk');
-const {
-    checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault, defaultLimit, reductionSearchText,
-    sendPushToAdmin,
-    pdDDMMHHMM,
-} = require('../module/const');
+const {checkFloat, reductionSearch, unawaited, isNotEmpty, generateUniqueNumber, checkDate, dayStartDefault, defaultLimit, reductionSearchText, pdDDMMHHMM} = require('../module/const');
 const {checkAdss} = require('../graphql/adsAzyk');
 const SpecialPriceClientAzyk = require('../models/specialPriceClientAzyk');
 const { v1: uuidv1 } = require('uuid');

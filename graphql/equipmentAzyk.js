@@ -4,7 +4,7 @@ const ExcelJS = require('exceljs');
 const randomstring = require('randomstring');
 const path = require('path');
 const fs = require('fs');
-const {urlMain, saveImage, reductionSearch, isNotEmpty, defaultLimit, reductionSearchText} = require('../module/const');
+const {urlMain, saveImage, reductionSearch, isNotEmpty, defaultLimit, reductionSearchText, saveBase64ToFile} = require('../module/const');
 const app = require('../app');
 const ClientAzyk = require('../models/clientAzyk');
 const EmploymentAzyk = require('../models/employmentAzyk');
@@ -225,8 +225,7 @@ const resolversMutation = {
                 object.agentsHistory = [...object.agentsHistory, {agent, date: new Date()}]
            }
             if (image) {
-                let {stream, filename} = await image;
-                object.image = urlMain + await saveImage(stream, filename)
+                object.image = urlMain + await saveBase64ToFile(image)
            }
             await object.save();
        }

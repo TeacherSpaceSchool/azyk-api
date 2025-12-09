@@ -1,5 +1,5 @@
 const ContactAzyk = require('../models/contactAzyk');
-const {saveImage, deleteFile, urlMain} = require('../module/const');
+const {saveImage, deleteFile, urlMain, saveBase64ToFile} = require('../module/const');
 
 const type = `
   type Contact {
@@ -34,10 +34,9 @@ const resolversMutation = {
         if(user.role==='admin') {
             let object = await ContactAzyk.findOne()
             if (image) {
-                let {stream, filename} = await image;
                 // eslint-disable-next-line no-undef
                 const [savedFilename] = await Promise.all([
-                    saveImage(stream, filename),
+                    saveBase64ToFile(image),
                     deleteFile(object.image)
                 ])
                 object.image = urlMain + savedFilename

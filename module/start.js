@@ -1,12 +1,7 @@
 const {createAdmin} = require('../module/user');
 const {Worker, isMainThread} = require('worker_threads');
-const {reductionBannersAzyk} = require('./banners');
-const {reductionIntegrate1C} = require('./integrate1C');
-const {reductionDistrict} = require('./district');
-const {mockConsigFlow} = require('./consigFlow');
-const {reductionClientAzyk} = require('./client');
-const {reductionOrderAzyk} = require('./order');
-const {reductionAdsAzyk} = require('./ads');
+const {reductionInvoices} = require('./order');
+const {reductionReturneds} = require('./returned');
 
 let startDeleteBD = async () => {
     if(isMainThread) {
@@ -76,11 +71,8 @@ let start = async () => {
     await startOutXMLShoroAzyk();
     await startDeleteBD();
     //reductions
-    await reductionBannersAzyk()
-    await reductionIntegrate1C()
-    await reductionDistrict()
-    await reductionClientAzyk()
-    await reductionAdsAzyk()
+    await reductionReturneds()
+    await reductionInvoices()
     //mock
     //**/await mockConsigFlow()
     //watcher

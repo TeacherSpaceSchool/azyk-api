@@ -1,9 +1,9 @@
-const InvoiceAzyk = require('../models/invoiceAzyk');
+const ReturnedAzyk = require('../models/returnedAzyk');
 const {parallelBulkWrite} = require('./parallel');
 const {dayStartDefault} = require('./const');
 
-module.exports.reductionInvoices = async () => {
-    const invoices = await InvoiceAzyk.aggregate([
+module.exports.reductionReturneds = async () => {
+    const returneds = await ReturnedAzyk.aggregate([
         {
             $addFields: {
                 deliveryHourLocal: {
@@ -22,14 +22,14 @@ module.exports.reductionInvoices = async () => {
             }
         }
     ]);
-    console.log(`reductionInvoices ${invoices.length}`)
-    if(invoices.length) {
+    console.log(`reductionReturneds ${returneds.length}`)
+    if(returneds.length) {
         const bulkOperations = [];
-        for(const invoice of invoices) {
-            const dateDelivery = new Date(invoice.dateDelivery)
+        for(const returned of returneds) {
+            const dateDelivery = new Date(returned.dateDelivery)
             dateDelivery.setHours(dayStartDefault, 0, 0, 0)
-            bulkOperations.push({updateOne: {filter: {_id: invoice._id}, update: {$set: {dateDelivery}}}});
+            bulkOperations.push({updateOne: {filter: {_id: returned._id}, update: {$set: {dateDelivery}}}});
         }
-        await parallelBulkWrite(InvoiceAzyk, bulkOperations);
+        await parallelBulkWrite(ReturnedAzyk, bulkOperations);
     }
 }

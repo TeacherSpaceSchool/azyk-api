@@ -1,6 +1,6 @@
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const ItemAzyk = require('../models/itemAzyk');
-const {saveImage, deleteFile, urlMain, reductionSearchText, isNotEmpty, unawaited} = require('../module/const');
+const {saveImage, deleteFile, urlMain, reductionSearchText, isNotEmpty, unawaited, saveBase64ToFile} = require('../module/const');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const {addHistory, historyTypes} = require('../module/history');
 
@@ -73,8 +73,7 @@ const resolversMutation = {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
             if(user.organization) organization = user.organization
             organization = await OrganizationAzyk.findById(organization).select('_id name cities').lean()
-            let {stream, filename} = await image;
-            image = urlMain + await saveImage(stream, filename)
+            image = urlMain + await saveBase64ToFile(image)
             // eslint-disable-next-line no-undef
             const createdObject = await SubBrandAzyk.create({
                 image, guid, priotiry, minimumOrder, miniInfo, organization: organization._id, cities: organization.cities, name, status: 'active'
@@ -91,10 +90,9 @@ const resolversMutation = {
             })
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'SubBrandAzyk', name: object.name, object: _id, data: {image, minimumOrder, miniInfo, priotiry, name}}))
             if (image) {
-                let {stream, filename} = await image;
                 // eslint-disable-next-line no-undef
                 const [savedFilename] = await Promise.all([
-                    saveImage(stream, filename),
+                    saveBase64ToFile(image),
                     deleteFile(object.image)
                 ])
                 object.image = urlMain + savedFilename

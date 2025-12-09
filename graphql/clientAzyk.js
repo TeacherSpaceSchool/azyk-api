@@ -5,7 +5,8 @@ const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const {
-    deleteFile, urlMain, saveImage, reductionSearch, isNotEmpty, checkDate, unawaited, dayStartDefault, defaultLimit, reductionSearchText
+    deleteFile, urlMain, saveImage, reductionSearch, isNotEmpty, checkDate, unawaited, dayStartDefault, defaultLimit, reductionSearchText,
+    saveBase64ToFile
 } = require('../module/const');
 const mongoose = require('mongoose')
 const { v1: uuidv1 } = require('uuid');
@@ -244,8 +245,7 @@ const resolversMutation = {
                 category
            });
             if(image) {
-                let {stream, filename} = await image;
-                image = urlMain + await saveImage(stream, filename)
+                image = urlMain + await saveBase64ToFile(image)
            }
             const createdObject = await ClientAzyk.create({
                 status: 'active',
@@ -280,10 +280,9 @@ const resolversMutation = {
             let object = await ClientAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'ClientAzyk', name: object.name, object: _id, data: {image, name, email, address, info, inn, newPass, phone, login, city, device, category}}))
             if (image) {
-                let {stream, filename} = await image;
                 // eslint-disable-next-line no-undef
                 const [savedFilename] = await Promise.all([
-                    saveImage(stream, filename),
+                    saveBase64ToFile(image),
                     deleteFile(object.image)
                 ])
                 object.image = urlMain + savedFilename

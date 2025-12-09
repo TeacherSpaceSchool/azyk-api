@@ -7,7 +7,8 @@ const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const BasketAzyk = require('../models/basketAzyk');
 const {
-    saveImage, saveFile, deleteFile, urlMain, isTestUser, isNotTestUser, isNotEmpty, unawaited, reductionSearchText
+    saveImage, saveFile, deleteFile, urlMain, isTestUser, isNotTestUser, isNotEmpty, unawaited, reductionSearchText,
+    saveBase64ToFile
 } = require('../module/const');
 const {deleteOrganizations} = require('../module/organizations');
 const {addHistory, historyTypes} = require('../module/history');
@@ -230,8 +231,7 @@ const resolvers = {
 const resolversMutation = {
     addOrganization: async(parent, {cities, requisites, catalog, addedClient, agentSubBrand, clientSubBrand, autoAcceptAgent, autoAcceptNight, clientDuplicate, calculateStock, calculateConsig, divideBySubBrand, divideBySubBrand1C, dateDelivery, pass, warehouse, superagent, unite, miniInfo, priotiry, info, phone, email, address, image, name, minimumOrder, agentHistory, refusal, onlyDistrict, onlyIntegrate}, {user}) => {
         if(user.role==='admin') {
-            let {stream, filename} = await image;
-            image = urlMain + await saveImage(stream, filename)
+            image = urlMain + await saveBase64ToFile(image)
             if(catalog) {
                 let {stream, filename} = await catalog;
                 catalog = urlMain + await saveFile(stream, filename)
@@ -280,10 +280,9 @@ const resolversMutation = {
             let object = await OrganizationAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'OrganizationAzyk', name: object.name, object: _id, data: args}))
             if (image) {
-                let {stream, filename} = await image;
                 // eslint-disable-next-line no-undef
                 const [savedFilename] = await Promise.all([
-                    saveImage(stream, filename),
+                    saveBase64ToFile(image),
                     deleteFile(object.image)
                 ])
                 object.image = urlMain + savedFilename

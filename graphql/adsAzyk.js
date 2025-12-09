@@ -1,7 +1,7 @@
 const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const {saveImage, deleteFile, urlMain, isNotTestUser, isNotEmpty, defaultLimit, reductionSearchText} = require('../module/const');
+const {saveImage, deleteFile, urlMain, isNotTestUser, isNotEmpty, defaultLimit, reductionSearchText, saveBase64ToFile} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
 const ClientWithoutAdsAzyk = require('../models/clientWithoutAdsAzyk');
 
@@ -174,8 +174,7 @@ const resolvers = {
 const resolversMutation = {
     addAds: async(parent, {xid, image, url, title, organization, item, count, targetPrice, paymentMethods}, {user}) => {
         if(['суперорганизация', 'организация', 'admin'].includes(user.role)) {
-            let {stream, filename} = await image;
-            image = urlMain + await saveImage(stream, filename)
+            image = urlMain + await saveBase64ToFile(image)
             // eslint-disable-next-line no-undef
             let [createdObject, itemData] = await Promise.all([
                 AdsAzyk.create({
@@ -191,10 +190,9 @@ const resolversMutation = {
             let object = await AdsAzyk.findById(_id)
             if(item) object.item = item
             if (image) {
-                let {stream, filename} = await image;
                 // eslint-disable-next-line no-undef
                 const [savedFilename] = await Promise.all([
-                    saveImage(stream, filename),
+                    saveBase64ToFile(image),
                     deleteFile(object.image)
                 ])
                 object.image = urlMain + savedFilename

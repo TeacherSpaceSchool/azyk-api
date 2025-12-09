@@ -3,11 +3,14 @@ const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const randomstring = require('randomstring');
-const {checkFloat, reductionSearch, isNotEmpty, checkDate, dayStartDefault, defaultLimit, reductionSearchText} = require('../module/const');
+const {checkFloat, reductionSearch, isNotEmpty, checkDate, dayStartDefault, defaultLimit, reductionSearchText,
+    pdDDMMHHMM
+} = require('../module/const');
 const RELOAD_RETURNED = 'RELOAD_RETURNED';
 const mongoose = require('mongoose');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const { v1: uuidv1 } = require('uuid');
+const ModelsErrorAzyk = require('../models/errorAzyk');
 
 const type = `
   type ReturnedItems {
@@ -327,6 +330,19 @@ const setReturned = async ({items, returned, confirmationForwarder, cancelForwar
 
 const resolversMutation = {
     addReturned: async(parent, {info, dateDelivery, unite, address, organization, client, items, inv}, {user}) => {
+        /*костыль*/
+        if(dateDelivery.getHours()!==dayStartDefault) {
+            await ModelsErrorAzyk.create({
+                err: `доставка не верна dateDelivery ${pdDDMMHHMM(dateDelivery)} equal ${dateDelivery.getHours()===dayStartDefault} `+
+                    `dayStartDefault ${dayStartDefault} dateDelivery.getHours ${dateDelivery.getHours()} `+
+                    `new Date(dateDelivery).getHours ${(new Date(dateDelivery)).getHours()} `+
+                    `typeof dateDelivery ${typeof dateDelivery} dateDelivery instanceof Date ${dateDelivery instanceof Date} `+
+                    `typeof dateDelivery.getHours ${typeof dateDelivery.getHours()} `,
+                path: 'addReturned'
+            })
+            dateDelivery = new Date(dateDelivery)
+            dateDelivery.setHours(dayStartDefault, 0, 0, 0)
+        }
         //фильтруем нулевые значения
         items = items.filter(item => item.count)
         //проверка на подбренд

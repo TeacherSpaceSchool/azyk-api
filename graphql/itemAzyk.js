@@ -4,7 +4,7 @@ const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
 const BasketAzyk = require('../models/basketAzyk');
 const mongoose = require('mongoose');
-const {saveImage, deleteFile, urlMain, reductionSearchText, isNotEmpty, unawaited} = require('../module/const');
+const {saveImage, deleteFile, urlMain, reductionSearchText, isNotEmpty, unawaited, saveBase64ToFile} = require('../module/const');
 const {addHistory, historyTypes} = require('../module/history');
 
 // OLD
@@ -122,8 +122,7 @@ const resolvers = {
 const resolversMutation = {
     addItem: async(parent, {subBrand, categorys, city, unit, apiece, priotiry, name, image, price, organization, hit, latest, packaging, weight}, {user}) => {
         if(['admin', 'суперорганизация', 'организация'].includes(user.role)) {
-            let {stream, filename} = await image;
-            image = urlMain + await saveImage(stream, filename)
+            image = urlMain + await saveBase64ToFile(image)
             const createdObject = await ItemAzyk.create({
                 name,
                 image,
@@ -153,10 +152,9 @@ const resolversMutation = {
             })
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'ItemAzyk', name: object.name, object: _id, data: {subBrand, city, unit, categorys, apiece, priotiry, weight, name, image, price, organization, packaging, hit, latest}}))
             if (image) {
-                let {stream, filename} = await image;
                 // eslint-disable-next-line no-undef
                 const [savedFilename] = await Promise.all([
-                    saveImage(stream, filename),
+                    saveBase64ToFile(image),
                     deleteFile(object.image)
                 ])
                 object.image = urlMain + savedFilename
