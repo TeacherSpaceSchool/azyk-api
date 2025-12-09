@@ -3,7 +3,6 @@ const SubBrandAzyk = require('../models/subBrandAzyk');
 const InvoiceAzyk = require('../models/invoiceAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const DistrictAzyk = require('../models/districtAzyk');
-///const BasketAzyk = require('../models/basketAzyk');
 const ItemAzyk = require('../models/itemAzyk');
 const ClientAzyk = require('../models/clientAzyk');
 const mongoose = require('mongoose');
@@ -22,7 +21,6 @@ const SpecialPriceCategory = require('../models/specialPriceCategoryAzyk');
 const {calculateConsig} = require('../module/consigFlow');
 const SingleOutXMLAzyk = require('../models/singleOutXMLAzyk');
 const ModelsErrorAzyk = require('../models/errorAzyk');
-const BasketAzyk = require('../models/basketAzyk');
 
 const type = `
   type Order {
@@ -808,15 +806,6 @@ const resolversMutation = {
         /*костыль*/
         if(!baskets) {
             await ModelsErrorAzyk.create({err: `baskets1=null args ${JSON.stringify({client, baskets, stamp: !!stamp})} user ${user.role} ${user.name}`, path: 'addOrders'})
-            baskets = await BasketAzyk.find(user.client? {client: user.client} : {agent: user.employment}).select('item count _id').lean()
-            baskets = baskets.filter(basket => basket.count)
-            baskets = baskets.map(basket => {return {_id: basket.item, count: basket.count}})
-            // Удаляем использованные корзины
-            await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
-            if(!baskets.length) {
-                baskets = null
-                await ModelsErrorAzyk.create({err: `baskets2=null baskets ${JSON.stringify(baskets)}`, path: 'addOrders'})
-            }
         }
         // Проверка деления по суббрендам
         // Получаем корзины пользователя (агента или клиента)
@@ -1073,8 +1062,6 @@ const resolversMutation = {
                 }
                 //публикация и подсчет остатков
                 unawaited(async() => {
-                    // Удаляем использованные корзины
-                    await BasketAzyk.deleteMany({_id: {$in: baskets.map(basket=>basket._id)}})
                     // Получаем финальный счёт для публикации
                     let newInvoice = await InvoiceAzyk.findById(objectInvoice._id)
                         .select(' _id agent createdAt updatedAt allTonnage client allPrice rejectedPrice info address paymentMethod discount adss editor number confirmationForwarder confirmationClient cancelClient district track forwarder organization cancelForwarder taken sync city dateDelivery')
