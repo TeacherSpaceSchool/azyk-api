@@ -777,18 +777,7 @@ const resolversMutation = {
     },
     addOrders: async(parent, {stamp, dateDelivery, info, paymentMethod, organization, client, inv, unite, baskets}, {user}) => {
         /*костыль*/
-        if(dateDelivery.getHours()!==dayStartDefault) {
-            await ModelsErrorAzyk.create({
-                err: `доставка не верна dateDelivery ${pdDDMMHHMM(dateDelivery)} equal ${dateDelivery.getHours()===dayStartDefault} `+
-                    `dayStartDefault ${dayStartDefault} dateDelivery.getHours ${dateDelivery.getHours()} `+
-                    `new Date(dateDelivery).getHours ${(new Date(dateDelivery)).getHours()} `+
-                    `typeof dateDelivery ${typeof dateDelivery} dateDelivery instanceof Date ${dateDelivery instanceof Date} `+
-                    `typeof dateDelivery.getHours ${typeof dateDelivery.getHours()} `,
-                path: 'addOrders'
-            })
-            dateDelivery = new Date(dateDelivery)
-            dateDelivery.setHours(dayStartDefault, 0, 0, 0)
-        }
+        dateDelivery.setHours(dayStartDefault, 0, 0, 0)
         //штамп
         if(stamp&&(await InvoiceAzyk.findOne({stamp}).select('_id').lean()))
             return

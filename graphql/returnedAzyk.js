@@ -133,6 +133,8 @@ const resolvers = {
                 district?DistrictAzyk.findById(district).distinct('client'):['агент', 'менеджер', 'суперагент'].includes(user.role)?DistrictAzyk.find({$or: [{manager: user.employment}, {agent: user.employment}]}).distinct('client'):null,
                 forwarder?DistrictAzyk.find({forwarder}).distinct('client'):null,
             ])
+            //dateDelivery
+            if(dateDelivery) dateDelivery.setHours(dayStartDefault, 0, 0, 0)
             //возвраты
             let returneds = await ReturnedAzyk.find({
                 //не удален
@@ -331,18 +333,7 @@ const setReturned = async ({items, returned, confirmationForwarder, cancelForwar
 const resolversMutation = {
     addReturned: async(parent, {info, dateDelivery, unite, address, organization, client, items, inv}, {user}) => {
         /*костыль*/
-        if(dateDelivery.getHours()!==dayStartDefault) {
-            await ModelsErrorAzyk.create({
-                err: `доставка не верна dateDelivery ${pdDDMMHHMM(dateDelivery)} equal ${dateDelivery.getHours()===dayStartDefault} `+
-                    `dayStartDefault ${dayStartDefault} dateDelivery.getHours ${dateDelivery.getHours()} `+
-                    `new Date(dateDelivery).getHours ${(new Date(dateDelivery)).getHours()} `+
-                    `typeof dateDelivery ${typeof dateDelivery} dateDelivery instanceof Date ${dateDelivery instanceof Date} `+
-                    `typeof dateDelivery.getHours ${typeof dateDelivery.getHours()} `,
-                path: 'addReturned'
-            })
-            dateDelivery = new Date(dateDelivery)
-            dateDelivery.setHours(dayStartDefault, 0, 0, 0)
-        }
+        dateDelivery.setHours(dayStartDefault, 0, 0, 0)
         //фильтруем нулевые значения
         items = items.filter(item => item.count)
         //проверка на подбренд
