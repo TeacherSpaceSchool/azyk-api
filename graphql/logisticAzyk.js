@@ -6,7 +6,6 @@ const {checkFloat, dayStartDefault, getClientTitle, isNotEmpty} = require('../mo
 const ReturnedAzyk = require('../models/returnedAzyk');
 const StockAzyk = require('../models/stockAzyk');
 const ConsigFlowAzyk = require('../models/consigFlowAzyk');
-const SettedSummaryAdsAzyk = require('../models/settedSummaryAdsAzyk');
 
 const unknownForwarder = {_id: 'null', name: 'Не указан'}
 
@@ -21,10 +20,6 @@ const query = `
     financeReport(organization: ID!, track: Int, forwarder: ID!, dateDelivery: Date!): FinanceReport
     summaryInvoice(organization: ID!, track: Int!, forwarder: ID!, dateDelivery: Date!): [[String]]
     summaryAdss(organization: ID!, track: Int, agent: ID, forwarder: ID, dateDelivery: Date!): [[String]]
-`;
-
-const mutation = `
-    setSettedSummaryAds(item: ID!, count: Int!, forwarder: ID!, organization: ID!, dateDelivery: Date!): String
 `;
 
 const resolvers = {
@@ -188,22 +183,15 @@ const resolvers = {
             ])
             if(user.organization) organization = user.organization
             // eslint-disable-next-line no-undef
-            const [invoices, districts, settedSummaryAdss] = await Promise.all([
+            const [invoices, districts] = await Promise.all([
                 InvoiceAzyk.find({
                     /*не удален*/ del: {$ne: 'deleted'}, /*dateDelivery*/dateDelivery, /*organization*/organization, /*только принят*/taken: true,
                     /*агент*/...agent?{client: {$in: agentClients}}:{}, /*рейс*/...track?{track}:{},
                     /*экспедитор*/...forwarder?{$or: [{forwarder}, {forwarder: null, client: {$in: forwarderClients}}]}:{},
                 }).select('client adss forwarder').populate({path: 'forwarder', select: '_id name'}).populate({path: 'client', select: '_id name address'})
-                    .populate({path: 'adss', select: 'item count', populate: {path : 'item', select: '_id name packaging weight'}}).lean(),
-                DistrictAzyk.find({organization}).populate({path: 'forwarder', select: '_id name'}).lean(),
-                SettedSummaryAdsAzyk.find({dateDelivery, organization, ...forwarder?{forwarder}:{}}).lean()
+                    .populate({path: 'adss', select: 'item count', populate: {path : 'item', select: '_id name price packaging weight'}}).lean(),
+                DistrictAzyk.find({organization}).populate({path: 'forwarder', select: '_id name'}).lean()
             ])
-            //settedSummaryAdsByItemForwarder
-            const settedSummaryAdsByItemForwarder = {}
-            for(const settedSummaryAds of settedSummaryAdss) {
-                const settedSummaryAdsId = `${settedSummaryAds.forwarder}${settedSummaryAds.item}`
-                settedSummaryAdsByItemForwarder[settedSummaryAdsId] = settedSummaryAds.count
-            }
             //forwarderByClient
             const forwarderByClient = {}
             for(const district of districts) {
@@ -235,14 +223,9 @@ const resolvers = {
                 const parsedSummaryAdsItems = Object.values(summaryAds.items)
                 for(const parsedSummaryAdsItem of parsedSummaryAdsItems) {
                     let count = parsedSummaryAdsItem.count
-                    if(!forwarder) {
-                        const settedSummaryAdsId = `${summaryAds._id}${parsedSummaryAdsItem._id}`
-                        if(isNotEmpty(settedSummaryAdsByItemForwarder[settedSummaryAdsId]))
-                            count = settedSummaryAdsByItemForwarder[settedSummaryAdsId]
-                    }
                     parsedSummaryAds.push([
                         summaryAds.name, parsedSummaryAdsItem.name, checkFloat(count), checkFloat(count/(parsedSummaryAdsItem.packaging||1)),
-                        checkFloat(parsedSummaryAdsItem.weight*count), summaryAds._id, parsedSummaryAdsItem._id
+                        checkFloat(parsedSummaryAdsItem.price*count), checkFloat(parsedSummaryAdsItem.weight*count), summaryAds._id
                     ])
                 }
                 return parsedSummaryAds
@@ -254,34 +237,6 @@ const resolvers = {
     },
 };
 
-const resolversMutation = {
-    setSettedSummaryAds: async(parent, {item, count, forwarder, organization, dateDelivery}, {user}) => {
-        if(['суперорганизация', 'организация', 'admin', 'менеджер'].includes(user.role)) {
-            //organization
-            if(user.organization) organization = user.organization
-            //dateDelivery
-            dateDelivery.setHours(dayStartDefault, 0, 0, 0)
-            //settedSummaryAds
-            const settedSummaryAds = await SettedSummaryAdsAzyk.findOne({item, dateDelivery, organization, forwarder})
-            if(settedSummaryAds) {
-                settedSummaryAds.count = count
-                await settedSummaryAds.save()
-            }
-            else
-                await SettedSummaryAdsAzyk.create({
-                    dateDelivery,
-                    organization,
-                    forwarder,
-                    item,
-                    count
-                })
-            return 'OK'
-        }
-    }
-};
-
 module.exports.type = type;
 module.exports.query = query;
 module.exports.resolvers = resolvers;
-module.exports.mutation = mutation;
-module.exports.resolversMutation = resolversMutation;

@@ -1,9 +1,8 @@
 const AdsAzyk = require('../models/adsAzyk');
 const OrganizationAzyk = require('../models/organizationAzyk');
 const SubBrandAzyk = require('../models/subBrandAzyk');
-const {saveImage, deleteFile, urlMain, isNotTestUser, isNotEmpty, defaultLimit, reductionSearchText, saveBase64ToFile} = require('../module/const');
+const {deleteFile, urlMain, isNotTestUser, isNotEmpty, defaultLimit, reductionSearchText, saveBase64ToFile} = require('../module/const');
 const ItemAzyk = require('../models/itemAzyk');
-const ClientWithoutAdsAzyk = require('../models/clientWithoutAdsAzyk');
 
 const type = `
   type Ads {
