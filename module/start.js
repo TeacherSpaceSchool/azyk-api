@@ -2,6 +2,7 @@ const {createAdmin} = require('../module/user');
 const {Worker, isMainThread} = require('worker_threads');
 const {reductionInvoices} = require('./order');
 const {reductionReturneds} = require('./returned');
+const {dumpDB} = require('./backup');
 
 let startDeleteBD = async () => {
     if(isMainThread) {
@@ -73,6 +74,8 @@ let start = async () => {
     //reductions
     await reductionReturneds()
     await reductionInvoices()
+
+    await dumpDB()
     //mock
     //**/await mockConsigFlow()
     //watcher

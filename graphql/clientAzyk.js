@@ -5,8 +5,7 @@ const DistrictAzyk = require('../models/districtAzyk');
 const AgentRouteAzyk = require('../models/agentRouteAzyk');
 const Integrate1CAzyk = require('../models/integrate1CAzyk');
 const {
-    deleteFile, urlMain, saveImage, reductionSearch, isNotEmpty, checkDate, unawaited, dayStartDefault, defaultLimit, reductionSearchText,
-    saveBase64ToFile
+    deleteFile, urlMain, reductionSearch, isNotEmpty, checkDate, unawaited, dayStartDefault, defaultLimit, reductionSearchText, saveBase64ToFile
 } = require('../module/const');
 const mongoose = require('mongoose')
 const { v1: uuidv1 } = require('uuid');
@@ -275,8 +274,10 @@ const resolversMutation = {
    },
     setClient: async(parent, {_id, image, name, email, address, info, inn, newPass, phone, login, city, device, category, network}, {user}) => {
         if(
-            ['суперорганизация', 'организация', 'агент', 'admin', 'суперагент', 'экспедитор'].includes(user.role)
+            ['суперорганизация', 'организация', 'агент', 'admin', 'суперагент', 'экспедитор', 'client'].includes(user.role)
         ) {
+            if(user.role==='client')
+                _id = user.client
             let object = await ClientAzyk.findById(_id)
             unawaited(() => addHistory({user, type: historyTypes.set, model: 'ClientAzyk', name: object.name, object: _id, data: {image, name, email, address, info, inn, newPass, phone, login, city, device, category}}))
             if (image) {
